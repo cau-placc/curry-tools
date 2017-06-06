@@ -12,18 +12,19 @@ import Directory    ( doesFileExist, getAbsolutePath, doesDirectoryExist
                     , renameFile, removeFile, setCurrentDirectory )
 import Distribution ( stripCurrySuffix, addCurrySubdir )
 import Either
-import FilePath     ( (</>), splitSearchPath, takeExtension )
+import FilePath     ( (</>), splitSearchPath, replaceExtension, takeExtension )
 import IO           ( hFlush, stdout )
-import List         ( groupBy, intercalate, nub, split, splitOn )
+import List         ( groupBy, intercalate, isSuffixOf, nub, split, splitOn )
 import Sort         ( sortBy )
-import System       ( getArgs, getEnviron, setEnviron, unsetEnviron, exitWith )
+import System       ( getArgs, getEnviron, setEnviron, unsetEnviron, exitWith
+                    , system )
 
 import Boxes (table, render)
 import OptParse
 import CPM.ErrorLogger
 import CPM.FileUtil ( fileInPath, joinSearchPath, safeReadFile, whenFileExists
                     , ifFileExists, inDirectory, removeDirectoryComplete
-                    , copyDirectory )
+                    , copyDirectory, quote )
 import CPM.Config   ( Config (..)
                     , readConfigurationWithDefault, showCompilerVersion )
 import CPM.PackageCache.Global ( GlobalCache, readInstalledPackagesFromDir
@@ -45,7 +46,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 01/06/2017)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 06/06/2017)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -99,7 +100,7 @@ runWithArgs opts = do
               _ -> do globalCache <- getGlobalCache config repo
                       case optCommand opts of
                         Deps         -> deps         config repo globalCache
-                        PkgInfo o    -> info       o config repo globalCache
+                        PkgInfo o    -> infoCmd    o config repo globalCache
                         Checkout o   -> checkout   o config repo globalCache
                         InstallApp o -> installapp o config repo globalCache
                         Install o    -> install    o config repo globalCache
@@ -206,8 +207,10 @@ data CompilerOptions = CompilerOptions
   { comCommand :: String }
 
 data DocOptions = DocOptions
-  { docDir     :: Maybe String     -- documentation directory
-  , docModules :: Maybe [String]   -- modules to be documented
+  { docDir      :: Maybe String    -- documentation directory
+  , docModules  :: Maybe [String]  -- modules to be documented
+  , docPrograms :: Bool            -- generate documentation for programs
+  , docManual   :: Bool            -- generate manual (if specified)
   }
 
 data TestOptions = TestOptions
@@ -283,7 +286,7 @@ compOpts s = case optCommand s of
 docOpts :: Options -> DocOptions
 docOpts s = case optCommand s of
   Doc opts -> opts
-  _        -> DocOptions Nothing Nothing
+  _        -> DocOptions Nothing Nothing True True
 
 testOpts :: Options -> TestOptions
 testOpts s = case optCommand s of
@@ -513,6 +516,18 @@ optionParser = optParser
           <> help ("The modules to be documented, " ++
                    "separate multiple modules by comma")
           <> optional )
+    <.> flag (\a -> Right $ a { optCommand = Doc (docOpts a)
+                                               { docManual = False } })
+          (  short "p"
+          <> long "programs"
+          <> help "Generate only program documentation (with CurryDoc)"
+          <> optional )
+    <.> flag (\a -> Right $ a { optCommand = Doc (docOpts a)
+                                               { docPrograms = False } })
+          (  short "t"
+          <> long "text"
+          <> help "Generate only manual (according to package specification)"
+          <> optional )
 
   testArgs =
     option (\s a -> Right $ a { optCommand = Test (testOpts a)
@@ -625,22 +640,22 @@ deps cfg repo gc =
   resolveDependencies cfg repo gc specDir |>= \result ->
   putStrLn (showResult result) >> succeedIO ()
 
-info :: InfoOptions -> Config -> Repository -> GlobalCache
+infoCmd :: InfoOptions -> Config -> Repository -> GlobalCache
      -> IO (ErrorLogger ())
-info (InfoOptions Nothing Nothing allinfos plain) _ _ gc =
+infoCmd (InfoOptions Nothing Nothing allinfos plain) _ _ gc =
   tryFindLocalPackageSpec "." |>= \specDir ->
   loadPackageSpec specDir |>= printInfo allinfos plain gc
-info (InfoOptions (Just pkg) Nothing allinfos plain) cfg repo gc =
+infoCmd (InfoOptions (Just pkg) Nothing allinfos plain) cfg repo gc =
   case findLatestVersion cfg repo pkg False of
    Nothing -> failIO $
                 "Package '" ++ pkg ++ "' not found in package repository."
    Just p  -> printInfo allinfos plain gc p
-info (InfoOptions (Just pkg) (Just v) allinfos plain) _ repo gc =
+infoCmd (InfoOptions (Just pkg) (Just v) allinfos plain) _ repo gc =
  case findVersion repo pkg v of
-   Nothing -> failIO $ "Package '" ++ pkg ++ "-" ++ (showVersion v) ++
+   Nothing -> failIO $ "Package '" ++ pkg ++ "-" ++ showVersion v ++
                        "' not found in package repository."
    Just p  -> printInfo allinfos plain gc p
-info (InfoOptions Nothing (Just _) _ _) _ _ _ =
+infoCmd (InfoOptions Nothing (Just _) _ _) _ _ _ =
   failIO "Must specify package name"
 
 printInfo :: Bool -> Bool -> GlobalCache -> Package
@@ -952,6 +967,7 @@ addCmd (AddOptions pkgdir force) config = do
 
   useForce = "Use option '-f' or '--force' to overwrite it."
 
+------------------------------------------------------------------------------
 --- `doc` command: run `curry doc` on the modules provided as an argument
 --- or, if they are not given, on exported modules (if specified in the
 --- package), on the main executable (if specified in the package),
@@ -961,33 +977,91 @@ docCmd :: DocOptions -> Config -> IO (Repository,GlobalCache)
 docCmd opts cfg getRepoGC =
   tryFindLocalPackageSpec "." |>= \specDir ->
   loadPackageSpec specDir |>= \pkg -> do
-    checkCompiler cfg pkg
-    let docdir  = maybe "cdoc" id (docDir opts)
-        exports = exportedModules pkg
-        mainmod = maybe Nothing
-                        (\ (PackageExecutable _ emain _) -> Just emain)
-                        (executableSpec pkg)
-    (docmods,apidoc) <-
-       maybe (if null exports
-                then maybe (curryModulesInDir (specDir </> "src") >>=
-                            \ms -> return (ms,True))
-                           (\m -> return ([m],False))
-                           mainmod
-                else return (exports,True))
-             (\ms -> return (ms,True))
-             (docModules opts)
-    if null docmods
-      then putStrLn "No modules to be documented!" >> succeedIO ()
-      else
-        if apidoc
-          then foldEL (\_ -> docModule specDir docdir) () docmods |>
-               runDocCmd specDir
-                         ([currydoc, "--title", apititle pkg, "--onlyindexhtml",
-                           docdir] ++ docmods) |>
-               log Info ("Documentation generated in '"++docdir++"'")
-          else runDocCmd specDir [currydoc, docdir, head docmods]
+  let docdir = maybe "cdoc" id (docDir opts)
+  absdocdir <- getAbsolutePath docdir
+  createDirectoryIfMissing True absdocdir
+  (if docManual opts then genPackageManual opts cfg getRepoGC pkg absdocdir
+                     else succeedIO ()) |>
+    (if docPrograms opts then genDocForPrograms opts cfg getRepoGC specDir pkg
+                         else succeedIO ())
+
+--- Generate manual according to  documentation specification of package.
+genPackageManual :: DocOptions -> Config -> IO (Repository,GlobalCache)
+                 -> Package -> String -> IO (ErrorLogger ())
+genPackageManual _ _ _ pkg outputdir = case documentation pkg of
+    Nothing -> succeedIO ()
+    Just (PackageDocumentation docdir docmain doccmd) -> do
+      let formatcmd = replaceSubString "OUTDIR" outputdir $
+                        if null doccmd then formatCmd docmain
+                                       else doccmd
+      if null formatcmd
+        then infoMessage $ "Cannot format documentation file '" ++
+                           docmain ++ "' (unknown kind)"
+        else do
+          debugMessage $ "Executing command: " ++ formatcmd
+          inDirectory docdir $ system formatcmd
+          let outfile = outputdir </> replaceExtension docmain ".pdf"
+          system ("chmod -f 644 " ++ quote outfile) -- make it readable
+          infoMessage $ "Package documentation written to '" ++ outfile ++ "'."
+      succeedIO ()
  where
-  apititle pkg = "\"API Documentation of Package '" ++ name pkg ++ "'\""
+  formatCmd docmain
+    | ".tex" `isSuffixOf` docmain
+    = let formatcmd = "pdflatex -output-directory=\"OUTDIR\" " ++ docmain
+      in formatcmd ++ " && " ++ formatcmd
+    | ".md" `isSuffixOf` docmain
+    = "pandoc " ++ docmain ++
+      " -o \"OUTDIR" </> replaceExtension docmain ".pdf" ++ "\""
+    | otherwise = ""
+
+--- Replace every occurrence of the first argument by the second argument
+--- in a string (third argument).
+replaceSubString :: String -> String -> String -> String
+replaceSubString sub newsub s = replString s
+ where
+  sublen = length sub
+
+  replString [] = []
+  replString ccs@(c:cs) =
+    if take sublen ccs == sub
+      then newsub ++ replString (drop sublen ccs)
+      else c : replString cs
+
+--- Generate program documentation:
+--- run `curry doc` on the modules provided as an argument
+--- or, if they are not given, on exported modules (if specified in the
+--- package), on the main executable (if specified in the package),
+--- or on all source modules of the package.
+genDocForPrograms :: DocOptions -> Config -> IO (Repository,GlobalCache)
+                  -> String -> Package -> IO (ErrorLogger ())
+genDocForPrograms opts cfg getRepoGC specDir pkg = do
+  checkCompiler cfg pkg
+  let docdir  = maybe "cdoc" id (docDir opts)
+      exports = exportedModules pkg
+      mainmod = maybe Nothing
+                      (\ (PackageExecutable _ emain _) -> Just emain)
+                      (executableSpec pkg)
+  (docmods,apidoc) <-
+     maybe (if null exports
+              then maybe (curryModulesInDir (specDir </> "src") >>=
+                          \ms -> return (ms,True))
+                         (\m -> return ([m],False))
+                         mainmod
+              else return (exports,True))
+           (\ms -> return (ms,True))
+           (docModules opts)
+  if null docmods
+    then putStrLn "No modules to be documented!" >> succeedIO ()
+    else
+      if apidoc
+        then foldEL (\_ -> docModule specDir docdir) () docmods |>
+             runDocCmd specDir
+                       ([currydoc, "--title", apititle, "--onlyindexhtml",
+                         docdir] ++ docmods) |>
+             log Info ("Documentation generated in '"++docdir++"'")
+        else runDocCmd specDir [currydoc, docdir, head docmods]
+ where
+  apititle = "\"API Documentation of Package '" ++ name pkg ++ "'\""
 
   currydoc = curryExec cfg ++ " doc"
 
@@ -999,6 +1073,8 @@ docCmd opts cfg getRepoGC =
     infoMessage $ "Running CurryDoc: " ++ cmd
     execWithPkgDir (ExecOptions cmd []) cfg getRepoGC pkgdir
 
+
+------------------------------------------------------------------------------
 --- `test` command: run `curry check` on the modules provided as an argument
 --- or, if they are not provided, on the exported (if specified)
 --- or all source modules of the package.
