@@ -8,7 +8,8 @@ import Char         ( toLower )
 import CSV          ( showCSV )
 import Directory    ( doesFileExist, getAbsolutePath, doesDirectoryExist
                     , copyFile, createDirectory, createDirectoryIfMissing
-                    , getDirectoryContents, getModificationTime
+                    , getCurrentDirectory, getDirectoryContents
+                    , getModificationTime
                     , renameFile, removeFile, setCurrentDirectory )
 import Distribution ( stripCurrySuffix, addCurrySubdir )
 import Either
@@ -46,7 +47,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 06/06/2017)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 02/07/2017)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -85,12 +86,13 @@ runWithArgs opts = do
   (msgs, result) <- case optCommand opts of
     NoCommand   -> failIO "NoCommand"
     Update      -> updateRepository config
-    Compiler o  -> compiler o config getRepoGC
-    Exec o      -> exec     o config getRepoGC
-    Doc  o      -> docCmd   o config getRepoGC
-    Test o      -> testCmd  o config getRepoGC
-    Link o      -> linkCmd  o config
-    Add  o      -> addCmd   o config
+    Compiler o  -> compiler  o config getRepoGC
+    Exec o      -> exec      o config getRepoGC
+    Doc  o      -> docCmd    o config getRepoGC
+    Test o      -> testCmd   o config getRepoGC
+    Uninstall o -> uninstall o config getRepoGC
+    Link o      -> linkCmd   o config
+    Add  o      -> addCmd    o config
     Clean       -> cleanPackage Info
     New o       -> newPackage o
     _ -> do repo <- readRepository config
@@ -105,7 +107,6 @@ runWithArgs opts = do
                         InstallApp o -> installapp o config repo globalCache
                         Install o    -> install    o config repo globalCache
                         Diff o       -> diff       o config repo globalCache
-                        Uninstall o  -> uninstall  o config repo globalCache
                         Upgrade o    -> upgrade    o config repo globalCache
                         _ -> error "Internal command processing error!"
   mapIO showLogEntry msgs
@@ -160,7 +161,8 @@ data InstallOptions = InstallOptions
   { instTarget     :: Maybe String
   , instVersion    :: Maybe Version
   , instPrerelease :: Bool
-  , instExecutable :: Bool }
+  , instExecutable :: Bool
+  , instExecOnly   :: Bool }
 
 data UninstallOptions = UninstallOptions
   { uninstPackage :: Maybe String
@@ -231,7 +233,7 @@ checkoutOpts s = case optCommand s of
 installOpts :: Options -> InstallOptions
 installOpts s = case optCommand s of
   Install opts -> opts
-  _            -> InstallOptions Nothing Nothing False True
+  _            -> InstallOptions Nothing Nothing False True False
 
 uninstallOpts :: Options -> UninstallOptions
 uninstallOpts s = case optCommand s of
@@ -351,16 +353,16 @@ optionParser = optParser
   <.> commands (metavar "COMMAND")
         (   command "checkout" (help "Checkout a package.") Right
                     (checkoutArgs Checkout)
-        <|> command "installapp"
-                     (help "Install the application provided by a package.") 
-                     Right
-                     (checkoutArgs InstallApp)
-        <|> command "install" (help "Install a package.")
+        <|> command "install" (help "Install a package with its dependencies.")
                      (\a -> Right $ a { optCommand = Install (installOpts a) })
                      installArgs
-        <|> command "uninstall" (help "Uninstall package")
+        <|> command "uninstall" (help "Uninstall a package")
                  (\a -> Right $ a { optCommand = Uninstall (uninstallOpts a) })
                  uninstallArgs
+        <|> command "installapp"
+                     (help "Install the application provided by a package (depreacted).") 
+                     Right
+                     (checkoutArgs InstallApp)
         <|> command "deps" (help "Calculate dependencies")
                            (\a -> Right $ a { optCommand = Deps }) [] 
         <|> command "clean" (help "Clean the current package")
@@ -441,6 +443,11 @@ optionParser = optParser
           (  short "n"
           <> long "noexec"
           <> help "Do not install executable.")
+    <.> flag (\a -> Right $ a { optCommand = Install (installOpts a)
+                                               { instExecOnly = True } })
+          (  short "x"
+          <> long "exec"
+          <> help "Install executable only (do not re-install dependencies).")
 
   uninstallArgs =
         arg (\s a -> Right $ a { optCommand =
@@ -706,9 +713,30 @@ checkout (CheckoutOptions pkg (Just ver) _) cfg repo gc =
   Just  p -> acquireAndInstallPackageWithDependencies cfg repo gc p |>
              checkoutPackage cfg repo gc p
 
+install :: InstallOptions -> Config -> Repository -> GlobalCache
+        -> IO (ErrorLogger ())
+install (InstallOptions Nothing Nothing _ instexec False) cfg repo gc =
+  tryFindLocalPackageSpec "." |>= \pkgdir ->
+  cleanCurryPathCache pkgdir |>
+  installLocalDependencies cfg repo gc pkgdir |>= \ (pkg,_) ->
+  writePackageConfig cfg pkgdir pkg |>
+  if instexec then installExecutable cfg repo pkg else succeedIO ()
+-- Install executable only:
+install (InstallOptions Nothing Nothing _ _ True) cfg repo _ =
+  tryFindLocalPackageSpec "." |>= \pkgdir ->
+  loadPackageSpec pkgdir |>= \pkg ->
+  installExecutable cfg repo pkg
+install (InstallOptions (Just pkg) vers pre _ _) cfg repo gc = do
+  fileExists <- doesFileExist pkg
+  if fileExists
+    then installFromZip cfg pkg
+    else installapp (CheckoutOptions pkg vers pre) cfg repo gc
+install (InstallOptions Nothing (Just _) _ _ _) _ _ _ =
+  failIO "Must specify package name"
+
 --- Installs the application (i.e., binary) provided by a package.
---- This is done by checking out the package into CPM's bin_packages
---- cache (default: $HOME/.cpm/bin_packages, see bin_package_path
+--- This is done by checking out the package into CPM's application packages
+--- cache (default: $HOME/.cpm/app_packages, see APP_PACKAGE_PATH
 --- in .cpmrc configuration file) and then install this package.
 ---
 --- Internal note: the installed package should not be cleaned or removed
@@ -717,40 +745,24 @@ checkout (CheckoutOptions pkg (Just ver) _) cfg repo gc =
 installapp :: CheckoutOptions -> Config -> Repository -> GlobalCache
            -> IO (ErrorLogger ())
 installapp opts cfg repo gc = do
+  let apppkgdir = appPackageDir cfg
+      copkgdir  = apppkgdir </> coPackage opts
+  curdir <- getCurrentDirectory
   removeDirectoryComplete copkgdir
   debugMessage ("Change into directory " ++ apppkgdir)
   inDirectory apppkgdir
-    (checkout opts cfg repo gc |>
-     log Debug ("Change into directory " ++ copkgdir) |>
-     (setCurrentDirectory copkgdir >> succeedIO ()) |>
-     install (InstallOptions Nothing Nothing False True) cfg repo gc )
- where
-  apppkgdir = appPackageDir cfg
-  copkgdir  = apppkgdir </> coPackage opts
-
-install :: InstallOptions -> Config -> Repository -> GlobalCache
-        -> IO (ErrorLogger ())
-install (InstallOptions Nothing Nothing _ instexec) cfg repo gc =
-  tryFindLocalPackageSpec "." |>= \pkgdir ->
-  cleanCurryPathCache pkgdir |>
-  installLocalDependencies cfg repo gc pkgdir |>= \ (pkg,_) ->
-  writePackageConfig cfg pkgdir pkg |>
-  if instexec then installExecutable cfg repo pkg else succeedIO ()
-install (InstallOptions (Just pkg) Nothing pre _) cfg repo gc = do
-  fileExists <- doesFileExist pkg
-  if fileExists
-    then installFromZip cfg pkg
-    else case findLatestVersion cfg repo pkg pre of
-      Nothing -> failIO $ "Package '" ++ pkg ++
-                          "' not found in package repository."
-      Just  p -> acquireAndInstallPackageWithDependencies cfg repo gc p
-install (InstallOptions (Just pkg) (Just ver) _ _) cfg repo gc =
- case findVersion repo pkg ver of
-  Nothing -> failIO $ "Package '" ++ pkg ++ "-" ++ (showVersion ver) ++
-                      "' not found in package repository."
-  Just  p -> acquireAndInstallPackageWithDependencies cfg repo gc p
-install (InstallOptions Nothing (Just _) _ _) _ _ _ =
-  failIO "Must specify package name"
+    ( checkout opts cfg repo gc |>
+      log Debug ("Change into directory " ++ copkgdir) |>
+      (setCurrentDirectory copkgdir >> succeedIO ()) |>
+      loadPackageSpec "." |>= \pkg ->
+      maybe (setCurrentDirectory curdir >>
+             removeDirectoryComplete copkgdir >>
+             failIO ("Package '" ++ name pkg ++
+                     "' does not contain an executable, nothing installed."))
+            (\_ -> install (InstallOptions Nothing Nothing False True False)
+                           cfg repo gc)
+            (executableSpec pkg)
+    )
 
 --- Checks the compiler compatibility.
 checkCompiler :: Config -> Package -> IO ()
@@ -801,17 +813,28 @@ installExecutable cfg repo pkg =
       else log Info $ "It is recommended to add '" ++bindir++ "' to your path!"
 
 
-uninstall :: UninstallOptions -> Config -> Repository -> GlobalCache
+uninstall :: UninstallOptions -> Config -> IO (Repository,GlobalCache)
           -> IO (ErrorLogger ())
-uninstall (UninstallOptions (Just pkg) (Just ver)) cfg repo gc =
-  uninstallPackage cfg repo gc pkg ver
-uninstall (UninstallOptions (Just _) Nothing) _ _ _ =
+uninstall (UninstallOptions (Just pkgname) (Just ver)) cfg getRepoGC =
+  getRepoGC >>= \ (repo,gc) -> uninstallPackage cfg repo gc pkgname ver
+--- uninstalls an application (i.e., binary) provided by a package:
+uninstall (UninstallOptions (Just pkgname) Nothing) cfg _ = do
+  let copkgdir  = appPackageDir cfg </> pkgname
+  codirexists <- doesDirectoryExist copkgdir
+  if codirexists
+    then loadPackageSpec copkgdir |>= uninstallPackageExecutable cfg |>
+         removeDirectoryComplete copkgdir >>
+         log Info ("Package '" ++ pkgname ++
+                   "' uninstalled from application package cache.")
+    else failIO $ "Package '" ++ pkgname ++ "' is not installed."
+uninstall (UninstallOptions Nothing (Just _)) _ _ =
   log Error "Please provide a package and version number!"
-uninstall (UninstallOptions Nothing (Just _)) _ _ _ =
-  log Error "Please provide a package and version number!"
-uninstall (UninstallOptions Nothing Nothing) cfg _ _ =
+uninstall (UninstallOptions Nothing Nothing) cfg _ =
   tryFindLocalPackageSpec "." |>= \pkgdir ->
-  loadPackageSpec pkgdir |>= \pkg ->
+  loadPackageSpec pkgdir |>= uninstallPackageExecutable cfg
+
+uninstallPackageExecutable :: Config -> Package -> IO (ErrorLogger ())
+uninstallPackageExecutable cfg pkg =
   maybe (succeedIO ())
         (\ (PackageExecutable name _ _) ->
            let binexec = binInstallDir cfg </> name
