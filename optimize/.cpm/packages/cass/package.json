@@ -16,6 +16,10 @@
         "name": "cass",
         "main": "CASS.Main"
     },
+    "documentation": {
+        "src-dir": "docs",
+        "main": "main.tex"
+    },
     "source": {
         "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/cass.git",
         "tag": "$version"
