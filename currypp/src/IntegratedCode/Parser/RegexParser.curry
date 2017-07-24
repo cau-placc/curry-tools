@@ -2,7 +2,7 @@
 --- A Regex Parser
 ---
 --- @author Jasper Sikorra
---- @version January 2014
+--- @version July 2017
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-missing-signatures -Wno-incomplete-patterns #-}
@@ -23,7 +23,7 @@ import ParseTypes
 --- @return A string containg normal curry code with the same semantics as the
 ---         original ERE code
 parse :: LangParser
-parse po st = return (liftPM (\p -> ("`match` (" ++ (showRegex p) ++ ")"))
+parse po st = return (liftPM (\p -> "(" ++ showRegex p ++ ")")
                              (parsen po (lex st)))
 
 --- The function showRegex is used to generate a string containing the

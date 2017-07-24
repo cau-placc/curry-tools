@@ -10,29 +10,29 @@
 import RegExp -- required in the pre-processed program
 
 check1 :: Bool
-check1 = "abc" ``regex abc''
+check1 = match ``regex abc'' "abc"
 
 check2 :: Bool
-check2 = "abaaaaaaaaaaaaac" ``regex aba*c''
+check2 = match ``regex aba*c'' "abaaaaaaaaaaaaac"
 
 check3 :: String -> Bool
-check3 s = s ``regex (a|(bc*))+''
+check3 = match ``regex (a|(bc*))+''
 
 check4 :: String -> Bool
-check4 s = s ``regex [:alpha:]''
+check4 = match ``regex [:alpha:]''
 
 check5 :: String -> Bool
-check5 s = s ``regex [a-z]+''
+check5 = match ``regex [a-z]+''
 
 -- Examples with parameterized regular expressions:
 
-pregexp1 :: [a] -> a -> a -> Bool
-pregexp1 s v1 v2 = s ``regex [<v1>-<v2>]*''
+pregexp1 :: a -> a -> [a] -> Bool
+pregexp1 v1 v2 = match ``regex [<v1>-<v2>]*''
 
-pregexp2 :: [a] -> a -> a -> Bool
-pregexp2 s v1 v2 = s ``regex (<v1>|<v2>)*''
+pregexp2 :: a -> a -> [a] -> Bool
+pregexp2 v1 v2 = match ``regex (<v1>|<v2>)*''
 
 -- A regular expression containing a complex Curry expression:
 check6 :: Bool
-check6 = "a" ``regex <((\x -\> x) 'a')>'' 
+check6 = match ``regex <((\x -\> x) 'a')>'' "a"
 

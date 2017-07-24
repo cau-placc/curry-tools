@@ -219,8 +219,9 @@ transformProgram opts funposs allfdecls detinfo specdecls predecls postdecls
                (nub ("Test.Contract":"SetFunctions":imps))
                dfltdecl clsdecls instdecls tdecls
                (map deleteCmtIfEmpty
-                  (map (addContract opts funposs allfdecls predecls contractpcs)
-                       wonewfuns ++
+                  (concatMap
+                     (addContract opts funposs allfdecls predecls contractpcs)
+                     wonewfuns ++
                    newpostconds))
                opdecls
 
@@ -328,52 +329,83 @@ type2ShowConstraints texp =
 
 -- adds contract checking to a function if it has a pre- or postcondition
 addContract :: Options -> [(QName,Int)] -> [CFuncDecl] -> [CFuncDecl]
-            -> [CFuncDecl] -> CFuncDecl -> CFuncDecl
-addContract _ _ _ _ _ (CFunc _ _ _ _ _) = error "addContract"
+            -> [CFuncDecl] -> CFuncDecl -> [CFuncDecl]
+addContract _ _ _ _ _ (CFunc _ _ _ _ _) =
+  error "Internal error in addContract: CFunc occurred"
 addContract opts funposs allfdecls predecls postdecls
    fdecl@(CmtFunc cmt qn@(m,f) ar vis (CQualType (CContext clscons) texp) _) =
  let argvars   = map (\i -> (i,"x"++show i)) [1..ar]
-     predecl   = find (\fd -> fromPreCondName (snd(funcName fd)) == f) predecls
-     prename   = funcName (fromJust predecl)
-     postdecl  = find (\fd-> fromPostCondName (snd(funcName fd)) == f) postdecls
-     postname  = funcName (fromJust postdecl)
      encapsSuf = if withEncapsulate opts then "ND" else ""
      encaps fn n = if withEncapsulate opts then setFun n fn [] else constF fn
-     rename qf = if qf==(m,f) then (m,f++"'org") else qf
-     fref      = string2ac $
-                  "'" ++ f ++ "' (module " ++ m ++
-                         maybe ")"
-                               (\l -> ", line " ++ show l ++ ")")
-                               (lookup qn funposs)
-     orgfunexp = constF (rename (m,f))
+
+     -- Textual comment about function source:
+     fref      = string2ac $ "'" ++ f ++ "' (module " ++ m ++
+                             maybe ")"
+                                   (\l -> ", line " ++ show l ++ ")")
+                                   (lookup qn funposs)
+
+     -- call to observation function (if provided):
      obsfunexp = constF $
                   maybe (pre "id")
                        funcName
                        (find (\fd -> snd (funcName fd) == f++"'post'observe")
                              allfdecls)
-     asrtCall  = if isNothing predecl
-                 then applyF (cMod $ "withPostContract" ++ show ar ++ encapsSuf)
-                        ([fref, encaps postname (ar+1), obsfunexp, orgfunexp] ++
-                         map CVar argvars)
-                 else if isNothing postdecl
-                 then applyF (cMod $ "withPreContract" ++ show ar ++ encapsSuf)
-                        ([fref, encaps prename ar, orgfunexp] ++
-                         map CVar argvars)
-                 else applyF (cMod $ "withContract" ++ show ar ++ encapsSuf)
-                        ([fref, encaps prename ar,
-                          encaps postname (ar+1), obsfunexp, orgfunexp] ++
-                         map CVar argvars)
-     oldfdecl = if topLevelContracts opts
-                then updQNamesInCLocalDecl rename (CLocalFunc (deleteCmt fdecl))
-                else CLocalFunc (renameFDecl rename (deleteCmt fdecl))
-  in if isNothing predecl && isNothing postdecl then fdecl else
-       cmtfunc cmt (m,f) ar vis
-         (CQualType (CContext
-                       (union (type2EqConstraints (resultType texp))
-                              (union (type2ShowConstraints texp) clscons)))
-                    texp)
-         [simpleRuleWithLocals (map CPVar argvars) asrtCall [oldfdecl]]
 
+     ctexp = CQualType (CContext
+                         (union (type2EqConstraints (resultType texp))
+                                (union (type2ShowConstraints texp) clscons)))
+                       texp
+
+     -- Construct function with precondition added and a function without prec.:
+     (precheck,woprefdecl) =
+        maybe ([],fdecl)
+          (\predecl ->
+            let prename = funcName predecl
+                rename = updateFunc id qn (withSuffix qn "'WithoutPreCondCheck")
+            in ([cmtfunc cmt (m,f) ar vis ctexp
+                   [simpleRule (map CPVar argvars)
+                      (applyF (cMod $ "withPreContract" ++ show ar ++ encapsSuf)
+                         ([fref, encaps prename ar, constF (rename qn)] ++
+                          map CVar argvars))]],
+                addCmtLine "Without precondition checking!" $
+                           rnmFDecl rename fdecl))
+          (find (\fd -> fromPreCondName (snd (funcName fd)) == f) predecls)
+              
+     -- Construct function with postcond. added and a function without postc.:
+     (postcheck,wopostfdecl) =
+        maybe ([],woprefdecl)
+          (\postdecl -> 
+            let postname = funcName postdecl
+                qnp      = funcName woprefdecl
+                rename   = updateFunc id qnp
+                                      (withSuffix qnp "'WithoutPostCondCheck")
+            in ([cmtfunc (funcComment woprefdecl) qnp ar vis ctexp
+                 [simpleRule (map CPVar argvars)
+                    (applyF (cMod $ "withPostContract" ++ show ar ++ encapsSuf)
+                      ([fref, encaps postname (ar+1), obsfunexp,
+                        constF (rename qnp)] ++
+                       map CVar argvars))]],
+                 setPrivate $ addCmtLine "Without postcondition checking!" $
+                              rnmFDecl rename woprefdecl))
+          (find (\fd-> fromPostCondName (snd (funcName fd)) == f) postdecls)
+
+     rnmFDecl rnm fdcl = if topLevelContracts opts
+                           then updQNamesInCFuncDecl rnm fdcl
+                           else renameFDecl rnm fdcl
+
+  in precheck ++ postcheck ++ [wopostfdecl]
+
+--- Updates a function at some point.
+updateFunc :: Eq a => (a -> b) -> a -> b -> (a -> b)
+updateFunc f x v y = if y==x then v else f y
+
+--- Define a function as private.
+setPrivate :: CFuncDecl -> CFuncDecl
+setPrivate = updCFuncDecl id id id (const Private) id id
+
+--- Adds a suffix to  qualified name.
+withSuffix :: QName -> String -> QName
+withSuffix (m,f) s = (m, f ++ s)
 
 -- An operation of the module Test.Contract:
 cMod :: String -> QName
@@ -406,7 +438,15 @@ extendFuncType t texp = case t of
 --- Renames a function declaration (but not the body).
 renameFDecl :: (QName -> QName) -> CFuncDecl -> CFuncDecl
 renameFDecl rn (CFunc qn ar vis texp rules) = CFunc (rn qn) ar vis texp rules
-renameFDecl _ (CmtFunc _ _ _ _ _ _) = error "renameFDecl"
+renameFDecl rn (CmtFunc cmt qn ar vis texp rules) =
+  CmtFunc cmt (rn qn) ar vis texp rules
+
+--- Adds a line to the comment in a function declaration.
+addCmtLine :: String -> CFuncDecl -> CFuncDecl
+addCmtLine s (CFunc     qn ar vis texp rules) =
+  CmtFunc s qn ar vis texp rules
+addCmtLine s (CmtFunc cmt qn ar vis texp rules) =
+  CmtFunc (if null cmt then s else unlines [cmt,s]) qn ar vis texp rules
 
 --- Deletes the comment in a function declaration.
 deleteCmt :: CFuncDecl -> CFuncDecl
