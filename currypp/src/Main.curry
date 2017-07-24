@@ -7,7 +7,7 @@
 --- is supported (option `foreigncode`, see module `Translator`).
 ---
 --- @author Michael Hanus
---- @version September 2016
+--- @version July 2017
 ------------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -29,7 +29,7 @@ import TransContracts(transContracts)
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 01/04/2017)"
+   bannerText = "Curry Preprocessor (version of 24/07/2017)"
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets, i.e., kind of entities to be preprocessed:
