@@ -5,6 +5,7 @@
     "synopsis": "Libraries with various compile-time analyses for Curry",
     "category": [ "Analysis" ],
     "dependencies": {
+        "flatcurry": ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",
