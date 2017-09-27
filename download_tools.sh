@@ -53,38 +53,16 @@ cd .cpm/packages
  PKGV=`ls -d verify-*`
  mv $PKGV verify
  ln -s verify $PKGV
+ PKGV=`ls -d flatcurry-*`
+ mv $PKGV flatcurry
+ ln -s flatcurry $PKGV
+ PKGV=`ls -d xml-*`
+ mv $PKGV xml
+ ln -s xml $PKGV
 cd ../..
 cd ..
 mv Makefile.currypp currypp/Makefile
 echo "'currypp' updated from package repository."
-
-##############################################################################
-echo "Updating 'currycheck'..."
-mv currycheck/Makefile Makefile.currycheck  # keep old Makefile
-rm -rf currycheck
-$CPM checkout currycheck
-cd currycheck
-$CPM install --noexec
-rm -rf .git*
-rm -rf .cpm/*_cache
-rm -rf .cpm/packages/*/.git*
-cd .cpm/packages
- PKGV=`ls -d rewriting-*`
- mv $PKGV rewriting
- ln -s rewriting $PKGV
-cd ../..
-# Generate package configuration file:
-CCCONFIG=src/CurryCheckConfig.curry
-echo "module CurryCheckConfig where"     > $CCCONFIG
-echo "import Distribution(installDir)"  >> $CCCONFIG
-echo "import FilePath(combine)"         >> $CCCONFIG
-echo "packageVersion :: String"         >> $CCCONFIG
-echo "packageVersion = \"1.0.1\""       >> $CCCONFIG
-echo "packagePath :: String"            >> $CCCONFIG
-echo "packagePath = combine installDir (combine \"currytools\" \"currycheck\")" >> $CCCONFIG
-cd ..
-mv Makefile.currycheck currycheck/Makefile
-echo "'currycheck' updated from package repository."
 
 ##############################################################################
 echo "Updating 'optimize'..."
@@ -104,6 +82,12 @@ cd .cpm/packages
  mv $CASSV cass
  ln -s cass-analysis $CANAV
  ln -s cass $CASSV
+ PKGV=`ls -d flatcurry-*`
+ mv $PKGV flatcurry
+ ln -s flatcurry $PKGV
+ PKGV=`ls -d xml-*`
+ mv $PKGV xml
+ ln -s xml $PKGV
 cd ../..
 cd ..
 mv Makefile.optimize optimize/Makefile

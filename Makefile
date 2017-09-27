@@ -61,7 +61,7 @@ $(uninstall_TOOLDIRS):
 # Testing the tools
 
 # Tools with test suites:
-TESTTOOLS = optimize currypp runcurry currycheck cpm
+TESTTOOLS = optimize currypp runcurry cpm
 
 # run the test suites to check the tools
 .PHONY: runtest
