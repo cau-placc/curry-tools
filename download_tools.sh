@@ -53,6 +53,9 @@ cd .cpm/packages
  PKGV=`ls -d verify-*`
  mv $PKGV verify
  ln -s verify $PKGV
+ PKGV=`ls -d abstract-curry-*`
+ mv $PKGV abstract-curry
+ ln -s abstract-curry $PKGV
  PKGV=`ls -d flatcurry-*`
  mv $PKGV flatcurry
  ln -s flatcurry $PKGV

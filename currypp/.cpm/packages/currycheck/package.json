@@ -5,8 +5,9 @@
     "synopsis": "A tool to support automatic testing of Curry programs",
     "category": [ "Testing" ],
     "dependencies": {
-        "flatcurry" : ">= 1.0.0",
-        "rewriting" : ">= 0.0.1"
+        "abstract-curry" : ">= 1.0.0",
+        "flatcurry"      : ">= 1.0.0",
+        "rewriting"      : ">= 0.0.1"
     },
     "compilerCompatibility": {
         "pakcs": ">= 1.14.0, < 2.0.0",
