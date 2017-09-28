@@ -50,9 +50,6 @@ cd .cpm/packages
  PKGV=`ls -d rewriting-*`
  mv $PKGV rewriting
  ln -s rewriting $PKGV
- PKGV=`ls -d verify-*`
- mv $PKGV verify
- ln -s verify $PKGV
  PKGV=`ls -d abstract-curry-*`
  mv $PKGV abstract-curry
  ln -s abstract-curry $PKGV
