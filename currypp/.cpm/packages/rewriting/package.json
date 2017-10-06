@@ -1,7 +1,7 @@
 {
     "name": "rewriting",
     "version": "2.0.0",
-    "author": "Jan-Hendrick Matthes, Michael Hanus <mh@informatik.uni-kiel.de>",
+    "author": "Jan-Hendrik Matthes, Michael Hanus <mh@informatik.uni-kiel.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Libraries for term rewriting and narrowing",
     "description":

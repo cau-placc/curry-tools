@@ -5,7 +5,7 @@
 --- easy writing of HTML code in Curry programs.
 ------------------------------------------------------------------------------
 
-import HTML
+import HTML.Base
 import Test.EasyCheck
 
 htmlTest1 :: String -> [HtmlExp]

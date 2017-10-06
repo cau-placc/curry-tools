@@ -6,7 +6,7 @@
 -- to reverse or duplicate the input.
 ------------------------------------------------------------------------------
 
-import HTML
+import HTML.Base
 
 {-
 Remark:
@@ -43,4 +43,4 @@ main = return $ form "Question" $
 
 
 -- Install the CGI program by:
--- curry makecgi -o ~/public_html/revdup.cgi RevDup
+-- curry makecgi -cpm -o ~/public_html/revdup.cgi RevDup
