@@ -56,6 +56,9 @@ cd .cpm/packages
  PKGV=`ls -d flatcurry-*`
  mv $PKGV flatcurry
  ln -s flatcurry $PKGV
+ PKGV=`ls -d html-*`
+ mv $PKGV html
+ ln -s html $PKGV
  PKGV=`ls -d xml-*`
  mv $PKGV xml
  ln -s xml $PKGV

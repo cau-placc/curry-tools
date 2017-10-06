@@ -24,6 +24,6 @@
     },
     "testsuite": {
         "src-dir": "test",
-        "modules": [  "testFlatCurryXML" ]
+        "modules": [  "TestFlatCurryGoodies", "TestFlatCurryXML" ]
     }
 }

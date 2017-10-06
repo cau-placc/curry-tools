@@ -5,7 +5,7 @@
 --- easy writing of HTML code in Curry programs.
 ------------------------------------------------------------------------------
 
-import HTML
+import HTML.Base
 
 {-
 Remark:
@@ -31,7 +31,7 @@ test1 name = putStrLn $ showHtmlExps ``html
    <h1>Hello {name}!</h1>
     <p>
      Sorry, i've got nothing to say...but:
-   <h2>{(reverse sey)++"we "++"can!"}
+   <h2>{reverse sey ++ "we " ++ "can!"}
    Have a wonderful time!''
 
 sey :: String
