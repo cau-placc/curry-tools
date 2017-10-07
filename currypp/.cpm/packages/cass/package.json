@@ -6,7 +6,8 @@
     "category": [ "Analysis" ],
     "dependencies": {
         "cass-analysis": ">= 2.0.0",
-        "flatcurry"    : ">= 2.0.0"
+        "flatcurry"    : ">= 2.0.0",
+        "xml"          : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",
