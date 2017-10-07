@@ -5,9 +5,6 @@
     "synopsis": "A transformation tool to replace Boolean equalities by equational constraints",
     "category": [ "Analysis", "Optimization" ],
     "dependencies": {
-        "cass-analysis": ">= 2.0.0",
-        "cass"         : ">= 2.0.0",
-        "flatcurry"    : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

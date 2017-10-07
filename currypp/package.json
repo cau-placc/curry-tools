@@ -5,11 +5,6 @@
     "synopsis": "The standard preprocessor of Curry",
     "category": [ "Programming", "Analysis" ],
     "dependencies": {
-        "abstract-curry": ">= 2.0.0",
-        "cass-analysis" : ">= 2.0.0",
-        "cass"          : ">= 2.0.0",
-        "currycheck"    : ">= 2.0.0",
-        "html"          : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",
@@ -29,7 +24,7 @@
     },
     "testsuite": [
         { "src-dir": "src/IntegratedCode/Examples",
-          "modules": [ "testFormat", "testHtml", "testRegExps" ]
+          "modules": [ "testFormat", "testRegExps" ]
         },
         { "src-dir": "src/IntegratedCode/ExamplesSQL",
           "options": "-v",
