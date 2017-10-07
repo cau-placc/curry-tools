@@ -5,6 +5,7 @@
     "synopsis": "The standard preprocessor of Curry",
     "category": [ "Analysis" ],
     "dependencies": {
+        "html": ">= 1.1.0"
     },
     "testsuite": [
         { "src-dir": "src/IntegratedCode/Examples",
