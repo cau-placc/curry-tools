@@ -43,6 +43,4 @@ Main: $(DEPS)
 # Testing the preprocessor via CPM
 .PHONY: runtest
 runtest:
-	# install package "html" (required for testing):
-	$(BINDIR)/cpm install --noexec
 	$(BINDIR)/cpm -d curry_bin=$(REPL) test
