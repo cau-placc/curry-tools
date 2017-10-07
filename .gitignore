@@ -5,31 +5,11 @@ Curry_Main_Goal.curry
 cpm/src/CPM/ConfigPackage.curry
 *.agdai
 *_cache
-browser/.cpm/packages/addtypes-0.0.1
-browser/.cpm/packages/cass-2.0.0
-browser/.cpm/packages/cass-analysis-2.0.0
-browser/.cpm/packages/importusage-0.0.1
-browser/.cpm/packages/showflatcurry-0.0.1
-currycheck/.cpm/packages/rewriting-2.0.0
-currypp/.cpm/packages/cass-2.0.0
-currypp/.cpm/packages/cass-analysis-2.0.0
-currypp/.cpm/packages/currycheck-2.0.0
-currypp/.cpm/packages/rewriting-2.0.0
-currypp/.cpm/packages/abstract-curry-2.0.0
-currypp/.cpm/packages/flatcurry-2.0.0
-currypp/.cpm/packages/html-2.0.0
-currypp/.cpm/packages/xml-2.0.0
-optimize/.cpm/packages/cass-2.0.0
-optimize/.cpm/packages/cass-analysis-2.0.0
-optimize/.cpm/packages/flatcurry-2.0.0
-optimize/.cpm/packages/xml-2.0.0
 
 # executables
-browser/BrowserGUI
 cpm/src/CPM.Main
 cpns/CPNSD
 currypp/Main
-currycheck/CurryCheck
 optimize/BindingOpt
 runcurry/RunCurry
 www/Registry

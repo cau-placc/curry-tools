@@ -9,6 +9,10 @@
         "pakcs": ">= 1.14.0",
         "kics2": ">= 0.5.0"
     },
+    "executable": {
+        "name": "runcurry",
+        "main": "RunCurry"
+    },
     "testsuite": {
         "src-dir": "examples",
         "options": "-v",
