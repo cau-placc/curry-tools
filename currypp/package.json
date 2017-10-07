@@ -4,7 +4,9 @@
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "The standard preprocessor of Curry",
     "category": [ "Analysis" ],
-    "dependencies": { },
+    "dependencies": {
+        "html": ">= 2.0.0"
+    },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",
         "kics2": ">= 2.0.0"
