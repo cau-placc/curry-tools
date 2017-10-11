@@ -10,10 +10,6 @@
         { "src-dir": "src/IntegratedCode/Examples",
           "modules": [ "testFormat", "testRegExps" ]
         },
-        { "src-dir": "src/IntegratedCode/ExamplesSQL",
-          "options": "-v",
-          "script" : "test.sh"
-        },
         { "src-dir": "src/DefaultRules/Examples",
           "options": "-m40",
           "modules": [ "BreakWhere", "BubbleSort", "ColorMap", "DutchFlag",
