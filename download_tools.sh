@@ -44,6 +44,9 @@ cd .cpm/packages
  mv $CASSV cass
  ln -s cass-analysis $CANAV
  ln -s cass $CASSV
+ PKGV=`ls -d cdbi-*`
+ mv $PKGV cdbi
+ ln -s cdbi $PKGV
  PKGV=`ls -d currycheck-*`
  mv $PKGV currycheck
  ln -s currycheck $PKGV
