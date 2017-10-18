@@ -4,6 +4,7 @@ import Test.EasyCheck
 
 
 data Peano = O | S Peano
+  deriving (Eq,Show)
 
 toPeano :: Int -> Peano
 toPeano n = if n==0 then O else S (toPeano (n-1))

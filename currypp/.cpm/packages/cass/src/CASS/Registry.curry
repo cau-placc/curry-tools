@@ -91,7 +91,7 @@ registeredAnalysis =
 --- by the server/client analysis tool from a given analysis and
 --- analysis show function. The first argument is a short title for the
 --- analysis.
-cassAnalysis :: String -> Analysis a -> (AOutFormat -> a -> String)
+cassAnalysis :: Eq a => String -> Analysis a -> (AOutFormat -> a -> String)
              -> RegisteredAnalysis
 cassAnalysis title analysis showres =
   RegAna (analysisName analysis)

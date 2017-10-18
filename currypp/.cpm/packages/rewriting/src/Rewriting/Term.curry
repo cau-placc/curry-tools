@@ -36,6 +36,7 @@ type VarIdx = Int
 --- @cons TermCons c ts - The constructor term with constructor `c` and
 ---                       argument terms `ts`.
 data Term f = TermVar VarIdx | TermCons f [Term f]
+ deriving (Eq, Show)
 
 --- A term equation represented as a pair of terms and parameterized over the
 --- kind of function symbols, e.g., strings.
@@ -97,7 +98,7 @@ tRoot (TermVar v)    = Left v
 tRoot (TermCons c _) = Right c
 
 --- Returns a list without duplicates of all constructors in a term.
-tCons :: Term f -> [f]
+tCons :: Eq f => Term f -> [f]
 tCons = nub . tConsAll
 
 --- Returns a list of all constructors in a term. The resulting list may
@@ -177,7 +178,7 @@ mapTerm f (TermCons c ts) = TermCons (f c) (map (mapTerm f) ts)
 --- Checks whether the constructor pattern of the first term is equal to the
 --- constructor pattern of the second term. Returns `True` if both terms have
 --- the same constructor and the same arity.
-eqConsPattern :: Term f -> Term f -> Bool
+eqConsPattern :: Eq f => Term f -> Term f -> Bool
 eqConsPattern (TermVar _)       _                 = False
 eqConsPattern (TermCons _ _)    (TermVar _)       = False
 eqConsPattern (TermCons c1 ts1) (TermCons c2 ts2) =
@@ -192,7 +193,7 @@ parensIf :: Bool -> String -> String
 parensIf b s = if b then "(" ++ s ++ ")" else s
 
 --- Checks whether a list contains no element more than once.
-unique :: [_] -> Bool
+unique :: Eq a => [a] -> Bool
 unique []                    = True
 unique (x:xs) | notElem x xs = unique xs
               | otherwise    = False

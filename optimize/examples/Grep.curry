@@ -12,6 +12,7 @@ data RE a = Lit a
 
 -- My characters:
 data Chr = A | B | C | D | E
+  deriving (Eq,Show)
 
 -- Example: regular expression (ab*)
 abstar :: RE Chr
@@ -29,7 +30,7 @@ sem (Alt  a b) = sem a ? sem b
 sem (Conc a b) = sem a ++ sem b
 sem (Star a)   = [] ? sem (Conc a (Star a))
 
-grep :: RE a -> [a] -> Bool
+grep :: Eq a => RE a -> [a] -> Bool
 grep r s | _ ++ sem r ++ _ == s = True
 
 bigABABC :: Int -> [Chr]

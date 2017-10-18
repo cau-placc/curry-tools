@@ -33,8 +33,7 @@ warn pos id ws = (fromSimplePos (fst pos),msg) : ws
 -- map a list with a warning function, to get all warnings
 wmap :: (a -> (b,[Warning])) -> [a] -> ([b],[Warning])
 wmap f ys = wmapper ys
-  where wmapper :: [a] -> ([b],[Warning])
-        wmapper [] = ([],[])
+  where wmapper [] = ([],[])
         wmapper (x:xs) =
           let (p,q) = f x
               (a,b) = wmapper xs

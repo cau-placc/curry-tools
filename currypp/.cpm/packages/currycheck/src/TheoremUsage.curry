@@ -20,7 +20,7 @@
 ---    `proof-last-is-deterministic.agda` (and also in some other files).
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module TheoremUsage
@@ -83,7 +83,7 @@ deleteNonAlphanNum = filter isAlphaNum
 --- A theorem is a property for which a proof file exists in the
 --- directory provided as first argument.
 getTheoremFunctions :: String -> CurryProg -> IO [CFuncDecl]
-getTheoremFunctions proofdir (CurryProg _ _ _ functions _) = do
+getTheoremFunctions proofdir (CurryProg _ _ _ _ _ _ functions _) = do
   let propfuncs = filter isProperty functions -- all properties
   prooffiles <- getProofFiles proofdir
   return $ filter (\fd -> existsProofFor (snd (funcName fd)) prooffiles)

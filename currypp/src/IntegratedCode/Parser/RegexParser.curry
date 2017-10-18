@@ -61,6 +61,7 @@ showRegexHelper (r:rs) = case r of
 
 --- An intermediate data type which can be used for code generation
 type Regex = [ORegex]
+
 data ORegex = Nil
            | Literal String
            | Xor Regex Regex
@@ -72,6 +73,7 @@ data ORegex = Nil
            | Start Regex
            | End Regex
            | Times (Int,Int) Regex
+ deriving Show
 
 --- Possible regex operators
 operators       = ['|','*','.','[',']','^','$','{','}','(',')','?','+']
@@ -132,6 +134,7 @@ data Token = TokenStar
            | TokenOABracket
            | TokenCABracket
            | TokenLiteral Char
+ deriving Eq
 
 --- Assigning Tokens to Chars
 tokenToChar :: Token -> Char
@@ -321,7 +324,7 @@ extractChars (t:ts) = case t of
   _                -> ""
 
 -- | Helper
-cntUntilClosed :: a -> a -> [a] -> Int
+cntUntilClosed :: Eq a => a -> a -> [a] -> Int
 cntUntilClosed c1 c2 li = cUCB 0 0 li
   where
     cUCB n c l =

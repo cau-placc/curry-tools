@@ -145,7 +145,7 @@ updateCurrentProperty pn pv = do
   writeGlobal currProps (Just newprops)
   updateDebugLevel newprops
 
-replaceKeyValue :: a -> b -> [(a,b)] -> [(a,b)]
+replaceKeyValue :: Eq a => a -> b -> [(a,b)] -> [(a,b)]
 replaceKeyValue k v [] = [(k,v)]
 replaceKeyValue k v ((k1,v1):kvs) =
   if k==k1 then (k,v):kvs else (k1,v1) : replaceKeyValue k v kvs

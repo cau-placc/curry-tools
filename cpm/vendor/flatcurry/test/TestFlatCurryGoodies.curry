@@ -1,4 +1,4 @@
---- Some tests for library FlatCurry.Goodies
+--- Some tests for library FlatCurry.Goodies.
 ---
 --- To run all tests automatically by the currycheck tool, use the command:
 --- "curry check TestFlatCurryGoodies"
@@ -30,7 +30,7 @@ idCons = trCons cons
  where
   cons name arity vis args = Cons name arity vis (map idTypeExpr args)
 
-idTypeExpr = trTypeExpr TVar TCons FuncType
+idTypeExpr = trTypeExpr TVar TCons FuncType ForallType
 
 idFunc = trFunc func
  where

@@ -41,13 +41,13 @@ newProgInfoStoreRef = newIORef []
 -----------------------------------------------------------------------
 --- Analyze a list of modules (in the given order) with a given analysis.
 --- The analysis results are stored in the corresponding analysis result files.
-analysisClient :: Analysis a -> [String] -> IO ()
+analysisClient :: Eq a => Analysis a -> [String] -> IO ()
 analysisClient analysis modnames = do
   store <- newIORef []
   fpmethod <- getFPMethod
   mapIO_ (analysisClientWithStore store analysis fpmethod) modnames
 
-analysisClientWithStore :: IORef (ProgInfoStore a) -> Analysis a -> String
+analysisClientWithStore :: Eq a => IORef (ProgInfoStore a) -> Analysis a -> String
                         -> String -> IO ()
 analysisClientWithStore store analysis fpmethod moduleName = do
   prog <- readNewestFlatCurry moduleName
@@ -135,19 +135,19 @@ map2 f (xs,ys) = (map f xs, map f ys)
 
 --- Update a given value list (second argument) w.r.t. new values given
 --- in the first argument list.
-updateList :: [(a,b)] -> [(a,b)] -> [(a,b)]
+updateList :: Eq a => [(a,b)] -> [(a,b)] -> [(a,b)]
 updateList [] oldList = oldList
 updateList ((key,newValue):newList) oldList =
   updateList newList (updateValue (key,newValue) oldList)
 
-updateValue :: (a,b) -> [(a,b)] -> [(a,b)]
+updateValue :: Eq a => (a,b) -> [(a,b)] -> [(a,b)]
 updateValue _ [] = []
 updateValue (key1,newValue) ((key2,value2):list) = 
   if key1==key2 then (key1,newValue):list
                 else (key2,value2):(updateValue (key1,newValue) list)
 
 -----------------------------------------------------------------------
-execCombinedAnalysis :: Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
+execCombinedAnalysis :: Eq a => Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
                      -> String -> String -> IO (ProgInfo a)
 execCombinedAnalysis analysis prog importInfos startvals moduleName fpmethod =
  case analysis of
@@ -172,7 +172,7 @@ execCombinedAnalysis analysis prog importInfos startvals moduleName fpmethod =
 -----------------------------------------------------------------------
 --- Run an analysis but load default values (e.g., for external operations)
 --- before and do not analyse the operations or type for these defaults.
-runAnalysis :: Analysis a -> Prog -> ProgInfo a -> [(QName,a)] -> String
+runAnalysis :: Eq a => Analysis a -> Prog -> ProgInfo a -> [(QName,a)] -> String
             -> IO (ProgInfo a)
 runAnalysis analysis prog importInfos startvals fpmethod = do
   deflts <- loadDefaultAnalysisValues (analysisName analysis) (progName prog)
@@ -205,7 +205,8 @@ runAnalysis analysis prog importInfos startvals fpmethod = do
 --- Executes an anlysis on a given program w.r.t. an imported ProgInfo
 --- and some start values (for dependency analysis).
 --- The fixpoint iteration method to be applied is passed as the last argument.
-executeAnalysis :: Analysis a -> Prog -> ProgInfo a -> [(QName,a)] -> String
+executeAnalysis :: Eq a => Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
+                -> String
                 -> ProgInfo a
 executeAnalysis (SimpleFuncAnalysis _ anaFunc) prog _ _ _ = 
   (lists2ProgInfo . map2 (\func -> (funcName func, anaFunc func))
@@ -305,7 +306,7 @@ consDeclsOfType (TypeSyn _ _ _ _) = []
 --- * ProgInfo for imported entities
 --- * current ProgInfo
 --- Result: fixpoint ProgInfo
-simpleIteration :: (t -> [(QName,a)] -> a) -> (t -> QName)
+simpleIteration :: Eq a => (t -> [(QName,a)] -> a) -> (t -> QName)
                 -> ([(t,[QName])],[(t,[QName])])
                 -> ProgInfo a -> ProgInfo a -> ProgInfo a
 simpleIteration analysis nameOf declsWithDeps importInfos currvals =
@@ -326,7 +327,7 @@ simpleIteration analysis nameOf declsWithDeps importInfos currvals =
      then currvals
      else simpleIteration analysis nameOf declsWithDeps importInfos newproginfo
 
-wlIteration :: (t -> [(QName,a)] -> a) -> (t -> QName)
+wlIteration :: Eq a => (t -> [(QName,a)] -> a) -> (t -> QName)
             -> [(t,[QName])] -> [(t,[QName])] -> SetRBT QName
             -> ProgInfo a -> FM QName a -> FM QName a
 --wlIteration analysis nameOf declsToDo declsDone changedEntities

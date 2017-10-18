@@ -20,6 +20,7 @@ import Maybe
 
 --- Datatype to represent sensible type information.
 data Sensible = NotSensible | PSensible | Sensible
+  deriving Eq
 
 -- Show higher-order information as a string.
 showSensible :: AOutFormat -> Sensible -> String
@@ -74,5 +75,6 @@ sensOfTypeExpr usedtypes (TCons tc typeExprs)
  where
   senstc    = maybe NotSensible id (lookup tc usedtypes)
   senstargs = map (sensOfTypeExpr usedtypes) typeExprs
+sensOfTypeExpr usedtypes (ForallType _ texp) = sensOfTypeExpr usedtypes texp
 
 -----------------------------------------------------------------------

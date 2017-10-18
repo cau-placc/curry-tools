@@ -494,7 +494,7 @@ cenv2hidden env = concat (map pair2hidden env)
 -- association lists (list of tag/value pairs):
 
 -- change an associated value (or add association, if not there):
-changeAssoc :: [(tt,tv)] -> tt -> tv -> [(tt,tv)]
+changeAssoc :: Eq tt => [(tt,tv)] -> tt -> tv -> [(tt,tv)]
 changeAssoc [] tag val = [(tag,val)]
 changeAssoc ((tag1,val1):tvs) tag val =
    if tag1 == tag then (tag,val) : tvs

@@ -3,12 +3,11 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version February 2016
+--- @version October 2016
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
 
-import CSV
 import Directory         ( renameFile )
 import Distribution      ( installDir, curryCompiler, currySubdir
                          , addCurrySubdir, splitModuleFileName
@@ -16,6 +15,7 @@ import Distribution      ( installDir, curryCompiler, currySubdir
 import FileGoodies
 import FilePath          ( (</>), (<.>), normalise, pathSeparator )
 import List
+import Maybe             (fromJust)
 import System            ( getArgs,system,exitWith,getCPUTime )
 import FlatCurry.Types hiding  (Cons)
 import FlatCurry.Files
@@ -25,6 +25,7 @@ import Analysis.Types
 import Analysis.ProgInfo
 import Analysis.RequiredValues
 import CASS.Server       ( analyzeGeneric, analyzePublic, analyzeInterface )
+import Text.CSV
 
 
 type Options = (Int, Bool, Bool) -- (verbosity, use analysis?, auto-load?)
@@ -34,7 +35,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 17/02/2016)"
+  let bannerText = "Curry Binding Optimizer (version of 20/10/2016)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -101,7 +102,7 @@ transformBoolEq opts@(verb, _, _) name = do
   transformAndStoreFlatProg opts modname flatprog
 
 -- Drop a suffix from a list if present or leave the list as is otherwise.
-dropSuffix :: [a] -> [a] -> [a]
+dropSuffix :: Eq a => [a] -> [a] -> [a]
 dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
                  | otherwise          = s
 
@@ -222,13 +223,14 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   -- transform an expression w.r.t. a required value
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
-  transformExp tst0 (Comb ct qf es) reqval
-    | qf == pre "==" && reqval == aTrue
-    = (Comb FuncCall (pre "=:=") tes,
-       incOccNumber tst1)
-    | qf == pre "/=" && reqval == aFalse
-    = (Comb FuncCall (pre "not") [Comb FuncCall (pre "=:=") tes],
-              incOccNumber tst1)
+  transformExp tst0 exp@(Comb ct qf es) reqval
+    | reqval == aTrue && isBoolEqualCall "==" exp
+    = (Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "==" (Comb ct qf tes))
+      , incOccNumber tst1)
+    | reqval == aFalse && isBoolEqualCall "/=" exp
+    = (Comb FuncCall (pre "not")
+         [Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "/=" (Comb ct qf tes))]
+      , incOccNumber tst1)
     | qf == pre "$" && length es == 2 &&
       (isFuncPartCall (head es) || isConsPartCall (head es))
     = transformExp tst0 (reduceDollar es) reqval
@@ -270,6 +272,54 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformBranch tst (Branch pat be) reqval =
     let (tbe,tstb) = transformExp tst be reqval
      in (Branch pat tbe, tstb)
+
+-------------------------------------------------------------------------
+-- Check whether the expression argument is a call to a Boolean (dis)equality
+-- and return the arguments of the call.
+-- The first argument is "==" (for checking equalities) or "/="
+-- (for checking disequalities).
+-- If type classes are present, a Boolean (dis)equality call can be
+-- * an instance (dis)equality call: "_impl#==#Prelude.Eq#..." e1 e2
+--   (where there can be an additional first argument for another Eq dict)
+-- * a class (dis)equality call: apply (apply ("==" [dict]) e1) e2
+--   (where dict is a dictionary parameter)
+-- * a default instance (dis)equality call:
+--   apply (apply ("_impl#==#Prelude.Eq#..." []) e1) e2
+checkBoolEqualCall :: String -> Expr -> Maybe [Expr]
+checkBoolEqualCall deq exp = case exp of
+  Comb FuncCall qf es ->
+    if isNotEqualInstanceFunc qf && length es > 1
+      then Just (if length es == 2
+                   then es
+                   else tail es) -- since first argument might be Eq dict.
+      else if qf == pre "apply"
+             then case es of
+                    [Comb FuncCall qfa [Comb FuncCall qfe [_],e1],e2] ->
+                      if qfa == pre "apply" &&
+                         (qfe == pre deq || isNotEqualInstanceFunc qfe)
+                        then Just [e1,e2]
+                        else Nothing
+                    [Comb FuncCall qfa [Comb FuncCall qfe [],e1],e2] ->
+                      if qfa == pre "apply" &&
+                         (qfe == pre deq || isNotEqualInstanceFunc qfe)
+                        then Just [e1,e2]
+                        else Nothing
+                    _ -> Nothing
+             else Nothing
+  _ -> Nothing
+ where
+  isNotEqualInstanceFunc (_,f) =
+    ("_impl#"++deq++"#Prelude.Eq#") `isPrefixOf` f
+
+-- Is this a call to a Boolean equality?
+isBoolEqualCall :: String -> Expr -> Bool
+isBoolEqualCall deq exp = checkBoolEqualCall deq exp /= Nothing
+
+-- Returns the arguments of a call to a Boolean equality.
+argsOfBoolEqualCall :: String -> Expr -> [Expr]
+argsOfBoolEqualCall deq exp = fromJust (checkBoolEqualCall deq exp)
+
+-------------------------------------------------------------------------
 
 --- Reduce an application of Prelude.$ to a combination:
 reduceDollar :: [Expr] -> Expr
@@ -327,15 +377,17 @@ containsBeqRule (External _) = False
 containsBeqRule (Rule _ rhs) = containsBeqExp rhs
  where
   -- containsBeq an expression w.r.t. a required value
-  containsBeqExp exp = case exp of
-    Var _        -> False
-    Lit _        -> False
-    Comb _ qf es -> qf == pre "==" || qf == pre "/=" || any containsBeqExp es
-    Free _ e     -> containsBeqExp e
-    Or e1 e2     -> containsBeqExp e1 || containsBeqExp e2
-    Typed e _    -> containsBeqExp e
-    Case _ e bs  -> containsBeqExp e || any containsBeqBranch bs
-    Let bs e     -> containsBeqExp e || any containsBeqExp (map snd bs)
+  containsBeqExp (Var _) = False
+  containsBeqExp (Lit _) = False
+  containsBeqExp exp@(Comb _ _ es) =
+    isBoolEqualCall "==" exp || isBoolEqualCall "/=" exp ||
+    any containsBeqExp es
+  containsBeqExp (Free _ e   ) = containsBeqExp e
+  containsBeqExp (Or e1 e2   ) = containsBeqExp e1 || containsBeqExp e2
+  containsBeqExp (Typed e _  ) = containsBeqExp e
+  containsBeqExp (Case _ e bs) = containsBeqExp e || any containsBeqBranch bs
+  containsBeqExp (Let bs e   ) = containsBeqExp e ||
+                                 any containsBeqExp (map snd bs)
 
   containsBeqBranch (Branch _ be) = containsBeqExp be
 
@@ -345,16 +397,19 @@ numberBeqRule (External _) = 0
 numberBeqRule (Rule _ rhs) = numberBeqExp rhs
  where
   -- numberBeq an expression w.r.t. a required value
-  numberBeqExp exp = case exp of
-    Var _        -> 0
-    Lit _        -> 0
-    Comb _ qf es -> (if qf == pre "==" || qf == pre "/=" then 1 else 0) +
-                    sum (map numberBeqExp es)
-    Free _ e     -> numberBeqExp e
-    Or e1 e2     -> numberBeqExp e1 + numberBeqExp e2
-    Typed e _    -> numberBeqExp e
-    Case _ e bs  -> numberBeqExp e + sum (map numberBeqBranch bs)
-    Let bs e     -> numberBeqExp e + sum (map numberBeqExp (map snd bs))
+  numberBeqExp (Var _) = 0
+  numberBeqExp (Lit _) = 0
+  numberBeqExp exp@(Comb _ _ es) =
+    if isBoolEqualCall "==" exp
+      then 1 + sum (map numberBeqExp (argsOfBoolEqualCall "==" exp))
+      else if isBoolEqualCall "/=" exp
+             then 1  + sum (map numberBeqExp (argsOfBoolEqualCall "/=" exp))
+             else sum (map numberBeqExp es)
+  numberBeqExp (Free _ e) = numberBeqExp e
+  numberBeqExp (Or e1 e2) = numberBeqExp e1 + numberBeqExp e2
+  numberBeqExp (Typed e _) = numberBeqExp e
+  numberBeqExp (Case _ e bs) = numberBeqExp e + sum (map numberBeqBranch bs)
+  numberBeqExp (Let bs e) = numberBeqExp e + sum (map numberBeqExp (map snd bs))
 
   numberBeqBranch (Branch _ be) = numberBeqExp be
 

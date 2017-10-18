@@ -27,7 +27,7 @@ plusComm :: Int -> Int -> Prop
 plusComm x y = x + y -=- y + x
 
 -- We can even write a polymorphic test:
-rev_rev_is_id :: [a] -> Prop
+rev_rev_is_id :: (Eq a, Show a) => [a] -> Prop
 rev_rev_is_id xs = reverse (reverse xs) -=- xs
 -- A polymorphic test will be automatically transformed into the same
 -- test specialized to values of type Ordering.

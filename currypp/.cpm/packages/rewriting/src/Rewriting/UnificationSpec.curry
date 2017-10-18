@@ -54,10 +54,9 @@ showUnificationError s (OccurCheck v t) = "OccurCheck: " ++ (showVarIdx v)
 
 --- Unifies a list of term equations. Returns either a unification error or a
 --- substitution.
-unify :: TermEqs f -> Either (UnificationError f) (Subst f)
+unify :: (Eq f, Show f) => TermEqs f -> Either (UnificationError f) (Subst f)
 unify = (either Left (Right . eqsToSubst)) . (unify' [])
   where
-    eqsToSubst :: TermEqs f -> Subst f
     eqsToSubst []              = emptySubst
     eqsToSubst (eq@(l, r):eqs)
       = case l of
@@ -68,13 +67,14 @@ unify = (either Left (Right . eqsToSubst)) . (unify' [])
               (TermCons _ _) -> error ("eqsToSubst: " ++ (show eq))
 
 --- Checks whether a list of term equations can be unified.
-unifiable :: TermEqs _ -> Bool
+unifiable :: (Eq f, Show f) => TermEqs f -> Bool
 unifiable = isRight . unify
 
 --- Unifies a list of term equations. The first argument specifies the current
 --- substitution represented by term equations. Returns either a unification
 --- error or a substitution represented by term equations.
-unify' :: TermEqs f -> TermEqs f -> Either (UnificationError f) (TermEqs f)
+unify' :: Eq f => TermEqs f -> TermEqs f
+       -> Either (UnificationError f) (TermEqs f)
 unify' sub []                                               = Right sub
 unify' sub ((TermVar v, r@(TermCons _ _)):eqs)              = elim sub v r eqs
 unify' sub ((l@(TermCons _ _), TermVar v):eqs)              = elim sub v l eqs
@@ -87,7 +87,7 @@ unify' sub ((l@(TermCons c1 ts1), r@(TermCons c2 ts2)):eqs)
 --- Substitutes a variable by a term inside a substitution and a list of term
 --- equations that have yet to be unified. Also adds a mapping from that
 --- variable to that term to the substitution.
-elim :: TermEqs f -> VarIdx -> Term f -> TermEqs f
+elim :: Eq f => TermEqs f -> VarIdx -> Term f -> TermEqs f
      -> Either (UnificationError f) (TermEqs f)
 elim sub v t eqs | dependsOn (TermVar v) t = Left (OccurCheck v t)
                  | otherwise               = unify' sub' (substitute v t eqs)
@@ -113,9 +113,8 @@ substituteSingle :: VarIdx -> Term f -> TermEq f -> TermEq f
 substituteSingle v t = both (termSubstitute v t)
 
 --- Checks whether the first term occurs as a subterm of the second term.
-dependsOn :: Term f -> Term f -> Bool
+dependsOn :: Eq f => Term f -> Term f -> Bool
 dependsOn l r = and [not (l == r), dependsOn' l r]
   where
-    dependsOn' :: Term f -> Term f -> Bool
     dependsOn' t v@(TermVar _)   = t == v
     dependsOn' t (TermCons _ ts) = any id (map (dependsOn' t) ts)

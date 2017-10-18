@@ -33,6 +33,7 @@ import Sort(mergeSortBy)
 -- `Cons c` a value rooted by the constructor `c`, and
 -- `Empty` represents no possible value.
 data AType = Any | AnyC | Cons QName | Empty
+ deriving (Eq,Ord)
 
 --- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
@@ -81,6 +82,7 @@ showAType _ Empty = "_|_"
 --- the possible result of the function,
 --- or a list of possible argument/result type pairs.
 data AFType = EmptyFunc | AFType [([AType],AType)]
+ deriving Eq
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String

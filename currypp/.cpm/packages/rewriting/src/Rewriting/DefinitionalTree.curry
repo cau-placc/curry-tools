@@ -58,12 +58,12 @@ dtPattern (Or pat _)       = pat
 
 --- Checks whether a term has a definitional tree with the same constructor
 --- pattern in the given list of definitional trees.
-hasDefTree :: [DefTree f] -> Term f -> Bool
+hasDefTree :: Eq f => [DefTree f] -> Term f -> Bool
 hasDefTree dts t = any ((eqConsPattern t) . dtPattern) dts
 
 --- Returns a list of definitional trees with the same constructor pattern for
 --- a term from the given list of definitional trees.
-selectDefTrees :: [DefTree f] -> Term f -> [DefTree f]
+selectDefTrees :: Eq f => [DefTree f] -> Term f -> [DefTree f]
 selectDefTrees dts t = filter ((eqConsPattern t) . dtPattern) dts
 
 --- Returns the definitional tree with the given index from the given list of
@@ -84,19 +84,18 @@ idtPositions trs@((l, _):_)
                                 all (isDemandedAt i) trs]
 
 --- Returns a list of definitional trees for a term rewriting system.
-defTrees :: TRS f -> [DefTree f]
+defTrees :: Eq f => TRS f -> [DefTree f]
 defTrees = (concatMap defTreesS) . (groupBy eqCons) . (sortBy eqCons)
   where
-    eqCons :: Rule f -> Rule f -> Bool
     eqCons = on eqConsPattern fst
 
 --- Returns a list of definitional trees for a list of term rewriting systems.
-defTreesL :: [TRS f] -> [DefTree f]
+defTreesL :: Eq f => [TRS f] -> [DefTree f]
 defTreesL = defTrees . concat
 
 --- Returns a list of definitional trees for a term rewriting system, whose
 --- rules have the same constructor pattern.
-defTreesS :: TRS f -> [DefTree f]
+defTreesS :: Eq f => TRS f -> [DefTree f]
 defTreesS []             = []
 defTreesS trs@((l, _):_)
   = case l of
@@ -111,7 +110,7 @@ defTreesS trs@((l, _):_)
 --- the same constructor pattern, with the given list of inductive positions,
 --- the given pattern and the given next possible variable or `Nothing` if no
 --- such definitional tree exists.
-defTreesS' :: VarIdx -> TRS f -> [Pos] -> Term f -> Maybe (DefTree f)
+defTreesS' :: Eq f => VarIdx -> TRS f -> [Pos] -> Term f -> Maybe (DefTree f)
 defTreesS' _ []          []     _   = Nothing
 defTreesS' v [r]         []     pat = mkLeaf v pat r
 defTreesS' v trs@(_:_:_) []     pat
@@ -124,14 +123,14 @@ defTreesS' v trs         (p:ps) pat = Just (Branch pat p dts)
     dts = catMaybes [defTreesS' v' (selectRules v' pat') ps pat' |
                      pat' <- pats,
                      let v' = max v (maybe 0 (+ 1) (maxVarInTerm pat'))]
-    selectRules :: VarIdx -> Term f -> TRS f
+
     selectRules v' t = [r | r@(l, _) <- renameTRSVars v' trs,
                             unifiable [(l, t)]]
 
 --- Returns a definitional tree for the given pattern, the given rule and the
 --- given next possible variable or `Nothing` if no such definitional tree
 --- exists.
-mkLeaf :: VarIdx -> Term f -> Rule f -> Maybe (DefTree f)
+mkLeaf :: Eq f => VarIdx -> Term f -> Rule f -> Maybe (DefTree f)
 mkLeaf v pat r
   = case unify [(l, pat)] of
       (Left _)                      -> Nothing
@@ -149,7 +148,7 @@ mkLeaf v pat r
 --- rewriting systems and the given next possible variable or `Nothing` if no
 --- such definitional tree exists. Only the rules in the first term rewriting
 --- system of the pair have a demanded first argument position.
-mkOr :: VarIdx -> Term f -> (TRS f, TRS f) -> Maybe (DefTree f)
+mkOr :: Eq f => VarIdx -> Term f -> (TRS f, TRS f) -> Maybe (DefTree f)
 mkOr _ _   ([], [])               = Nothing
 mkOr v pat ([], rs2@(_:_))        = let mdts = map (mkLeaf v pat) rs2
                                      in Just (Or pat (catMaybes mdts))
@@ -174,11 +173,10 @@ varPositions (TermCons _ ts) = [[i] | i <- [1..(length ts)],
 --- Returns the position and the definitional trees from the given list of
 --- definitional trees for the leftmost outermost defined constructor in a
 --- term or `Nothing` if no such pair exists.
-loDefTrees :: [DefTree f] -> Term f -> Maybe (Pos, [DefTree f])
+loDefTrees :: Eq f => [DefTree f] -> Term f -> Maybe (Pos, [DefTree f])
 loDefTrees []        _ = Nothing
 loDefTrees dts@(_:_) t = listToMaybe (loDefTrees' eps t)
   where
-    loDefTrees' :: Pos -> Term f -> [(Pos, [DefTree f])]
     loDefTrees' _ (TermVar _)       = []
     loDefTrees' p c@(TermCons _ ts)
       | hasDefTree dts c = [(p, selectDefTrees dts c)]
@@ -187,7 +185,7 @@ loDefTrees dts@(_:_) t = listToMaybe (loDefTrees' eps t)
 
 --- The reduction strategy phi. It uses the definitional tree with the given
 --- index for all constructor terms if possible or at least the first one.
-phiRStrategy :: Int -> RStrategy _
+phiRStrategy :: Eq f => Int -> RStrategy f
 phiRStrategy n trs t
   = let dts = defTrees trs
      in case loDefTrees dts t of
@@ -202,7 +200,7 @@ phiRStrategy n trs t
 --- reduced according to the given definitional tree or `Nothing` if no such
 --- position exists. It uses the definitional tree with the given index for
 --- all constructor terms if possible or at least the first one.
-phiRStrategy' :: Int -> [DefTree f] -> Term f -> DefTree f -> Maybe Pos
+phiRStrategy' :: Eq f => Int -> [DefTree f] -> Term f -> DefTree f -> Maybe Pos
 phiRStrategy' _ _   t                (Leaf (l, _))
   | unifiable [(l', t)]                                = Just eps
   | otherwise                                          = Nothing
@@ -276,7 +274,6 @@ toGraph dt = fst (fst (runState (toGraph' dt) 0))
 showTermWithPos :: (f -> String) -> (Maybe Pos, Term f) -> String
 showTermWithPos s = showTP False
   where
-    showTerm' :: Bool -> Term f -> String
     showTerm' _ (TermVar v)     = showVarIdx v
     showTerm' b (TermCons c ts)
       = case ts of
@@ -285,7 +282,7 @@ showTermWithPos s = showTP False
                       ++ (showTerm' True r))
           _      -> (s c) ++ "("
                       ++ (intercalate "," (map (showTerm' False) ts)) ++ ")"
-    showTP :: Bool -> (Maybe Pos, Term f) -> String
+
     showTP b (Nothing, t)                 = showTerm' b t
     showTP b (Just [], t)                 = "<u>" ++ (showTerm' b t) ++ "</u>"
     showTP _ (Just (_:_), TermVar v)      = showVarIdx v
@@ -308,10 +305,10 @@ dotifyDefTree s dt = "digraph DefinitionalTree {\n\t"
                        ++ (unlines (map showEdge es)) ++ "}"
   where
     (ns, es) = toGraph dt
-    showNode :: Node _ -> String
+
     showNode (n, p, t) = "\t" ++ (showVarIdx n) ++ " [label=<"
                            ++ (showTermWithPos s (p, t)) ++ ">];"
-    showEdge :: Edge _ -> String
+
     showEdge (b, (n1, _, _), (n2, _, _))
       = let opts = if b then " [arrowhead=normal];" else ";"
          in "\t" ++ (showVarIdx n1) ++ " -> " ++ (showVarIdx n2) ++ opts

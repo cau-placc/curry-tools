@@ -3,7 +3,7 @@
 --- a Curry program.
 ---
 --- @author Michael Hanus
---- @version Augsut 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module PropertyUsage
@@ -12,27 +12,27 @@ module PropertyUsage
   )  where
 
 import AbstractCurry.Types
-import AbstractCurry.Select (funcType, resultType)
+import AbstractCurry.Select (funcType, resultType, typeOfQualType)
 
 ------------------------------------------------------------------------
 -- Check whether a function definition is a property,
 -- i.e., if the result type is `Prop` or `PropIO`.
 isProperty :: CFuncDecl -> Bool
-isProperty = isPropertyType . funcType
+isProperty = isPropertyType . typeOfQualType . funcType
  where
   isPropertyType ct = isPropIOType ct || isPropType (resultType ct)
 
 -- Is the type expression the type Test.EasyCheck.Prop?
 isPropType :: CTypeExpr -> Bool
 isPropType texp = case texp of
-  CTCons (mn,tc) [] -> tc == "Prop" && isCheckModule mn
-  _                 -> False
+  CTCons (mn,tc) -> tc == "Prop" && isCheckModule mn
+  _              -> False
 
 -- Is the type expression the type Test.EasyCheck.PropIO?
 isPropIOType :: CTypeExpr -> Bool
 isPropIOType texp = case texp of
-  CTCons (mn,tc) [] -> tc == "PropIO" && isCheckModule mn
-  _                 -> False
+  CTCons (mn,tc) -> tc == "PropIO" && isCheckModule mn
+  _              -> False
 
 -- Is the module name Test.Prop or Test.EasyCheck?
 isCheckModule :: String -> Bool

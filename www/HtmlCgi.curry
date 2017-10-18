@@ -96,6 +96,7 @@ submitForm = do
 
 -- load balance types:
 data LoadBalance = NoBalance | Standard | Multiple
+ deriving Eq
 
 --- Executes a specific command for a cgi server.
 runCgiServerCmd :: String -> CgiServerMsg -> IO ()

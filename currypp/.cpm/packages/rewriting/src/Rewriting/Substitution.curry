@@ -37,7 +37,6 @@ showSubst :: (f -> String) -> Subst f -> String
 showSubst s sub = "{" ++ (intercalate "," (map showMapping (fmToList sub)))
                     ++ "}"
   where
-    showMapping :: (VarIdx, Term f) -> String
     showMapping (v, t) = (showVarIdx v) ++ " \x21a6 " ++ (showTerm s t)
 
 -- ---------------------------------------------------------------------------

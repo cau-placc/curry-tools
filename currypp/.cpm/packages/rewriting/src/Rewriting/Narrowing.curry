@@ -73,7 +73,7 @@ data NarrowingTree f = NTree (Term f) [(Pos, Subst f, NarrowingTree f)]
 data NOptions f = NOptions { normalize :: Bool, rStrategy :: RStrategy f }
 
 --- The default narrowing options.
-defaultNOptions :: NOptions _
+defaultNOptions :: Eq f => NOptions f
 defaultNOptions = NOptions { normalize = False, rStrategy = poRStrategy }
 
 -- ---------------------------------------------------------------------------
@@ -95,28 +95,28 @@ showNarrowing s (NStep t p sub n)
 -- ---------------------------------------------------------------------------
 
 --- The standard narrowing strategy.
-stdNStrategy :: NStrategy _
+stdNStrategy :: Eq f => NStrategy f
 stdNStrategy trs t = [(p, rule, sub) |
                       p <- positions t, let tp = t |> p, isConsTerm tp,
                       rule@(l, _) <- trs,
                       (Right sub) <- [unify [(tp, l)]]]
 
 --- The innermost narrowing strategy.
-imNStrategy :: NStrategy _
+imNStrategy :: Eq f => NStrategy f
 imNStrategy trs t = [(p, rule, sub) |
                      p <- positions t, let tp = t |> p, isPattern trs tp,
                      rule@(l, _) <- trs,
                      (Right sub) <- [unify [(tp, l)]]]
 
 --- The outermost narrowing strategy.
-omNStrategy :: NStrategy _
+omNStrategy :: Eq f => NStrategy f
 omNStrategy trs t = let ns = stdNStrategy trs t
                      in [n | n@(p, _, _) <- ns,
                              all (\p' -> not (above p' p))
                                  [p' | (p', _, _) <- ns, p' /= p]]
 
 --- The leftmost outermost narrowing strategy.
-loNStrategy :: NStrategy _
+loNStrategy :: Eq f => NStrategy f
 loNStrategy trs t
   = let ns = stdNStrategy trs t
      in [n | n@(p, _, _) <- ns,
@@ -124,14 +124,14 @@ loNStrategy trs t
                  [p' | (p', _, _) <- ns, p' /= p]]
 
 --- The lazy narrowing strategy.
-lazyNStrategy :: NStrategy _
+lazyNStrategy :: Eq f => NStrategy f
 lazyNStrategy trs t
   = let lps = lazyPositions trs t
      in filter (\(p, _, _) -> elem p lps) (stdNStrategy trs t)
 
 --- Returns a list of all lazy positions in a term according to the given term
 --- rewriting system.
-lazyPositions :: TRS f -> Term f -> [Pos]
+lazyPositions :: Eq f => TRS f -> Term f -> [Pos]
 lazyPositions _   (TermVar _)       = []
 lazyPositions trs t@(TermCons _ ts)
   | isRedex trs t = if null rs then lps else eps:lps
@@ -143,7 +143,7 @@ lazyPositions trs t@(TermCons _ ts)
     lps = [i:p | i <- dps, p <- lazyPositions trs (ts !! (i - 1))]
 
 --- The weakly needed narrowing strategy.
-wnNStrategy :: NStrategy _
+wnNStrategy :: Eq f => NStrategy f
 wnNStrategy trs t
   = let dts = defTrees trs
         v = fromMaybe 0 (minVarInTRS trs)
@@ -156,7 +156,7 @@ wnNStrategy trs t
 --- Returns the narrowing steps for the weakly needed narrowing strategy
 --- according to the given definitional tree and the given next possible
 --- variable.
-wnNStrategy' :: [DefTree f] -> VarIdx -> Term f -> DefTree f
+wnNStrategy' :: Eq f => [DefTree f] -> VarIdx -> Term f -> DefTree f
              -> [(Pos, Rule f, Subst f)]
 wnNStrategy' _   v t (Leaf r)
   = let rule@(l, _) = renameRuleVars v (normalizeRule r)
@@ -173,7 +173,6 @@ wnNStrategy' dts v t (Branch pat p dts')
                      in [(p .> p', rule, composeSubst sub tau') |
                          (p', rule, sub) <- wnNStrategy' dts v' (t' |> p) dt]
   where
-    filterDTS :: [DefTree f] -> [DefTree f]
     filterDTS = filter (\dt -> let dtp = renameTermVars v (dtPattern dt)
                                 in unifiable [(t, dtp)])
 wnNStrategy' dts v t (Or _ dts') = concatMap (wnNStrategy' dts v t) dts'
@@ -205,7 +204,6 @@ narrowBy' v sub s trs n t
                   []       -> [(sub, t)]
                   ns@(_:_) -> concatMap combine ns
   where
-    combine :: (Pos, Rule f, Subst f) -> [(Subst f, Term f)]
     combine (p, (_, r), sub')
       = let t' = applySubst sub' (replaceTerm t p r)
             rsub' = restrictSubst sub' (tVars t)
@@ -237,7 +235,7 @@ narrowingBy' v sub s trs n t
                   []       -> [NTerm t]
                   ns@(_:_) -> concatMap combine ns
   where
-    combine :: (Pos, Rule f, Subst f) -> [Narrowing f]
+    -- combine :: (Pos, Rule f, Subst f) -> [Narrowing f]
     combine (p, (_, r), sub')
       = let t' = applySubst sub' (replaceTerm t p r)
             rsub' = restrictSubst sub' (tVars t)
@@ -271,7 +269,7 @@ narrowingTreeBy' v sub s trs n t
   | otherwise = NTree t (map combine (s trs' t))
   where
     trs' = renameTRSVars v (normalizeTRS trs)
-    combine :: (Pos, Rule f, Subst f) -> (Pos, Subst f, NarrowingTree f)
+    --combine :: (Pos, Rule f, Subst f) -> (Pos, Subst f, NarrowingTree f)
     combine (p, (_, r), sub')
       = let t' = applySubst sub' (replaceTerm t p r)
             rsub' = restrictSubst sub' (tVars t)
@@ -286,7 +284,7 @@ narrowingTreeBy' v sub s trs n t
 --- `TermCons c [l, r]` with `c` being a constructor like `=`. The term `l`
 --- and the term `r` are the left-hand side and the right-hand side of the
 --- term equation.
-solveEq :: NOptions f -> NStrategy f -> TRS f -> Term f -> [Subst f]
+solveEq :: Eq f => NOptions f -> NStrategy f -> TRS f -> Term f -> [Subst f]
 solveEq _    _ _   (TermVar _)       = []
 solveEq opts s trs t@(TermCons _ ts)
   = case ts of
@@ -301,7 +299,7 @@ solveEq opts s trs t@(TermCons _ ts)
 --- `TermCons c [l, r]` with `c` being a constructor like `=`. The term `l`
 --- and the term `r` are the left-hand side and the right-hand side of the
 --- term equation.
-solveEqL :: NOptions f -> NStrategy f -> [TRS f] -> Term f -> [Subst f]
+solveEqL :: Eq f => NOptions f -> NStrategy f -> [TRS f] -> Term f -> [Subst f]
 solveEqL opts s trss = solveEq opts s (concat trss)
 
 --- Solves a term equation with the given strategy, the given term rewriting
@@ -310,7 +308,8 @@ solveEqL opts s trss = solveEq opts s (concat trss)
 --- `TermCons c [l, r]` with `c` being a constructor like `=`. The term `l`
 --- and the term `r` are the left-hand side and the right-hand side of the
 --- term equation.
-solveEq' :: NOptions f -> VarIdx -> Subst f -> NStrategy f -> TRS f -> Term f
+solveEq' :: Eq f =>
+            NOptions f -> VarIdx -> Subst f -> NStrategy f -> TRS f -> Term f
          -> [Subst f]
 solveEq' _    _ _   _ _   (TermVar _)       = []
 solveEq' opts v sub s trs t@(TermCons _ ts)
@@ -327,7 +326,7 @@ solveEq' opts v sub s trs t@(TermCons _ ts)
     nt@(TermCons _ [l, r]) = if (normalize opts)
                                then reduce (rStrategy opts) trs t
                                else t
-    solve :: (Pos, Rule f, Subst f) -> [Subst f]
+    --solve :: (Pos, Rule f, Subst f) -> [Subst f]
     solve (p, (_, r'), sub')
       = let t' = applySubst sub' (replaceTerm nt p r')
             rsub' = restrictSubst sub' (tVars nt)
@@ -381,10 +380,10 @@ dotifyNarrowingTree s ng
       ++ (unlines (map showEdge es)) ++ "}"
   where
     (ns, es) = toGraph ng
-    showNode :: Node _ -> String
+
     showNode (n, t) = "\t" ++ (showVarIdx n) ++ " [label=\"" ++ (showTerm s t)
                         ++ "\"];"
-    showEdge :: Edge _ -> String
+
     showEdge ((n1, t), sub, (n2, _))
       = "\t" ++ (showVarIdx n1) ++ " -> " ++ (showVarIdx n2) ++ " [label=\""
           ++ (showSubst s (restrictSubst sub (tVars t))) ++ "\"];"

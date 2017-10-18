@@ -7,12 +7,14 @@ import Test.EasyCheck
 -- (by Sergio Antoy).
 
 data State = WA | OR | ID | BC
+ deriving (Eq,Show)
 
 states = [WA,OR,ID,BC]
 
 adjacent = [(WA,OR),(WA,ID),(WA,BC),(OR,ID),(ID,BC)]
 
 data Color = Red | Green | Blue
+ deriving (Eq,Show)
 
 color x = (x, Red ? Green ? Blue)
 

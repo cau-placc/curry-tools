@@ -21,10 +21,9 @@ import FilePath
 import List
 import System
 
-import TransICode(translateIntCode)
-import TransDefRules(transDefaultRules)
-import Sequential(transSequentialRules)
-import TransContracts(transContracts)
+import TransICode     (translateIntCode)
+import TransDefRules  (transDefaultRules)
+import TransContracts (transContracts)
 
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
@@ -33,12 +32,12 @@ cppBanner = unlines [bannerLine,bannerText,bannerLine]
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets, i.e., kind of entities to be preprocessed:
-data PPTarget = ForeignCode | SequentialRules | DefaultRules | Contracts
+data PPTarget = ForeignCode | DefaultRules | Contracts
+ deriving Eq
 
 parseTarget :: String -> Maybe PPTarget
 parseTarget t | t=="foreigncode"  = Just ForeignCode
               | t=="defaultrules" = Just DefaultRules
-              | t=="seqrules"     = Just SequentialRules
               | t=="contracts"    = Just Contracts
               | otherwise         = Nothing
               
@@ -148,7 +147,6 @@ usageText = unlines $
  , "foreigncode  : translate foreign code pieces in the source file"
  , "--model:<ERD_Name>_UniSQLCode.info :"
  , "               data model to translate embedded SQL statements"
- , "seqrules     : implement sequential rule selection strategy"
  , "defaultrules : implement default rules"
  , "contracts    : implement dynamic contract checking"
  , ""
@@ -179,10 +177,6 @@ preprocess opts modname orgfile infile outfile
   = -- no target specified: apply all reasonable transformations
     preprocess opts { optTgts = [ForeignCode, DefaultRules, Contracts] }
                modname orgfile infile outfile
-  | SequentialRules `elem` pptargets && DefaultRules `elem` pptargets
-  = do putStr cppBanner
-       putStrLn "ERROR: cannot use 'defaultrules' together with 'seqrules'!\n"
-       exitWith 1
   | otherwise
   = do let savefile = orgfile++".SAVEPPORG"
        starttime <- getCPUTime
@@ -214,19 +208,12 @@ callPreprocessors :: PPOpts -> String -> String -> String -> String
 callPreprocessors opts optlines modname srcprog orgfile
   | ForeignCode `elem` pptargets
   = do icouttxt <- translateIntCode verb (optModel opts) orgfile srcprog
-       if null (intersect [SequentialRules, DefaultRules, Contracts] pptargets)
+       if null (intersect [DefaultRules, Contracts] pptargets)
         then return icouttxt -- no further preprocessors
         else do writeFile orgfile icouttxt
                 let rpptargets = delete ForeignCode pptargets
                 callPreprocessors opts {optTgts = rpptargets}
                                   optlines modname icouttxt orgfile
-  | SequentialRules `elem` pptargets
-  = do seqprog <- readCurry modname >>=
-                  transSequentialRules verb [] srcprog
-       if Contracts `elem` pptargets
-        then transContracts verb contopts srcprog seqprog
-                           >>= return . maybe (showCProg seqprog) showCProg
-        else return (showCProg seqprog)
   | DefaultRules `elem` pptargets
   = do -- specific handling since DefaultRules requires and process
        -- untyped Curry but Contracts requires typed Curry:

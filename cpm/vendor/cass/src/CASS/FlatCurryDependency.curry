@@ -21,10 +21,11 @@ dependsDirectlyOnTypes (Type _ _ _ consDeclList) =
 dependsDirectlyOnTypes (TypeSyn _ _ _ typeExpr) = nub (tconsOf typeExpr)
 
 
-tconsOf :: TypeExpr -> [(String,String)]
-tconsOf (TVar _) = []
-tconsOf (FuncType a b) =  tconsOf a ++ tconsOf b
+tconsOf :: TypeExpr -> [QName]
+tconsOf (TVar _)            = []
+tconsOf (FuncType a b)      =  tconsOf a ++ tconsOf b
 tconsOf (TCons qName texps) = qName : concatMap tconsOf texps
+tconsOf (ForallType _ te)   = tconsOf te
 
 
 -----------------------------------------------------------------------------

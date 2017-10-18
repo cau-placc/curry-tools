@@ -11,7 +11,7 @@ rev2'default xs = xs
 main :: [[Int]]
 main = map rev2 (map (\n->[1..n]) [0..4])
 
-test1 = rev2 [] -=- []
+test1 = rev2 [] -=- ([] :: [Int])
 test2 = rev2 [1] -=- [1]
 test3 = rev2 [1,2] -=- [2,1]
 test4 = rev2 [1,2,3] -=- [1,2,3]

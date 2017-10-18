@@ -775,7 +775,7 @@ firstLow :: String -> String
 firstLow [] = ""
 firstLow (s:str) = (toLower s):str
 
-compareLists :: [a] -> [a] -> Bool
+compareLists :: Eq a => [a] -> [a] -> Bool
 compareLists [] [] = True
 compareLists [] (_:_) = False
 compareLists (_:_) [] = False

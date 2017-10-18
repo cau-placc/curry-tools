@@ -8,7 +8,7 @@
 --- See example program `Examples/UsageErrors.curry` for some examples.
 ---
 --- @author Michael Hanus
---- @version February 2015
+--- @version October 2016
 ---------------------------------------------------------------------------
 
 module UsageCheck(checkSetUse, checkBlacklistUse) where
@@ -74,7 +74,7 @@ isID (_,n) = all (`elem` infixIDs) n || '.' `notElem` n
 --- Returns messages about uses of black-listed operations occurring
 --- in an AbstractCurry program.
 checkBlacklistUse :: AC.CurryProg -> IO [(QName,String)]
-checkBlacklistUse (AC.CurryProg _ _ _ cfdecls _) = do
+checkBlacklistUse (AC.CurryProg _ _ _ _ _ _ cfdecls _) = do
   blerrors <- values2list (set1 blacklistUsage cfdecls)
   return (map showBlacklistError blerrors)
  where

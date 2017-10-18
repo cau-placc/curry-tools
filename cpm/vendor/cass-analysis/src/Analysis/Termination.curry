@@ -114,6 +114,7 @@ data Productivity =
   | DCalls [QName] -- possible direct (top-level) calls to operations that may
                    -- not terminate, which corresponds to being productive
   | Looping        -- possibly looping
+ deriving (Eq,Ord)
 
 productivityAnalysis :: Analysis Productivity
 productivityAnalysis =

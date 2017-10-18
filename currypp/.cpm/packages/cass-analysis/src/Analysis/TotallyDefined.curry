@@ -48,6 +48,7 @@ data Completeness =
      Complete       -- completely defined
    | InComplete     -- incompletely defined
    | InCompleteOr   -- incompletely defined in each branch of an "Or"
+ deriving Eq
 
 --- A function is totally defined if it is pattern complete and depends
 --- only on totally defined functions.

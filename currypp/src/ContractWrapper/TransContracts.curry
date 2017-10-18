@@ -11,7 +11,7 @@
 --- > Declarative Languages (PADL 2012), pp. 33-47, Springer LNCS 7149, 2012
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module TransContracts(main,transContracts) where
@@ -28,7 +28,7 @@ import Directory
 import Distribution
 import FilePath          (takeDirectory)
 import List
-import Maybe             (fromJust)
+import Maybe             (fromJust, isNothing)
 import System
 
 -- in order to use the determinism analysis:
@@ -201,7 +201,7 @@ transformProgram :: Options -> [(QName,Int)]-> [CFuncDecl]
                  -> ProgInfo Deterministic -> [CFuncDecl]
                  -> [CFuncDecl] -> [CFuncDecl] -> CurryProg -> CurryProg
 transformProgram opts funposs allfdecls detinfo specdecls predecls postdecls
-                 (CurryProg mname imps tdecls orgfdecls opdecls) =
+  (CurryProg mname imps dfltdecl clsdecls instdecls tdecls orgfdecls opdecls) =
  let -- replace in program old postconditions by new simplified postconditions:
      fdecls = filter (\fd -> funcName fd `notElem` map funcName postdecls)
                      orgfdecls ++ postdecls
@@ -217,7 +217,7 @@ transformProgram opts funposs allfdecls detinfo specdecls predecls postdecls
      contractpcs  = postdecls++newpostconds
   in CurryProg mname
                (nub ("Test.Contract":"SetFunctions":imps))
-               tdecls
+               dfltdecl clsdecls instdecls tdecls
                (map deleteCmtIfEmpty
                   (concatMap
                      (addContract opts funposs allfdecls predecls contractpcs)
@@ -227,8 +227,10 @@ transformProgram opts funposs allfdecls detinfo specdecls predecls postdecls
 
 -- Add an empty comment to each function which has no comment
 addCmtFuncInProg :: CurryProg -> CurryProg
-addCmtFuncInProg (CurryProg mname imps tdecls fdecls opdecls) =
-  CurryProg mname imps tdecls (map addCmtFunc fdecls) opdecls
+addCmtFuncInProg
+  (CurryProg mname imps dfltdecl clsdecls instdecls tdecls fdecls opdecls) =
+   CurryProg mname imps dfltdecl clsdecls instdecls tdecls
+             (map addCmtFunc fdecls) opdecls
  where
   addCmtFunc (CFunc qn ar vis texp rs) = CmtFunc "" qn ar vis texp rs
   addCmtFunc (CmtFunc cmt qn ar vis texp rs) = CmtFunc cmt qn ar vis texp rs
@@ -240,7 +242,8 @@ addCmtFuncInProg (CurryProg mname imps tdecls fdecls opdecls) =
 genPostCond4Spec :: Options -> [CFuncDecl] -> ProgInfo Deterministic
                  -> [CFuncDecl] -> CFuncDecl -> [CFuncDecl]
 genPostCond4Spec _ _ _ _ (CFunc _ _ _ _ _) = error "genPostCond4Spec"
-genPostCond4Spec _ allfdecls detinfo postdecls (CmtFunc _ (m,f) ar vis texp _) =
+genPostCond4Spec _ allfdecls detinfo postdecls
+               (CmtFunc _ (m,f) ar vis (CQualType (CContext clscons) texp) _) =
  let fname     = fromSpecName f
      -- is the specification deterministic?
      detspec   = maybe False (== Det) (lookupProgInfo (m,f) detinfo)
@@ -261,11 +264,12 @@ genPostCond4Spec _ allfdecls detinfo postdecls (CmtFunc _ (m,f) ar vis texp _) =
                              allfdecls)
      gspecname = (m,f++"'g")
      gspec     = cfunc gspecname ar Private
-                    ((resultType texp ~> gtype) ~> replaceResultType texp gtype)
-                    [let gsargvars = map (\i -> (i,"x"++show i)) [1..ar] in
-                     simpleRule (CPVar varg : map CPVar gsargvars)
-                                (CApply (CVar varg)
-                                        (applyF (m,f) (map CVar gsargvars)))]
+                  (CQualType (CContext ((pre "Eq", gtype) : clscons))
+                   ((resultType texp ~> gtype) ~> replaceResultType texp gtype))
+                  [let gsargvars = map (\i -> (i,"x"++show i)) [1..ar]
+                   in  simpleRule (CPVar varg : map CPVar gsargvars)
+                                  (CApply (CVar varg)
+                                          (applyF (m,f) (map CVar gsargvars)))]
      postcheck = CLetDecl
                   [CLocalPat (CPVar varz)
                      (CSimpleRhs (CApply (CVar varg) (CVar resultvar)) [])]
@@ -284,7 +288,8 @@ genPostCond4Spec _ allfdecls detinfo postdecls (CmtFunc _ (m,f) ar vis texp _) =
        ("Parametric postcondition for '"++fname++
         "' (generated from specification). "++oldcmt)
        (m,fpgenname) (ar+2) Private
-       ((resultType texp ~> gtype) ~> extendFuncType texp boolType)
+       (CQualType (CContext ((pre "Eq", gtype) : clscons))
+                  ((resultType texp ~> gtype) ~> extendFuncType texp boolType))
        [if null oldfpostc
         then simpleRule (map CPVar (varg:argvars)) postcheck
         else simpleRuleWithLocals
@@ -300,11 +305,27 @@ genPostCond4Spec _ allfdecls detinfo postdecls (CmtFunc _ (m,f) ar vis texp _) =
        ("Postcondition for '"++fname++"' (generated from specification). "++
         oldcmt)
        (m,fpostname) (ar+1) vis
-       (extendFuncType texp boolType)
+       (CQualType
+          (CContext (union (type2EqConstraints (resultType texp)) clscons))
+          (extendFuncType texp boolType))
        [simpleRule (map CPVar argvars)
                    (applyF (m,fpgenname)
                            (constF obsfun : map CVar argvars))]
      ]
+
+-- Transform a type into Eq constraints for all type variables occurring
+-- in this type. Note: this is not sufficient since one needs also be
+-- sure that each type constructor has an Eq instance.
+type2EqConstraints :: CTypeExpr -> [CConstraint]
+type2EqConstraints texp =
+  map (\tv -> (pre "Eq",CTVar tv)) (nub (tvarsOfType texp))
+
+-- Transform a type into Eq constraints for all type variables occurring
+-- in this type. Note: this is not sufficient since one needs also be
+-- sure that each type constructor has an Eq instance.
+type2ShowConstraints :: CTypeExpr -> [CConstraint]
+type2ShowConstraints texp =
+  map (\tv -> (pre "Show",CTVar tv)) (nub (tvarsOfType texp))
 
 -- adds contract checking to a function if it has a pre- or postcondition
 addContract :: Options -> [(QName,Int)] -> [CFuncDecl] -> [CFuncDecl]
@@ -312,7 +333,7 @@ addContract :: Options -> [(QName,Int)] -> [CFuncDecl] -> [CFuncDecl]
 addContract _ _ _ _ _ (CFunc _ _ _ _ _) =
   error "Internal error in addContract: CFunc occurred"
 addContract opts funposs allfdecls predecls postdecls
-            fdecl@(CmtFunc cmt qn@(m,f) ar vis texp _) =
+   fdecl@(CmtFunc cmt qn@(m,f) ar vis (CQualType (CContext clscons) texp) _) =
  let argvars   = map (\i -> (i,"x"++show i)) [1..ar]
      encapsSuf = if withEncapsulate opts then "ND" else ""
      encaps fn n = if withEncapsulate opts then setFun n fn [] else constF fn
@@ -330,13 +351,18 @@ addContract opts funposs allfdecls predecls postdecls
                        (find (\fd -> snd (funcName fd) == f++"'post'observe")
                              allfdecls)
 
+     ctexp = CQualType (CContext
+                         (union (type2EqConstraints (resultType texp))
+                                (union (type2ShowConstraints texp) clscons)))
+                       texp
+
      -- Construct function with precondition added and a function without prec.:
      (precheck,woprefdecl) =
         maybe ([],fdecl)
           (\predecl ->
             let prename = funcName predecl
                 rename = updateFunc id qn (withSuffix qn "'WithoutPreCondCheck")
-            in ([cmtfunc cmt (m,f) ar vis texp
+            in ([cmtfunc cmt (m,f) ar vis ctexp
                    [simpleRule (map CPVar argvars)
                       (applyF (cMod $ "withPreContract" ++ show ar ++ encapsSuf)
                          ([fref, encaps prename ar, constF (rename qn)] ++
@@ -353,7 +379,7 @@ addContract opts funposs allfdecls predecls postdecls
                 qnp      = funcName woprefdecl
                 rename   = updateFunc id qnp
                                       (withSuffix qnp "'WithoutPostCondCheck")
-            in ([cmtfunc (funcComment woprefdecl) qnp ar vis texp
+            in ([cmtfunc (funcComment woprefdecl) qnp ar vis ctexp
                  [simpleRule (map CPVar argvars)
                     (applyF (cMod $ "withPostContract" ++ show ar ++ encapsSuf)
                       ([fref, encaps postname (ar+1), obsfunexp,
@@ -370,7 +396,7 @@ addContract opts funposs allfdecls predecls postdecls
   in precheck ++ postcheck ++ [wopostfdecl]
 
 --- Updates a function at some point.
-updateFunc :: (a -> b) -> a -> b -> (a -> b)
+updateFunc :: Eq a => (a -> b) -> a -> b -> (a -> b)
 updateFunc f x v y = if y==x then v else f y
 
 --- Define a function as private.
@@ -405,9 +431,9 @@ replaceResultType texp ntype =
 -- Transform a n-ary function type into a (n+1)-ary function type with
 -- a given new result type
 extendFuncType :: CTypeExpr -> CTypeExpr -> CTypeExpr
-extendFuncType t@(CTVar _) texp = t ~> texp
-extendFuncType t@(CTCons _ _) texp = t ~> texp
-extendFuncType (CFuncType t1 t2) texp = t1 ~> (extendFuncType t2 texp)
+extendFuncType t texp = case t of
+  CFuncType t1 t2 -> t1 ~> (extendFuncType t2 texp)
+  _               -> t ~> texp
 
 --- Renames a function declaration (but not the body).
 renameFDecl :: (QName -> QName) -> CFuncDecl -> CFuncDecl
@@ -468,7 +494,7 @@ infixIDs =  "~!@#$%^&*+-=<>?./|\\:"
 -- Rename all module references to "Test.Prog" into "Test.EasyCheck"
 renameProp2EasyCheck :: CurryProg -> CurryProg
 renameProp2EasyCheck prog =
-  updCProg id (map rnmMod) id id id
+  updCProg id (map rnmMod) id id id id id id
            (updQNamesInCProg (\ (mod,n) -> (rnmMod mod,n)) prog)
  where
   rnmMod mod | mod == propModule = easyCheckModule

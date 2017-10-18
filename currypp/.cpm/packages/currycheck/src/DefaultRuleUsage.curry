@@ -3,7 +3,7 @@
 --- default rules in a Curry program.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module DefaultRuleUsage

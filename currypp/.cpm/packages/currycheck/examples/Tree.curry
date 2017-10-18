@@ -4,6 +4,7 @@ import Test.Prop
 
 -- A general tree type:
 data Tree a = Leaf a | Node [Tree a]
+ deriving (Eq,Show)
 
 leaves (Leaf x) = [x]
 leaves (Node ts) = concatMap leaves ts

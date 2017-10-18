@@ -55,7 +55,7 @@ rRoot :: Rule f -> Either VarIdx f
 rRoot (l, _) = tRoot l
 
 --- Returns a list without duplicates of all constructors in a rule.
-rCons :: Rule f -> [f]
+rCons :: Eq f => Rule f -> [f]
 rCons (l, r) = union (tCons l) (tCons r)
 
 --- Returns a list without duplicates of all variables in a rule.
@@ -105,7 +105,7 @@ normalizeTRS :: TRS f -> TRS f
 normalizeTRS = map normalizeRule
 
 --- Checks whether the first rule is a variant of the second rule.
-isVariantOf :: Rule f -> Rule f -> Bool
+isVariantOf :: Eq f => Rule f -> Rule f -> Bool
 isVariantOf = on (==) normalizeRule
 
 --- Checks whether a term rewriting system is left-linear.
@@ -118,22 +118,21 @@ isLeftNormal = all (isNormal . fst)
 
 --- Checks whether a term is reducible with some rule
 --- of the given term rewriting system.
-isRedex :: TRS f -> Term f -> Bool
+isRedex :: Eq f => TRS f -> Term f -> Bool
 isRedex trs t = any ((eqConsPattern t) . fst) trs
 
 --- Checks whether a term is a pattern, i.e., an root-reducible term
 --- where the argaccording to the given term rewriting
 --- system.
-isPattern :: TRS f -> Term f -> Bool
+isPattern :: Eq f => TRS f -> Term f -> Bool
 isPattern _   (TermVar _)       = False
 isPattern trs t@(TermCons _ ts) = isRedex trs t && all isVarOrCons ts
  where
-  isVarOrCons :: Term f -> Bool
   isVarOrCons (TermVar _)         = True
   isVarOrCons t'@(TermCons _ ts') = not (isRedex trs t') && all isVarOrCons ts'
 
 --- Checks whether a term rewriting system is constructor-based.
-isConsBased :: TRS _ -> Bool
+isConsBased :: Eq f => TRS f -> Bool
 isConsBased trs = all ((isPattern trs) . fst) trs
 
 --- Checks whether the given argument position of a rule is demanded. Returns

@@ -31,6 +31,13 @@ import Sort(mergeSortBy)
 -- `AnyC` represents any value (i.e., constructor-rooted term),
 -- `Cons cs` a value rooted by some of the constructor `cs`, and
 data AType = Cons [QName] | AnyC | Any
+ deriving (Eq,Ord)
+
+instance Show AType where
+  show AnyC = "AnyC"
+  show Any  = "Any"
+  show (Cons qns) =
+    "Cons [" ++ intercalate "," (map (\ (mn,fn) -> mn ++ "." ++ fn) qns) ++ "]"
 
 --- Abstract representation of no possible value.
 empty :: AType
@@ -80,6 +87,7 @@ showAType _ (Cons cs) = "{" ++ intercalate "," (map snd cs) ++ "}"
 --- the possible result of the function,
 --- or a list of possible argument/result type pairs.
 data AFType = EmptyFunc | AFType [([AType],AType)]
+ deriving Eq
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String
@@ -300,7 +308,7 @@ prelude = "Prelude"
 -- Auxiliaries:
 
 -- Union on sorted lists:
-union :: [a] -> [a] -> [a]
+union :: Ord a => [a] -> [a] -> [a]
 union []       ys     = ys
 union xs@(_:_) []     = xs
 union (x:xs)   (y:ys) | x==y      = x : union xs ys
@@ -308,7 +316,7 @@ union (x:xs)   (y:ys) | x==y      = x : union xs ys
                       | otherwise = y : union (x:xs) ys
 
 -- Intersection on sorted lists:
-intersect :: [a] -> [a] -> [a]
+intersect :: Ord a => [a] -> [a] -> [a]
 intersect []     _      = []
 intersect (_:_)  []     = []
 intersect (x:xs) (y:ys) | x==y      = x : intersect xs ys

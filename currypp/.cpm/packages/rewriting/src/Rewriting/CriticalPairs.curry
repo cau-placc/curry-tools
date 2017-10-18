@@ -47,7 +47,7 @@ showCPairs s = unlines . (map (showCPair s))
 -- ---------------------------------------------------------------------------
 
 --- Returns the critical pairs of a term rewriting system.
-cPairs :: TRS f -> [CPair f]
+cPairs :: Eq f => TRS f -> [CPair f]
 cPairs trs
   = let trs' = maybe trs (\v -> renameTRSVars (v + 1) trs) (maxVarInTRS trs)
      in nub [(applySubst sub r1,
@@ -63,9 +63,9 @@ cPairs trs
 -- ---------------------------------------------------------------------------
 
 --- Checks whether a term rewriting system is orthogonal.
-isOrthogonal :: TRS _ -> Bool
+isOrthogonal :: Eq f => TRS f -> Bool
 isOrthogonal trs = (isLeftLinear trs) && (null (cPairs trs))
 
 --- Checks whether a term rewriting system is weak-orthogonal.
-isWeakOrthogonal :: TRS _ -> Bool
+isWeakOrthogonal :: Eq f => TRS f -> Bool
 isWeakOrthogonal trs = (isLeftLinear trs) && (all (uncurry (==)) (cPairs trs))

@@ -1,10 +1,18 @@
 {
     "name": "transbooleq",
-    "version": "0.2.0",
+    "version": "2.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A transformation tool to replace Boolean equalities by equational constraints",
-    "category": [ "Analysis" ],
+    "category": [ "Analysis", "Optimization" ],
     "dependencies": {
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "executable": {
+        "name": "curry-transbooleq",
+        "main": "BindingOpt"
     },
     "testsuite": {
         "src-dir": "examples",

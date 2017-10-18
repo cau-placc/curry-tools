@@ -4,7 +4,7 @@
 --- rewriting system and every type has a corresponding type declaration.
 ---
 --- @author Jan-Hendrik Matthes
---- @version August 2016
+--- @version October 2016
 --- @category algorithm
 ------------------------------------------------------------------------------
 
@@ -79,7 +79,7 @@ readCurryProgram fn = do res <- tryReadCurryFile fn
 --- where every function gets assigned the corresponding term rewriting system
 --- and every type has a corresponding type declaration.
 fromCurryProg :: CurryProg -> RWData
-fromCurryProg (CurryProg _ _ ts fs _)
+fromCurryProg (CurryProg _ _ _ _ _ ts fs _)
   = (listToFM (<) (map fromFuncDecl fs), ts)
 
 --- Transforms an abstract curry function declaration into a pair with

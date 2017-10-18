@@ -1,13 +1,13 @@
 {
    "name": "boxes",
-   "version": "0.0.2",
+   "version": "2.0.0",
    "author": "Jonas Oberschweiber <jonas@oberschweiber.com>",
    "category": [ "Printing" ],
    "synopsis": "A pretty printer for boxes",
    "dependencies": {},
    "compilerCompatibility": {
-       "pakcs": ">= 1.14.0, < 2.0.0",
-       "kics2": ">= 0.5.0, < 2.0.0"
+       "pakcs": ">= 2.0.0",
+       "kics2": ">= 2.0.0"
    },
    "exportedModules": ["Boxes"],
    "source": {

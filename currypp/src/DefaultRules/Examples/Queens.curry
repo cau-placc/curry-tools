@@ -1,7 +1,6 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=defaultrules #-}
 {-# OPTIONS_CYMAKE -Wnone #-}
 
-import Integer(abs)
 import Test.EasyCheck
 
 -------------------------------------------------------------------------

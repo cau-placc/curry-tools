@@ -108,6 +108,7 @@ extraVarInExpr (Typed e _) = extraVarInExpr e
 
 --- Data type to represent determinism information.
 data Deterministic = NDet | Det
+  deriving Eq
 
 -- Show determinism information as a string.
 showDet :: AOutFormat -> Deterministic -> String

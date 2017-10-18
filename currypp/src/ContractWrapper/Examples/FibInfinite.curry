@@ -6,6 +6,7 @@ import Test.Prop
 -- recursive definition
 
 -- (Deterministic!) specification of all Fibonacci numbers:
+fibs'spec :: [Int]
 fibs'spec = map fib [0..]
  where fib n | n == 0 = 0
              | n == 1 = 1
@@ -15,6 +16,7 @@ fibs'spec = map fib [0..]
 fibs'post'observe xs = take 10 xs
 
 -- A more efficient (but erroneous) implementation of all Fibonacci numbers:
+fibs :: [Int]
 fibs = fiblist 0 1
  where
   fiblist x y = x : fiblist (x+y) y

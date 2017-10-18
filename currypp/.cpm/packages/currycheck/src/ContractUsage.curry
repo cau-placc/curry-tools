@@ -5,7 +5,7 @@
 --- and pre/postconditions.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module ContractUsage
@@ -56,7 +56,7 @@ checkPrePostResultTypes prog =
    in preerrs ++ posterrs
 
 hasBoolResultType :: CFuncDecl -> Bool
-hasBoolResultType fd = resultType (funcType fd) == boolType
+hasBoolResultType fd = resultType (typeOfQualType (funcType fd)) == boolType
 
 -- Get function names from a Curry module with a name satisfying the predicate:
 funDeclsWithNameArity :: (String -> Bool) -> CurryProg -> [(String,Int)]
@@ -66,7 +66,8 @@ funDeclsWithNameArity pred prog =
 
 -- Computes the unqualified name and the arity from the type of the function.
 nameArityOfFunDecl :: CFuncDecl -> (String,Int)
-nameArityOfFunDecl fd = (snd (funcName fd), length (argTypes (funcType fd)))
+nameArityOfFunDecl fd =
+  (snd (funcName fd), length (argTypes (typeOfQualType (funcType fd))))
 
 
 -- Is this the name of a specification?

@@ -72,6 +72,7 @@ type Disjunction = [Conjunction]
 --- version constraint. Each inner list of version constraints is a conjunction,
 --- the outer list is a disjunction.
 data Dependency = Dependency String Disjunction
+ deriving (Eq,Show)
 
 --- A version constraint.
 --- @cons VExact - versions must match exactly
@@ -87,11 +88,13 @@ data VersionConstraint = VExact      Version
                        | VGte        Version
                        | VLte        Version
                        | VCompatible Version
+ deriving (Eq,Show)
 
 --- Compiler compatibility constraint, takes the name of the compiler (kics2 or
 --- pakcs), as well as a disjunctive normal form combination of version 
 --- constraints (see Dependency).
 data CompilerCompatibility = CompilerCompatibility String Disjunction
+ deriving (Eq,Show)
 
 --- A package id consisting of the package name and version.
 data PackageId = PackageId String Version
@@ -102,6 +105,7 @@ data PackageId = PackageId String Version
 --- of options for various compilers (i.e., pairs of compiler name and
 --- options for this compiler).
 data PackageExecutable = PackageExecutable String String [(String,String)]
+ deriving (Eq,Show)
 
 --- The specification of a single test suite for a package.
 --- It consists of a directory, a list of modules, options (for CurryCheck),
@@ -112,6 +116,7 @@ data PackageExecutable = PackageExecutable String String [(String,String)]
 --- by running CurryCheck on the given list of modules where the option
 --- string is passed to CurryCheck.
 data PackageTest = PackageTest String [String] String String
+ deriving (Eq,Show)
 
 --- The specification to generate the documentation of the package.
 --- It consists of the name of the directory containing the documentation,
@@ -120,6 +125,7 @@ data PackageTest = PackageTest String [String] String String
 --- and the main file has the suffix "tex", e.g., "manual.tex",
 --- the default command is "pdflatex manual.tex".
 data PackageDocumentation = PackageDocumentation String String String
+ deriving (Eq,Show)
 
 --- A source where the contents of a package can be acquired.
 --- @cons Http - URL to a ZIP file 
@@ -130,6 +136,7 @@ data PackageDocumentation = PackageDocumentation String String String
 data PackageSource = Http String 
                    | Git String (Maybe GitRevision)
                    | FileSource String 
+ deriving (Eq,Show)
 
 --- A Git revision.
 --- @cons Tag - A tag which might contain the string `$version$` which will
@@ -139,6 +146,7 @@ data PackageSource = Http String
 data GitRevision = Tag String
                  | Ref String
                  | VersionAsTag
+ deriving (Eq,Show)
 
 --- The data type for package specifications.
 data Package = Package {
@@ -165,6 +173,7 @@ data Package = Package {
   , testSuite             :: Maybe [PackageTest]
   , documentation         :: Maybe PackageDocumentation
   }
+ deriving (Eq,Show)
 
 --- An empty package specification.
 emptyPackage :: Package

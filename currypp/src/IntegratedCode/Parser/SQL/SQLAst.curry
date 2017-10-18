@@ -26,6 +26,7 @@ data ColumnRef = Column Tab String Type Bool Int
 data Tab = Unique String | Def [String]
 
 data Type = I | B | F | C | S | D | Key String | Entity String | Unknown
+ deriving Eq
 
 data Assign = Assign ColumnRef Value
 

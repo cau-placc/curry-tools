@@ -113,7 +113,7 @@ vcat a bs = Box h w (Col $ map (alignHoriz a w) bs)
   (h, w) = sumMax rows 0 cols bs
 
 --- Calculate sum and maximum of a list.
-sumMax :: (a -> Int) -> b -> (a -> b) -> [a] -> (Int, b)
+sumMax :: Ord b => (a -> Int) -> b -> (a -> b) -> [a] -> (Int, b)
 sumMax f defaultMax g as = foldr go (,) as 0 defaultMax
  where
   go a r n b = (r $! f a + n) $! g a `max` b

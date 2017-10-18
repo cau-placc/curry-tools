@@ -1,6 +1,6 @@
 {
     "name": "xml",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Libraries for XML processing",
@@ -8,8 +8,8 @@
     "dependencies": {
     },
     "compilerCompatibility": {
-        "pakcs": ">= 1.14.0, < 2.0.0",
-        "kics2": ">= 0.5.0, < 2.0.0"
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
     },
     "exportedModules": [ "XML", "XmlConv", "XCuery" ],
     "description":

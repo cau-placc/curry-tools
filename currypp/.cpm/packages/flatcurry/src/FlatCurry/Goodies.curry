@@ -1,5 +1,5 @@
 ----------------------------------------------------------------------------
---- This library provides selector functions, test and update operations 
+--- This library provides selector functions, test and update operations
 --- as well as some useful auxiliary functions for FlatCurry data terms.
 --- Most of the provided functions are based on general transformation
 --- functions that replace constructors with user-defined
@@ -8,11 +8,11 @@
 --- transformations on FlatCurry terms,
 --- so the provided functions can be used to implement specific transformations
 --- without having to explicitly state the recursion. Essentially, the tedious
---- part of such transformations - descend in fairly complex term structures - 
+--- part of such transformations - descend in fairly complex term structures -
 --- is abstracted away, which hopefully makes the code more clear and brief.
 ---
 --- @author Sebastian Fischer
---- @version October 2015
+--- @version May 2017
 --- @category meta
 ----------------------------------------------------------------------------
 
@@ -100,7 +100,7 @@ rnmAllVarsInProg = updProgFuncs . map . rnmAllVarsInFunc
 
 --- update all qualified names in program
 updQNamesInProg :: Update Prog QName
-updQNamesInProg f = updProg id id 
+updQNamesInProg f = updProg id id
   (map (updQNamesInType f)) (map (updQNamesInFunc f)) (map (updOpName f))
 
 --- rename program (update name of and all qualified names in program)
@@ -181,7 +181,7 @@ updTypeSynonym = updType id id id id
 
 --- update all qualified names in type declaration
 updQNamesInType :: Update TypeDecl QName
-updQNamesInType f 
+updQNamesInType f
   = updType f id id (map (updQNamesInConsDecl f)) (updQNamesInTypeExpr f)
 
 -- ConsDecl ------------------------------------------------------------------
@@ -278,41 +278,56 @@ tConsArgs texpr = case texpr of
 --- transform type expression
 trTypeExpr :: (Int -> a) ->
               (QName -> [a] -> a) ->
-              (a -> a -> a) -> TypeExpr -> a
-trTypeExpr tvar _ _ (TVar n) = tvar n
-trTypeExpr tvar tcons functype (TCons name args) 
-  = tcons name (map (trTypeExpr tvar tcons functype) args)
-trTypeExpr tvar tcons functype (FuncType from to) = functype (f from) (f to)
+              (a -> a -> a) ->
+              ([TVarIndex] -> a -> a) -> TypeExpr -> a
+trTypeExpr tvar _ _ _ (TVar n) = tvar n
+trTypeExpr tvar tcons functype foralltype (TCons name args)
+  = tcons name (map (trTypeExpr tvar tcons functype foralltype) args)
+trTypeExpr tvar tcons functype foralltype (FuncType from to)
+  = functype (f from) (f to)
  where
-  f = trTypeExpr tvar tcons functype
+  f = trTypeExpr tvar tcons functype foralltype
+trTypeExpr tvar tcons functype foralltype (ForallType ns t)
+  = foralltype ns (trTypeExpr tvar tcons functype foralltype t)
 
 -- Test Operations
 
 --- is type expression a type variable?
 isTVar :: TypeExpr -> Bool
-isTVar = trTypeExpr (\_ -> True) (\_ _ -> False) (\_ _ -> False)
+isTVar = trTypeExpr (\_ -> True) (\_ _ -> False) (\_ _ -> False) (\_ _ -> False)
 
 --- is type declaration a constructed type?
 isTCons :: TypeExpr -> Bool
-isTCons = trTypeExpr (\_ -> False) (\_ _ -> True) (\_ _ -> False)
+isTCons
+  = trTypeExpr (\_ -> False) (\_ _ -> True) (\_ _ -> False) (\_ _ -> False)
 
 --- is type declaration a functional type?
 isFuncType :: TypeExpr -> Bool
-isFuncType = trTypeExpr (\_ -> False) (\_ _ -> False) (\_ _ -> True)
+isFuncType
+  = trTypeExpr (\_ -> False) (\_ _ -> False) (\_ _ -> True) (\_ _ -> False)
+
+--- is type declaration a forall type?
+isForallType :: TypeExpr -> Bool
+isForallType
+  = trTypeExpr (\_ -> False) (\_ _ -> False) (\_ _ -> False) (\_ _ -> True)
 
 -- Update Operations
 
 --- update all type variables
 updTVars :: (Int -> TypeExpr) -> TypeExpr -> TypeExpr
-updTVars tvar = trTypeExpr tvar TCons FuncType
+updTVars tvar = trTypeExpr tvar TCons FuncType ForallType
 
 --- update all type constructors
 updTCons :: (QName -> [TypeExpr] -> TypeExpr) -> TypeExpr -> TypeExpr
-updTCons tcons = trTypeExpr TVar tcons FuncType
+updTCons tcons = trTypeExpr TVar tcons FuncType ForallType
 
 --- update all functional types
 updFuncTypes :: (TypeExpr -> TypeExpr -> TypeExpr) -> TypeExpr -> TypeExpr
-updFuncTypes = trTypeExpr TVar TCons
+updFuncTypes functype = trTypeExpr TVar TCons functype ForallType
+
+--- update all forall types
+updForallTypes :: ([Int] -> TypeExpr -> TypeExpr) -> TypeExpr -> TypeExpr
+updForallTypes = trTypeExpr TVar TCons FuncType
 
 -- Auxiliary Functions
 
@@ -321,12 +336,14 @@ argTypes :: TypeExpr -> [TypeExpr]
 argTypes (TVar _) = []
 argTypes (TCons _ _) = []
 argTypes (FuncType dom ran) = dom : argTypes ran
+argTypes (ForallType _ _) = []
 
 --- get result type from (nested) functional type
 resultType :: TypeExpr -> TypeExpr
 resultType (TVar n) = TVar n
 resultType (TCons name args) = TCons name args
 resultType (FuncType _ ran) = resultType ran
+resultType (ForallType ns t) = ForallType ns t
 
 --- rename variables in type expression
 rnmAllVarsInTypeExpr :: (Int -> Int) -> TypeExpr -> TypeExpr
@@ -415,8 +432,8 @@ updFunc :: (QName -> QName) ->
            (TypeExpr -> TypeExpr) ->
            (Rule -> Rule)             -> FuncDecl -> FuncDecl
 updFunc fn fa fv ft fr = trFunc func
- where 
-  func name arity vis t rule 
+ where
+  func name arity vis t rule
     = Func (fn name) (fa arity) (fv vis) (ft t) (fr rule)
 
 --- update name of function
@@ -461,7 +478,7 @@ funcRHS :: FuncDecl -> [Expr]
 funcRHS f | not (isExternal f) = orCase (funcBody f)
           | otherwise = []
  where
-  orCase e 
+  orCase e
     | isOr e = concatMap orCase (orExps e)
     | isCase e = concatMap orCase (map branchExpr (caseBranches e))
     | otherwise = [e]
@@ -501,7 +518,7 @@ ruleBody = trRule (\_ exp -> exp) failed
 
 --- get rules external declaration
 ruleExtDecl :: Rule -> String
-ruleExtDecl = trRule failed id 
+ruleExtDecl = trRule failed id
 
 -- Test Operations
 
@@ -668,7 +685,7 @@ caseBranches expr = case expr of
 
 --- is expression a variable?
 isVar :: Expr -> Bool
-isVar e = case e of 
+isVar e = case e of
   Var _ -> True
   _     -> False
 
@@ -803,7 +820,7 @@ isConsPartCall e = isComb e && isCombTypeConsPartCall (combType e)
 
 --- is expression fully evaluated?
 isGround :: Expr -> Bool
-isGround exp 
+isGround exp
   = case exp of
       Comb ConsCall _ args -> all isGround args
       _ -> isLit exp
@@ -883,7 +900,7 @@ patCons = trPattern (\name _ -> name) failed
 patArgs :: Pattern -> [Int]
 patArgs = trPattern (\_ args -> args) failed
 
---- get literal from literal pattern 
+--- get literal from literal pattern
 patLiteral :: Pattern -> Literal
 patLiteral = trPattern failed id
 

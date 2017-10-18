@@ -27,6 +27,7 @@ move (x:xs) = (pick x : xs) ? (x : move xs)
 pick (S n) = n ? pick n
 
 data Nat = Z | S Nat
+ deriving (Eq,Show)
 
 
 main = winMove [S (S Z), S Z]

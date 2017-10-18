@@ -44,6 +44,7 @@ typesInTypeExpr usedtypes (FuncType t1 t2) =
 typesInTypeExpr usedtypes (TCons tc texps) =
   foldr join (join [tc] (maybe [] id (lookup tc usedtypes)))
              (map (typesInTypeExpr usedtypes) texps)
+typesInTypeExpr usedtypes (ForallType _ t) = typesInTypeExpr usedtypes t
 
 join :: [QName] -> [QName] -> [QName]
 join tcs1 tcs2 = foldr insert tcs2 tcs1

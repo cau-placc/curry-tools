@@ -7,7 +7,7 @@
 --- POSIX extended regular expressions
 ------------------------------------------------------------------------------
 
-import RegExp -- required in the pre-processed program
+import RegExp -- from package `regexp` (required in the pre-processed program)
 import Test.EasyCheck
 
 test_abc = (match ``regex abc'' "abc")  -=- True
@@ -30,14 +30,14 @@ test_a_z_plus_2 = (match ``regex [a-z]+'' "Abc")                -=- False
 
 -- Examples with parameterized regular expressions:
 
-pregexp1 :: a -> a -> [a] -> Bool
+pregexp1 :: Ord a => a -> a -> [a] -> Bool
 pregexp1 v1 v2 = match ``regex [<v1>-<v2>]*''
 
 test_para_a_c_1 = pregexp1 'a' 'c' "abccba"               -=- True
 
 test_para_a_c_2 = pregexp1 'a' 'c' "abcdcba"              -=- False
 
-pregexp2 :: a -> a -> [a] -> Bool
+pregexp2 :: Ord a => a -> a -> [a] -> Bool
 pregexp2 v1 v2 = match ``regex (<v1>|<v2>)*''
 
 test_para_0_1_star_1 = pregexp2 0 1 [0,1,1,0,0]           -=- True

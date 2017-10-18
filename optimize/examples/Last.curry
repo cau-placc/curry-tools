@@ -2,7 +2,7 @@
 
 import Test.EasyCheck
 
-last :: [a] -> a
+last :: Eq a => [a] -> a
 last xs | _ ++ [x] == xs = x  where x free
 
 main :: Int

@@ -31,6 +31,7 @@ import Rewriting.UnificationSpec (UnificationError (..), showUnificationError)
 --- an additional `Ref` constructor. This `Ref` constructor is used to
 --- represent references into a reference table.
 data RTerm f = Ref VarIdx | RTermVar VarIdx | RTermCons f [RTerm f]
+ deriving (Eq, Show)
 
 --- A reference table used to store the values referenced by `Ref` terms
 --- represented as a finite map from variables to `RTerm`s and parameterized
@@ -51,14 +52,14 @@ type REqs f = [REq f]
 
 --- Unifies a list of term equations. Returns either a unification error or a
 --- substitution.
-unify :: TermEqs f -> Either (UnificationError f) (Subst f)
+unify :: Eq f => TermEqs f -> Either (UnificationError f) (Subst f)
 unify eqs = let (rt, reqs) = termEqsToREqs eqs
              in either Left
                        (\(rt', reqs') -> Right (eqsToSubst rt' reqs'))
                        (unify' rt [] reqs)
 
 --- Checks whether a list of term equations can be unified.
-unifiable :: TermEqs _ -> Bool
+unifiable :: Eq f => TermEqs f -> Bool
 unifiable = isRight . unify
 
 -- ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ deref _  t@(RTermCons _ _) = t
 -- ---------------------------------------------------------------------------
 
 --- Internal unification function, the core of the algorithm.
-unify' :: RefTable f -> REqs f -> REqs f
+unify' :: Eq f => RefTable f -> REqs f -> REqs f
        -> Either (UnificationError f) (RefTable f, REqs f)
 -- No equations left, we are done.
 unify' rt sub []              = Right (rt, sub)
@@ -155,7 +156,7 @@ unify' rt sub (eq@(l, r):eqs)
 --- yet to be unified and the right-hand sides of all equations of the result
 --- list. Also adds a mapping from that variable to that term to the result
 --- list.
-elim :: RefTable f -> REqs f -> VarIdx -> RTerm f -> REqs f
+elim :: Eq f => RefTable f -> REqs f -> VarIdx -> RTerm f -> REqs f
      -> Either (UnificationError f) (RefTable f, REqs f)
 elim rt sub v t eqs
   | dependsOn rt (RTermVar v) t = Left (OccurCheck v (rTermToTerm rt t))
@@ -169,10 +170,9 @@ elim rt sub v t eqs
         (RTermCons _ _) -> unify' (addToFM rt v t) ((RTermVar v, t):sub) eqs
 
 --- Checks whether the first term occurs as a subterm of the second term.
-dependsOn :: RefTable f -> RTerm f -> RTerm f -> Bool
+dependsOn :: Eq f => RefTable f -> RTerm f -> RTerm f -> Bool
 dependsOn rt l r = (l /= r) && (dependsOn' r)
   where
-    dependsOn' :: RTerm f -> Bool
     dependsOn' x@(Ref _)        = (deref rt x) == l
     dependsOn' t@(RTermVar _)   = l == t
     dependsOn' (RTermCons _ ts) = or (map dependsOn' ts)

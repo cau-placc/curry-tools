@@ -5,7 +5,7 @@ import FilePath((</>))
 
 --- Package version as a string.
 packageVersion :: String
-packageVersion = "1.0.1"
+packageVersion = "2.0.0"
 
 --- Package location.
 packagePath :: String

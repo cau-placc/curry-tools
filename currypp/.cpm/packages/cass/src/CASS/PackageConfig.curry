@@ -5,12 +5,12 @@ import FilePath((</>))
 
 --- Package version as a string.
 packageVersion :: String
-packageVersion = "0.0.1"
+packageVersion = "2.0.0"
 
 --- Package location.
 packagePath :: String
 packagePath =
-  installDir </> "currytools" </> "currypp" </> ".cpm" </> "packages" </> "cass"
+  installDir </> "currytools" </> "cpm" </> "vendor" </> "cass"
 
 --- Location of the executable installed by this package.
 packageExecutable :: String

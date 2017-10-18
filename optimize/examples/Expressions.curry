@@ -6,10 +6,14 @@ import Test.EasyCheck
 
 
 data Peano = O | S Peano
+  deriving (Eq,Show)
 
 data Exp = Num Peano | Var VarName | Add Exp Exp | Mul Exp Exp
+  deriving (Eq,Show)
 
 data VarName = X1 | X2 | X3
+  deriving (Eq,Show)
+
 data Position = Lt | Rt
 
 evalTo e = Add (Num O) e

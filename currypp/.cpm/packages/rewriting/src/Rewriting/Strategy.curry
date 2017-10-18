@@ -62,7 +62,7 @@ showReduction s (RStep t ps r) = (showTerm s t) ++ "\n\x2192" ++ "["
 
 --- Returns the redex positions of a term according to the given term
 --- rewriting system.
-redexes :: TRS f -> Term f -> [Pos]
+redexes :: Eq f => TRS f -> Term f -> [Pos]
 redexes trs t
   = let trs' = maybe trs (\v -> renameTRSVars (v + 1) trs) (maxVarInTerm t)
      in nub [p | p <- positions t, let tp = t |> p,
@@ -72,14 +72,14 @@ redexes trs t
 
 --- Returns a sequential reduction strategy according to the given ordering
 --- function.
-seqRStrategy :: (Pos -> Pos -> Ordering) -> RStrategy _
+seqRStrategy :: Eq f => (Pos -> Pos -> Ordering) -> RStrategy f
 seqRStrategy cmp trs t = case redexes trs t of
                            []       -> []
                            ps@(_:_) -> [minimumBy cmp ps]
 
 --- Returns a parallel reduction strategy according to the given ordering
 --- function.
-parRStrategy :: (Pos -> Pos -> Ordering) -> RStrategy _
+parRStrategy :: Eq f => (Pos -> Pos -> Ordering) -> RStrategy f
 parRStrategy cmp trs t = case redexes trs t of
                            []       -> []
                            ps@(_:_) -> head (groupBy g (sortBy s ps))
@@ -94,7 +94,7 @@ parRStrategy cmp trs t = case redexes trs t of
 -- ---------------------------------------------------------------------------
 
 --- The leftmost innermost reduction strategy.
-liRStrategy :: RStrategy _
+liRStrategy :: Eq f => RStrategy f
 liRStrategy = seqRStrategy liOrder
   where
     liOrder :: Pos -> Pos -> Ordering
@@ -104,7 +104,7 @@ liRStrategy = seqRStrategy liOrder
                 | otherwise  = GT
 
 --- The leftmost outermost reduction strategy.
-loRStrategy :: RStrategy _
+loRStrategy :: Eq f => RStrategy f
 loRStrategy = seqRStrategy loOrder
   where
     loOrder :: Pos -> Pos -> Ordering
@@ -114,7 +114,7 @@ loRStrategy = seqRStrategy loOrder
                 | otherwise  = GT
 
 --- The rightmost innermost reduction strategy.
-riRStrategy :: RStrategy _
+riRStrategy :: Eq f => RStrategy f
 riRStrategy = seqRStrategy riOrder
   where
     riOrder :: Pos -> Pos -> Ordering
@@ -124,7 +124,7 @@ riRStrategy = seqRStrategy riOrder
                 | otherwise   = GT
 
 --- The rightmost outermost reduction strategy.
-roRStrategy :: RStrategy _
+roRStrategy :: Eq f => RStrategy f
 roRStrategy = seqRStrategy roOrder
   where
     roOrder :: Pos -> Pos -> Ordering
@@ -134,7 +134,7 @@ roRStrategy = seqRStrategy roOrder
                 | otherwise      = GT
 
 --- The parallel innermost reduction strategy.
-piRStrategy :: RStrategy _
+piRStrategy :: Eq f => RStrategy f
 piRStrategy = parRStrategy piOrder
   where
     piOrder :: Pos -> Pos -> Ordering
@@ -144,7 +144,7 @@ piRStrategy = parRStrategy piOrder
                 | otherwise = EQ
 
 --- The parallel outermost reduction strategy.
-poRStrategy :: RStrategy _
+poRStrategy :: Eq f => RStrategy f
 poRStrategy = parRStrategy poOrder
   where
     poOrder :: Pos -> Pos -> Ordering
@@ -158,18 +158,18 @@ poRStrategy = parRStrategy poOrder
 -- ---------------------------------------------------------------------------
 
 --- Reduces a term with the given strategy and term rewriting system.
-reduce :: RStrategy f -> TRS f -> Term f -> Term f
+reduce :: Eq f => RStrategy f -> TRS f -> Term f -> Term f
 reduce s trs t = case s trs t of
                    []       -> t
                    ps@(_:_) -> reduce s trs (reduceAtL trs ps t)
 
 --- Reduces a term with the given strategy and list of term rewriting systems.
-reduceL :: RStrategy f -> [TRS f] -> Term f -> Term f
+reduceL :: Eq f => RStrategy f -> [TRS f] -> Term f -> Term f
 reduceL s trss = reduce s (concat trss)
 
 --- Reduces a term with the given strategy and term rewriting system by the
 --- given number of steps.
-reduceBy :: RStrategy f -> TRS f -> Int -> Term f -> Term f
+reduceBy :: Eq f => RStrategy f -> TRS f -> Int -> Term f -> Term f
 reduceBy s trs n t
   | n <= 0    = t
   | otherwise = case s trs t of
@@ -178,12 +178,12 @@ reduceBy s trs n t
 
 --- Reduces a term with the given strategy and list of term rewriting systems
 --- by the given number of steps.
-reduceByL :: RStrategy f -> [TRS f] -> Int -> Term f -> Term f
+reduceByL :: Eq f => RStrategy f -> [TRS f] -> Int -> Term f -> Term f
 reduceByL s trss = reduceBy s (concat trss)
 
 --- Reduces a term with the given term rewriting system at the given redex
 --- position.
-reduceAt :: TRS f -> Pos -> Term f -> Term f
+reduceAt :: Eq f => TRS f -> Pos -> Term f -> Term f
 reduceAt []     _ t = t
 reduceAt (x:rs) p t
   = case unify [(l, tp)] of
@@ -196,13 +196,13 @@ reduceAt (x:rs) p t
 
 --- Reduces a term with the given term rewriting system at the given redex
 --- positions.
-reduceAtL :: TRS f -> [Pos] -> Term f -> Term f
+reduceAtL :: Eq f => TRS f -> [Pos] -> Term f -> Term f
 reduceAtL _   []     t = t
 reduceAtL trs (p:ps) t = reduceAtL trs ps (reduceAt trs p t)
 
 --- Returns the reduction of a term with the given strategy and term rewriting
 --- system.
-reduction :: RStrategy f -> TRS f -> Term f -> Reduction f
+reduction :: Eq f => RStrategy f -> TRS f -> Term f -> Reduction f
 reduction s trs t
   = case s trs t of
       []       -> NormalForm t
@@ -210,12 +210,12 @@ reduction s trs t
 
 --- Returns the reduction of a term with the given strategy and list of term
 --- rewriting systems.
-reductionL :: RStrategy f -> [TRS f] -> Term f -> Reduction f
+reductionL :: Eq f => RStrategy f -> [TRS f] -> Term f -> Reduction f
 reductionL s trss = reduction s (concat trss)
 
 --- Returns the reduction of a term with the given strategy, the given term
 --- rewriting system and the given number of steps.
-reductionBy :: RStrategy f -> TRS f -> Int -> Term f -> Reduction f
+reductionBy :: Eq f => RStrategy f -> TRS f -> Int -> Term f -> Reduction f
 reductionBy s trs n t
   | n <= 0    = NormalForm t
   | otherwise = case s trs t of
@@ -225,5 +225,5 @@ reductionBy s trs n t
 
 --- Returns the reduction of a term with the given strategy, the given list of
 --- term rewriting systems and the given number of steps.
-reductionByL :: RStrategy f -> [TRS f] -> Int -> Term f -> Reduction f
+reductionByL :: Eq f => RStrategy f -> [TRS f] -> Int -> Term f -> Reduction f
 reductionByL s trss = reductionBy s (concat trss)

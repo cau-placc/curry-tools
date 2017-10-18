@@ -1,6 +1,6 @@
 {
     "name": "json",
-    "version": "0.0.3",
+    "version": "2.0.0",
     "author": "Jonas Oberschweiber <jonas@oberschweiber.com>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A JSON library for Curry",
@@ -9,8 +9,8 @@
         "det-parse": "= 0.0.1"
     },
     "compilerCompatibility": {
-        "pakcs": ">= 1.14.0, < 2.0.0",
-        "kics2": ">= 0.5.0, < 2.0.0"
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
     },
     "exportedModules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"],
     "source": {

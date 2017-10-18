@@ -231,6 +231,7 @@ startValue ana = case ana of
 --- to get a quick overview of the analysis results of all operations
 --- in a module.
 data AOutFormat = AText | ANote
+  deriving Eq
 
 -------------------------------------------------------------------------
 --- Loads the results of the base analysis and put it as the first

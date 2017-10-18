@@ -13,7 +13,7 @@ take'default _ _ = []
 
 main1 = (take 0 [], take 2 [1..8], take 3 [1,2])
 
-takeTest1 = take 0 []      -=-  []
+takeTest1 = take 0 []      -=-  ([] :: [Int])
 takeTest2 = take 2 [1..8]  -=-  [1,2]
 takeTest3 = take 3 [1,2]   -=-  [1,2]
 

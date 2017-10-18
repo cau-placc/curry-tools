@@ -16,4 +16,4 @@ data JValue = JTrue
             | JNumber Float
             | JArray [JValue]
             | JObject [(String, JValue)]
-
+ deriving (Eq,Show)

@@ -12,7 +12,6 @@ else
 export REPL_OPTS = --noreadline :set -time
 endif
 
-
 # Source modules of CPM:
 DEPS = src/CPM/*.curry src/CPM/*/*.curry
 
@@ -47,7 +46,7 @@ src/CPM/ConfigPackage.curry: Makefile
 	@echo "packagePath :: String" >> $@
 	@echo "packagePath = \"$(CURDIR)\"" >> $@
 	@echo "packageVersion :: String" >> $@
-	@echo "packageVersion = \"0.2.1\"" >> $@
+	@echo "packageVersion = \"2.0.0\"" >> $@
 	@echo "Curry configuration module '$@' written."
 
 runtest:

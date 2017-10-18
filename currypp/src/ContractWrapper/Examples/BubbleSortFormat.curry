@@ -10,7 +10,7 @@ import Test.Prop
 showInt i =  ``format "%+.3d",i''
 
 -- Bubble sort formulation with default rule as deterministic operation:
-sort :: [a] ->DET [a]
+sort :: (Ord a, Show a) => [a] ->DET [a]
 sort (xs++[x,y]++ys) | x>y = sort (xs++[y,x]++ys)
 sort'default xs = xs
 
@@ -22,6 +22,6 @@ sort'post xs ys = length xs == length ys
 
 sort7 = sort (map showInt [7,1,6,3,5,4,2]) -=- map (\d -> "+00"++show d) [1..7]
 
-sortEmpty = toError (sort [])
+sortEmpty = toError (sort ([] :: [Int]))
 
 

@@ -5,6 +5,7 @@ import Test.EasyCheck
 -- Dijsktra's Dutch National Flag problem with functional patterns
 
 data Color = Red | White | Blue
+ deriving (Eq,Show)
 
 -- Formulation with default rule:
 solveD :: [Color] -> [Color]

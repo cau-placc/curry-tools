@@ -34,6 +34,14 @@ data Options = Options
 --- @cons QualImports           - qualify all imports, including `Prelude`
 --- @cons QualAll               - qualify all names
 data QualMode = QualNone | QualImportsButPrelude | QualImports | QualAll
+-- deriving Eq
+
+instance Eq QualMode where
+  QualNone == x = case x of { QualNone -> True ; _ -> False }
+  QualImportsButPrelude == x = case x of { QualImportsButPrelude -> True ; _ -> False }
+  QualImports == x = case x of { QualImports -> True ; _ -> False }
+  QualAll == x = case x of { QualAll -> True ; _ -> False }
+
 
 --- Default `Options` for pretty-printing.
 defaultOptions :: Options
@@ -143,6 +151,15 @@ ppTypeExpr o p (TCons     qn tys)
   | isTupleId qn                   = tupled   (map (ppTypeExp o) tys)
   | otherwise                      = parensIf (p > 1 && not (null tys)) $ sep
                                    (ppPrefixQOp o qn : map (ppTypeExpr o 2) tys)
+ppTypeExpr o p (ForallType vs ty)
+  | null vs   = ppTypeExpr o p ty
+  | otherwise = parensIf (p > 0) $ ppQuantifiedVars vs <+> ppTypeExpr o 0 ty
+
+--- pretty-print explicitly quantified type variables
+ppQuantifiedVars :: [TVarIndex] -> Doc
+ppQuantifiedVars vs
+  | null vs = empty
+  | otherwise = text "forall" <+> hsep (map ppTVarIndex vs) <+> char '.'
 
 --- pretty-print a type variable
 ppTVarIndex :: TVarIndex -> Doc

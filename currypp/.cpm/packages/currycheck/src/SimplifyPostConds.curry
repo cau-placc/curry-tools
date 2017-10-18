@@ -11,7 +11,7 @@
 ---      theorem'sorted xs = always (sorted (sort xs))
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module SimplifyPostConds

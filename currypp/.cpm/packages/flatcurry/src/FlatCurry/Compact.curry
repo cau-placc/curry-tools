@@ -47,6 +47,7 @@ data Option =
   | InitFuncs [QName]
   | Required [RequiredSpec]
   | Import String
+  deriving Eq
 
 isMainOption :: Option -> Bool
 isMainOption o = case o of
@@ -74,6 +75,7 @@ addImport2Options options =
 ------------------------------------------------------------------------------
 --- Data type to specify requirements of functions.
 data RequiredSpec = AlwaysReq QName | Requires QName QName
+  deriving Eq
 
 --- (fun `requires` reqfun) specifies that the use of the function "fun"
 --- implies the application of function "reqfun".
@@ -325,7 +327,7 @@ getCalledFuncs required loadedmnames progs functable loadedfnames loadedcnames
                        (extendFuncTable functable (moduleFuns newmod))
                        (foldr insertRBT loadedfnames reqnewfun) loadedcnames
                        loadedtnames ((m,f):fs ++ reqnewfun)
-  | lookupRBT (m,f) functable == Nothing
+  | isNothing (lookupRBT (m,f) functable)
    = -- this must be a data constructor: ingore it since already considered
      getCalledFuncs required loadedmnames progs
                     functable loadedfnames loadedcnames loadedtnames fs
@@ -431,7 +433,7 @@ allTypesOfTExpr (FuncType texp1 texp2) =
 allTypesOfTExpr (TCons tcons args) =
   union [tcons] (unionMap allTypesOfTExpr args)
 
-unionMap :: (a -> [b]) -> [a] -> [b]
+unionMap :: Eq b => (a -> [b]) -> [a] -> [b]
 unionMap f = foldr union [] . map f
 
 

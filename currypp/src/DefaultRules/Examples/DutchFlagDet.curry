@@ -6,6 +6,7 @@ import Test.EasyCheck
 -- default rule declared as a deterministic function:
 
 data Color = Red | White | Blue
+ deriving (Eq,Show)
 
 solveD :: [Color] -> DET [Color]
 solveD (x++[White]++y++[Red  ]++z) = solveD (x++[Red  ]++y++[White]++z)

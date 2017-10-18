@@ -266,14 +266,14 @@ testS36 = ``sql Select Count( Distinct r.StudentTakingKey)
                 from Result as r, Student as s
                 Group By r.Grade Having (Satisfies r belongs_to s);''
 
-printResult :: SQLResult [a] -> IO()
+printResult :: Show a => SQLResult [a] -> IO()
 printResult result = 
   case result of
       Left err  -> putStrLn $ show err
       Right res -> printList res 
 
    
-printList :: [a] -> IO ()
+printList :: Show a => [a] -> IO ()
 printList (x:xs) = do putStrLn $ show x
                       printList xs
-printList [] = putStrLn ""  
+printList [] = putStrLn ""

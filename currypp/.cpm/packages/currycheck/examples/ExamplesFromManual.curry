@@ -6,7 +6,7 @@ rev []     = []
 rev (x:xs) = rev xs ++ [x]
 
 -- Unit tests:
-revNull = rev []      -=- []
+revNull = rev []      -=- ([] :: [Int])
 rev123  = rev [1,2,3] -=- [3,2,1]
 
 -- Property: reversing two times is the identity:
@@ -69,6 +69,7 @@ neg_or b1 b2 = not (b1 || b2) -=- not b1 && not b2
 
 -- Natural numbers defined by s-terms (Z=zero, S=successor):
 data Nat = Z | S Nat
+ deriving (Eq,Show)
 
 -- addition on natural numbers:
 add :: Nat -> Nat -> Nat
@@ -84,6 +85,7 @@ addIsAssociative x y z = add (add x y) z -=- add x (add y z)
 
 -- A general tree type:
 data Tree a = Leaf a | Node [Tree a]
+ deriving (Eq,Show)
 
 -- The leaves of a tree:
 leaves (Leaf x) = [x]
@@ -107,6 +109,7 @@ sumUpIsCorrect n = n>=0 ==> sumUp n -=- n * (n+1) `div` 2
 -- To test sumUpIsCorrect explicitly on non-ngeative integers,
 -- we define a new data type to wrap integers:
 data NonNeg = NonNeg { nonNeg :: Int }
+ deriving (Eq,Show)
 
 -- We define our own generator for producing only non-negative integers:
 genNonNeg = genCons1 NonNeg genNN

@@ -1,10 +1,26 @@
 {
     "name": "currypp",
-    "version": "0.3.2",
+    "version": "2.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "The standard preprocessor of Curry",
-    "category": [ "Analysis" ],
+    "category": [ "Programming", "Analysis" ],
     "dependencies": {
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "sourceDirs": [ "src", "src/IntegratedCode",
+                    "src/IntegratedCode/Parser",
+                    "src/IntegratedCode/Parser/ML",
+                    "src/IntegratedCode/Parser/SQL",
+                    "src/DefaultRules",
+                    "src/ContractWrapper"
+                  ],
+    "exportedModules": [ "Main" ],
+    "executable": {
+        "name": "currypp",
+        "main": "Main"
     },
     "testsuite": [
         { "src-dir": "src/IntegratedCode/Examples",
@@ -23,6 +39,10 @@
                        "FibInfinite", "Quicksort" ]
         }
     ],
+    "documentation": {
+        "src-dir": "docs",
+        "main": "main.tex"
+    },
     "source": {
         "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/currypp.git",
         "tag": "$version"

@@ -1,15 +1,15 @@
 {
     "name": "cass-analysis",
-    "version": "0.0.4",
+    "version": "2.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Libraries with various compile-time analyses for Curry",
     "category": [ "Analysis" ],
     "dependencies": {
-        "flatcurry": ">= 1.0.0"
+        "flatcurry": ">= 2.0.0"
     },
     "compilerCompatibility": {
-        "pakcs": ">= 1.14.0, < 2.0.0",
-        "kics2": ">= 0.5.0, < 2.0.0"
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
     },
     "source": {
         "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/cass-analysis.git",

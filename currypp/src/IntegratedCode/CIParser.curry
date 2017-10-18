@@ -122,7 +122,7 @@ parserL1Iter acc accP p s@(c:cs)
 --- @l2 - The list
 --- @return (b,l) where b states wether l1 is a prefix of l2 and
 ---         l is the remaining list
-isPrefixAndDrop :: [a] -> [a] -> (Bool,[a])
+isPrefixAndDrop :: Eq a => [a] -> [a] -> (Bool,[a])
 isPrefixAndDrop [] []                     = (True,[])
 isPrefixAndDrop (_:_) []                  = (False,[])
 isPrefixAndDrop [] (c:cs)                 = (True,(c:cs))
@@ -136,7 +136,7 @@ isPrefixAndDrop (c:cs) (d:ds) | c == d    = isPrefixAndDrop cs ds
 --- @param l - The list
 --- @return (i,l) where i states the amount of dropped elements and
 ---         l is the remaining list
-countAndDrop :: a -> [a] -> (Int,[a])
+countAndDrop :: Eq a => a -> [a] -> (Int,[a])
 countAndDrop c s = countAndDropIter 0 s
   where
     countAndDropIter n  []                 = (n,[])

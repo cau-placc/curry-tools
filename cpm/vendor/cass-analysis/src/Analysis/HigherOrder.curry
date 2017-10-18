@@ -13,6 +13,7 @@ import Maybe
 
 -- datatype order: higher-order or first-order
 data Order = HO | FO
+  deriving Eq
 
 -- Show higher-order information as a string.
 showOrder :: AOutFormat -> Order -> String
@@ -49,6 +50,7 @@ orderOfTypeExpr (TVar _) = FO
 orderOfTypeExpr (FuncType _ _) = HO
 orderOfTypeExpr (TCons _ typeExprs) =
   foldr hoOr FO (map orderOfTypeExpr typeExprs)
+orderOfTypeExpr (ForallType _ texp) = orderOfTypeExpr texp
 
 -----------------------------------------------------------------------
 -- higher-order constructor analysis
