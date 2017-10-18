@@ -8,7 +8,6 @@
 
 module BindingOpt (main, transformFlatProg) where
 
-import CSV
 import Directory         ( renameFile )
 import Distribution      ( installDir, curryCompiler, currySubdir
                          , addCurrySubdir, splitModuleFileName
@@ -26,6 +25,7 @@ import Analysis.Types
 import Analysis.ProgInfo
 import Analysis.RequiredValues
 import CASS.Server       ( analyzeGeneric, analyzePublic, analyzeInterface )
+import Text.CSV
 
 
 type Options = (Int, Bool, Bool) -- (verbosity, use analysis?, auto-load?)

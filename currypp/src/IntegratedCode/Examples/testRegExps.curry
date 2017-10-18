@@ -7,7 +7,7 @@
 --- POSIX extended regular expressions
 ------------------------------------------------------------------------------
 
-import RegExp -- required in the pre-processed program
+import RegExp -- from package `regexp` (required in the pre-processed program)
 import Test.EasyCheck
 
 test_abc = (match ``regex abc'' "abc")  -=- True

@@ -65,6 +65,12 @@ cd .cpm/packages
  PKGV=`ls -d xml-*`
  mv $PKGV xml
  ln -s xml $PKGV
+ PKGV=`ls -d regexp-*`
+ mv $PKGV regexp
+ ln -s regexp $PKGV
+ PKGV=`ls -d fl-parser-*`
+ mv $PKGV fl-parser
+ ln -s fl-parser $PKGV
 cd ../..
 cd ..
 mv Makefile.currypp currypp/Makefile
@@ -91,6 +97,9 @@ cd .cpm/packages
  PKGV=`ls -d flatcurry-*`
  mv $PKGV flatcurry
  ln -s flatcurry $PKGV
+ PKGV=`ls -d csv-*`
+ mv $PKGV csv
+ ln -s csv $PKGV
  PKGV=`ls -d xml-*`
  mv $PKGV xml
  ln -s xml $PKGV
