@@ -24,7 +24,7 @@
     },
     "testsuite": [
         { "src-dir": "src/IntegratedCode/Examples",
-          "modules": [ "testFormat", "testRegExps" ]
+          "modules": [ "testFormat" ]
         },
         { "src-dir": "src/DefaultRules/Examples",
           "options": "-m40",
