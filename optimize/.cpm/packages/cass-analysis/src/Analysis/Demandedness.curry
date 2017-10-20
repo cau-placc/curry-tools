@@ -60,20 +60,24 @@ daFuncRule _ (External _) = [] -- nothing known about other externals
 daFuncRule calledFuncs (Rule args rhs) =
   map fst
       (filter ((==Bot) . snd)
-              (map (\botarg -> (botarg,absEvalExpr rhs [botarg])) args))
+              (map (\botarg -> (botarg, absEvalExpr rhs [botarg]))
+                   args))
  where
   -- abstract evaluation of an expression w.r.t. variables assumed to be Bot
   absEvalExpr (Var i)        bvs = if i `elem` bvs then Bot else Top
   absEvalExpr (Lit _)        _   = Top
   absEvalExpr (Comb ct g es) bvs =
     if ct == FuncCall
-    then maybe (error $ "Abstract value of " ++ show g ++ " not found!")
-               (\gdas -> let curargs = map (\ (i,e) -> (i,absEvalExpr e bvs))
-                                           (zip [1..] es)
-                             cdas = gdas \\
-                                    (map fst (filter ((/=Bot) . snd) curargs))
-                          in if null cdas then Top else Bot)
-               (lookup g calledFuncs)
+    then
+      if g == (prelude,"failed")
+      then Bot -- Prelude.failed never returns a value
+      else maybe (error $ "Abstract value of " ++ show g ++ " not found!")
+                 (\gdas -> let curargs = map (\ (i,e) -> (i,absEvalExpr e bvs))
+                                             (zip [1..] es)
+                               cdas = gdas \\
+                                      map fst (filter ((/=Bot) . snd) curargs)
+                            in if null cdas then Top else Bot)
+                 (lookup g calledFuncs)
     else Top
   absEvalExpr (Free _ e)     bvs = absEvalExpr e bvs
   absEvalExpr (Let bs e)     bvs = absEvalExpr e (absEvalBindings bs bvs)
