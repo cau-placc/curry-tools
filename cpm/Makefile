@@ -2,7 +2,7 @@
 
 
 # The tool name of the application:
-TOOL = $(BINDIR)/cpm
+TOOL = $(BINDIR)/cypm
 
 # The default options for the REPL (options "rts -T" required for KiCS2
 # in order to get elapsed times):
