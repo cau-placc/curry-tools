@@ -32,4 +32,4 @@ RunCurry: $(DEPS)
 
 # run the test suite
 runtest:
-	$(BINDIR)/cpm -d curry_bin=$(REPL) test
+	$(BINDIR)/cypm -d curry_bin=$(REPL) test

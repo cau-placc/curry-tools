@@ -2,7 +2,7 @@
 # This shell script updates some tools by downloading the current version
 # from the Curry package repository.
 #
-# Note that the execution of this script requires an already installed 'cpm'!
+# Note that the execution of this script requires an already installed 'cypm'!
 
 # use local Curry executable if it exists (e.g., we are inside the distro):
 CURRYBIN=`pwd`/../bin/curry
@@ -11,7 +11,7 @@ if [ -x "$CURRYBIN" ] ; then
 else
   CPMOPTS=
 fi
-CPM="cpm $CPMOPTS"
+CPM="cypm $CPMOPTS"
 
 ##############################################################################
 echo "Updating 'cpm'..."
