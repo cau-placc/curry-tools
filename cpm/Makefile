@@ -22,6 +22,8 @@ all: install
 install: compile
 	rm -f $(TOOL)
 	cd $(BINDIR) && ln -s ../currytools/cpm/src/CPM.Main $(notdir $(TOOL))
+	# install also cypm binary with Curry system as prefix:
+	cd $(BINDIR) && ln -s $(notdir $(TOOL)) $(CURRYSYSTEM)-$(notdir $(TOOL))
 
 compile: src/CPM.Main
 
@@ -29,7 +31,7 @@ clean:
 	rm -Rf src/CPM.Main src/.curry vendor/*/src/.curry
 
 uninstall: clean
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/$(CURRYSYSTEM)-$(notdir $(TOOL)
 
 src/CPM.Main: src/CPM/ConfigPackage.curry $(DEPS)
 	@echo Root location of Curry system: $(ROOT)
