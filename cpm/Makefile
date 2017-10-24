@@ -43,7 +43,7 @@ src/CPM.Main: src/CPM/ConfigPackage.curry $(DEPS)
 		export CURRYPATH="$$CURRYPATH:`pwd`/vendor/$$i/src"; 	\
 	done; 								\
 	echo "Set CURRYPATH to $$CURRYPATH"; 				\
-	cd src; $(REPL) $(REPL_OPTS) :l CPM.Main :save :quit
+	cd src; $(REPL) --nocypm $(REPL_OPTS) :l CPM.Main :save :quit
 
 src/CPM/ConfigPackage.curry: Makefile
 	@echo "module CPM.ConfigPackage where" > $@

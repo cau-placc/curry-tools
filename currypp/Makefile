@@ -36,7 +36,7 @@ uninstall: clean
 # generate executable of currypp translator:
 Main: $(DEPS)
 	@echo Compiling Curry Preprocessor...
-	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :load Main :save :quit
+	$(REPL) --nocypm $(REPL_OPTS) :set path $(LOADPATH) :load Main :save :quit
 
 
 ########################################################################

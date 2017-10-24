@@ -28,7 +28,7 @@ uninstall: clean
 
 # generate executable for currydoc program:
 RunCurry: $(DEPS)
-	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :load RunCurry :save :quit
+	$(REPL) --nocypm $(REPL_OPTS) :set path $(LOADPATH) :load RunCurry :save :quit
 
 # run the test suite
 runtest:
