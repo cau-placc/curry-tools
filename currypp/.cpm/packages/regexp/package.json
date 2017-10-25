@@ -13,10 +13,14 @@
     },
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
-    "testsuite": {
-        "src-dir": "examples",
-        "modules": [ "ABC" ]
-    },
+    "testsuite": [
+        { "src-dir": "examples",
+          "modules": [ "ABC" ]
+        },
+        { "src-dir": "test",
+          "modules": [ "TestRegExp" ]
+        }
+    ],
     "source": {
         "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/regexp.git",
         "tag": "$version"
