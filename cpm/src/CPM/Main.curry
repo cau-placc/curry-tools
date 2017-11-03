@@ -28,7 +28,8 @@ import CPM.FileUtil ( fileInPath, joinSearchPath, safeReadFile, whenFileExists
                     , ifFileExists, inDirectory, removeDirectoryComplete
                     , copyDirectory, quote )
 import CPM.Config   ( Config (..)
-                    , readConfigurationWithDefault, showCompilerVersion )
+                    , readConfigurationWith, showCompilerVersion
+                    , showConfiguration )
 import CPM.PackageCache.Global ( GlobalCache, readInstalledPackagesFromDir
                                , installFromZip, checkoutPackage
                                , uninstallPackage )
@@ -48,7 +49,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 25/10/2017)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 03/11/2017)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -76,22 +77,24 @@ runWithArgs opts = do
                  "(they are required for CPM to work):\n" ++
                  intercalate ", " missingExecutables
       exitWith 1
-  config <- readConfigurationWithDefault (optDefConfig opts) >>= \c ->
+  config <- readConfigurationWith (optDefConfig opts) >>= \c ->
    case c of
     Left err -> do putStrLn $ "Error reading .cpmrc settings: " ++ err
                    exitWith 1
     Right c' -> return c'
+  setLogLevel $ optLogLevel opts
+  debugMessage (showConfiguration config)
   let getRepoGC = readRepository config >>= \repo ->
                   getGlobalCache config repo >>= \gc -> return (repo,gc)
-  setLogLevel $ optLogLevel opts
   (msgs, result) <- case optCommand opts of
     NoCommand   -> failIO "NoCommand"
     Update      -> updateRepository config
     Compiler o  -> compiler  o config getRepoGC
-    Exec o      -> exec      o config getRepoGC
+    Exec o      -> execCmd   o config getRepoGC
     Doc  o      -> docCmd    o config getRepoGC
     Test o      -> testCmd   o config getRepoGC
     Uninstall o -> uninstall o config getRepoGC
+    Deps o      -> depsCmd   o config getRepoGC
     Link o      -> linkCmd   o config
     Add  o      -> addCmd    o config
     Clean       -> cleanPackage Info
@@ -102,7 +105,6 @@ runWithArgs opts = do
               Search o -> searchCmd  o config repo
               _ -> do globalCache <- getGlobalCache config repo
                       case optCommand opts of
-                        Deps         -> depsCmd      config repo globalCache
                         PkgInfo o    -> infoCmd    o config repo globalCache
                         Checkout o   -> checkout   o config repo globalCache
                         InstallApp o -> installapp o config repo globalCache
@@ -132,14 +134,14 @@ data Options = Options
   , optCommand   :: Command }
 
 data Command 
-  = Deps 
-  | NoCommand
+  = NoCommand
+  | Deps       DepsOptions
   | Checkout   CheckoutOptions
   | InstallApp CheckoutOptions
   | Install    InstallOptions
   | Uninstall  UninstallOptions
   | PkgInfo    InfoOptions
-  | Compiler   CompilerOptions
+  | Compiler   ExecOptions
   | Update
   | List       ListOptions
   | Search     SearchOptions
@@ -152,6 +154,10 @@ data Command
   | Diff       DiffOptions
   | New        NewOptions
   | Clean
+
+data DepsOptions = DepsOptions
+  { depsPath :: Bool  -- show CURRYPATH only?
+  }
 
 data CheckoutOptions = CheckoutOptions
   { coPackage    :: String
@@ -205,12 +211,8 @@ data NewOptions = NewOptions
   { projectName :: String }
 
 data ExecOptions = ExecOptions
-  { exeCommand :: String   -- command to be executed
-  , exePath    :: [String] -- additional load path
+  { exeCommand :: String   -- the command to be executed
   }
-
-data CompilerOptions = CompilerOptions
-  { comCommand :: String }
 
 data DocOptions = DocOptions
   { docDir      :: Maybe String    -- documentation directory
@@ -228,6 +230,11 @@ data DiffOptions = DiffOptions
   , diffAPI      :: Bool
   , diffBehavior :: Bool
   , diffUseAna   :: Bool }
+
+depsOpts :: Options -> DepsOptions
+depsOpts s = case optCommand s of
+  Deps opts -> opts
+  _         -> DepsOptions False
 
 checkoutOpts :: Options -> CheckoutOptions
 checkoutOpts s = case optCommand s of
@@ -282,12 +289,7 @@ newOpts s = case optCommand s of
 execOpts :: Options -> ExecOptions
 execOpts s = case optCommand s of
   Exec opts -> opts
-  _         -> ExecOptions "" []
-
-compOpts :: Options -> CompilerOptions
-compOpts s = case optCommand s of
-  Compiler opts -> opts
-  _             -> CompilerOptions ""
+  _         -> ExecOptions ""
 
 docOpts :: Options -> DocOptions
 docOpts s = case optCommand s of
@@ -368,16 +370,17 @@ optionParser allargs = optParser
                      Right
                      (checkoutArgs InstallApp)
         <|> command "deps" (help "Calculate dependencies")
-                           (\a -> Right $ a { optCommand = Deps }) [] 
+                           (\a -> Right $ a { optCommand = Deps (depsOpts a) })
+                           depsArgs
         <|> command "clean" (help "Clean the current package")
-                          (\a -> Right $ a { optCommand = Clean }) []
+                            (\a -> Right $ a { optCommand = Clean }) []
         <|> command "new" (help "Create a new package") Right newArgs
         <|> command "update" (help "Update the package index")
                              (\a -> Right $ a { optCommand = Update }) []
         <|> command "curry"
            (help "Load package spec and start Curry with correct dependencies.")
-                    (\a -> Right $ a { optCommand = Compiler (compOpts a) })
-                    curryArgs
+                 (\a -> Right $ a { optCommand = Compiler (execOpts a) })
+                 curryArgs
         <|> command "exec"
                     (help "Execute a command with the CURRYPATH set")
                     (\a -> Right $ a { optCommand = Exec (execOpts a) })
@@ -406,9 +409,19 @@ optionParser allargs = optParser
                     upgradeArgs
         <|> command "link" (help "Link a package to the local cache") Right
                     linkArgs
-        <|> command "add" (help "Add a package (as dependency or to the local repository)") Right
-                    addArgs ) )
+        <|> command "add"
+              (help "Add a package (as dependency or to the local repository)")
+              Right
+              addArgs ) )
  where
+  depsArgs =
+    flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
+                                              { depsPath = True } })
+         (  short "p"
+         <> long "path"
+         <> help "Show value of CURRYPATH only"
+         <> optional )
+
   checkoutArgs cmd =
         arg (\s a -> Right $ a { optCommand = cmd (checkoutOpts a)
                                                   { coPackage = s } })
@@ -473,8 +486,8 @@ optionParser allargs = optParser
        <> help "The name of the new project" )
 
   curryArgs =
-    rest (\_ a -> Right $ a { optCommand = Compiler (compOpts a)
-                                            { comCommand = unwords remargs } })
+    rest (\_ a -> Right $ a { optCommand = Compiler (execOpts a)
+                                            { exeCommand = unwords remargs } })
          (  metavar "ARGS"
          <> help "The options to pass to the compiler"
          <> optional )
@@ -485,7 +498,7 @@ optionParser allargs = optParser
     rest (\_ a -> Right $ a { optCommand = Exec (execOpts a)
                                             { exeCommand = unwords remargs } })
          (  metavar "CMD"
-         <> help "The command to execute. Don't forget the quotes!"
+         <> help "The command to be executed."
          <> optional )
     where
      remargs = tail (snd (break (=="exec") allargs))
@@ -664,11 +677,20 @@ checkExecutables = do
     , "ln"
     , "readlink" ]
 
-depsCmd :: Config -> Repository -> GlobalCache -> IO (ErrorLogger ())
-depsCmd cfg repo gc =
+depsCmd :: DepsOptions -> Config -> IO (Repository,GlobalCache)
+        -> IO (ErrorLogger ())
+depsCmd opts cfg getRepoGC =
   getLocalPackageSpec "." |>= \specDir ->
-  resolveDependencies cfg repo gc specDir |>= \result ->
-  putStrLn (showResult result) >> succeedIO ()
+  loadPackageSpec specDir |>= \pkg ->
+  checkCompiler cfg pkg >>
+  if depsPath opts -- show CURRYPATH only?
+    then loadCurryPathFromCache specDir |>=
+         maybe (computePackageLoadPath cfg specDir getRepoGC)
+               succeedIO |>= \currypath ->
+         putStrLn currypath >> succeedIO ()
+    else getRepoGC >>= \ (repo,gc) ->
+         resolveDependencies cfg repo gc specDir |>= \result ->
+         putStrLn (showResult result) >> succeedIO ()
 
 infoCmd :: InfoOptions -> Config -> Repository -> GlobalCache
         -> IO (ErrorLogger ())
@@ -692,33 +714,6 @@ printInfo :: Bool -> Bool -> GlobalCache -> Package
           -> IO (ErrorLogger ())
 printInfo allinfos plain gc pkg =
   putStrLn (renderPackageInfo allinfos plain gc pkg) >> succeedIO ()
-
-
-compiler :: CompilerOptions -> Config -> IO (Repository,GlobalCache)
-         -> IO (ErrorLogger ())
-compiler o cfg getRepoGC =
-  getLocalPackageSpec "." |>= \pkgdir ->
-  loadPackageSpec pkgdir |>= \pkg ->
-  checkCompiler cfg pkg >>
-  loadCurryPathFromCache pkgdir |>=
-  maybe (computePackageLoadPath pkgdir pkg) succeedIO |>= \currypath ->
-  log Info ("Starting '" ++ currybin ++ "' with") |>
-  log Info ("CURRYPATH=" ++ currypath) |>
-  do setEnviron "CURRYPATH" $ currypath
-     ecode <- showExecCmd $ currybin ++ " " ++ comCommand o
-     unsetEnviron "CURRYPATH"
-     unless (ecode==0) (exitWith ecode)
-     succeedIO ()
- where
-  currybin = curryExec cfg
-
-  computePackageLoadPath pkgdir pkg =
-    getRepoGC >>= \ (repo,gc) ->
-    resolveAndCopyDependenciesForPackage cfg repo gc pkgdir pkg |>= \pkgs ->
-    getAbsolutePath pkgdir >>= \abs -> succeedIO () |>
-    let srcdirs = map (abs </>) (sourceDirsOf pkg)
-        currypath = joinSearchPath (srcdirs ++ dependencyPathsSeparate pkgs abs)
-    in saveCurryPathToCache pkgdir currypath >> succeedIO currypath
 
 
 checkout :: CheckoutOptions -> Config -> Repository -> GlobalCache
@@ -791,7 +786,7 @@ installapp opts cfg repo gc = do
 checkCompiler :: Config -> Package -> IO ()
 checkCompiler cfg pkg =
   unless (isCompatibleToCompiler cfg pkg)
-    (error $ "Incompatible compiler: " ++ showCompilerVersion cfg)
+    (error $ "Compiler incompatible to package: " ++ showCompilerVersion cfg)
 
 --- Installs the executable specified in the package in the
 --- bin directory of CPM (compare .cpmrc).
@@ -813,7 +808,7 @@ installExecutable cfg repo pkg =
                        , ":load", mainmod, ":save", ":quit"]
                bindir     = binInstallDir cfg
                binexec    = bindir </> name
-           in compiler CompilerOptions { comCommand = cmd }
+           in compiler (ExecOptions cmd)
                        cfg (return (repo,gc)) |>
               log Info ("Installing executable '" ++ name ++ "' into '" ++
                         bindir ++ "'") |>
@@ -1176,7 +1171,7 @@ genDocForPrograms opts cfg getRepoGC specDir pkg = do
   runDocCmd pkgdir doccmd = do
     let cmd = unwords doccmd
     infoMessage $ "Running CurryDoc: " ++ cmd
-    execWithPkgDir (ExecOptions cmd []) cfg getRepoGC pkgdir
+    execWithPkgDir (ExecOptions cmd) cfg getRepoGC pkgdir
 
 
 ------------------------------------------------------------------------------
@@ -1216,7 +1211,7 @@ testCmd opts cfg getRepoGC =
     debugMessage $ "Removing directory: " ++ currysubdir
     showExecCmd (unwords ["rm", "-rf", currysubdir])
     inDirectory (apkgdir </> dir) $
-      execWithPkgDir (ExecOptions testcmd []) cfg getRepoGC apkgdir
+      execWithPkgDir (ExecOptions testcmd) cfg getRepoGC apkgdir
 
   testsuites spec mainprogs = case testModules opts of
     Nothing -> maybe (let exports = exportedModules spec
@@ -1290,33 +1285,44 @@ diff opts cfg repo gc =
                                     (diffModules opts)
       else succeedIO ()
 
+-- Implementation of the "curry" command.
+compiler :: ExecOptions -> Config -> IO (Repository,GlobalCache)
+         -> IO (ErrorLogger ())
+compiler o cfg getRepoGC =
+  getLocalPackageSpec "." |>= \pkgdir ->
+  loadPackageSpec pkgdir |>= \pkg ->
+  checkCompiler cfg pkg >>
+  execWithPkgDir (ExecOptions $ curryExec cfg ++ " " ++ exeCommand o)
+                 cfg getRepoGC pkgdir
 
-exec :: ExecOptions -> Config -> IO (Repository,GlobalCache)
-     -> IO (ErrorLogger ())
-exec o cfg getRepoGC =
+execCmd :: ExecOptions -> Config -> IO (Repository,GlobalCache)
+        -> IO (ErrorLogger ())
+execCmd o cfg getRepoGC =
   getLocalPackageSpec "." |>= execWithPkgDir o cfg getRepoGC
 
 execWithPkgDir :: ExecOptions -> Config -> IO (Repository,GlobalCache)
                -> String -> IO (ErrorLogger ())
 execWithPkgDir o cfg getRepoGC specDir =
   loadCurryPathFromCache specDir |>=
-  maybe (computePackageLoadPath specDir) succeedIO |>= \currypath ->
-  let execpath = joinSearchPath (exePath o ++ splitSearchPath currypath)
-  in log Debug ("Setting CURRYPATH to " ++ execpath) |>
-  do setEnviron "CURRYPATH" execpath
+  maybe (computePackageLoadPath cfg specDir getRepoGC)
+        succeedIO |>= \currypath ->
+  log Debug ("Setting CURRYPATH to " ++ currypath) |>
+  do setEnviron "CURRYPATH" currypath
      ecode <- showExecCmd (exeCommand o)
      unsetEnviron "CURRYPATH"
      unless (ecode==0) (exitWith ecode)
      succeedIO ()
- where
-  computePackageLoadPath pkgdir =
-    getRepoGC >>= \ (repo,gc) ->
-    loadPackageSpec pkgdir |>= \pkg ->
-    resolveAndCopyDependenciesForPackage cfg repo gc pkgdir pkg |>= \pkgs ->
-    getAbsolutePath pkgdir >>= \abs -> succeedIO () |>
-    let srcdirs = map (abs </>) (sourceDirsOf pkg)
-        currypath = joinSearchPath (srcdirs ++ dependencyPathsSeparate pkgs abs)
-    in saveCurryPathToCache pkgdir currypath >> succeedIO currypath
+
+computePackageLoadPath :: Config -> String -> IO (Repository,GlobalCache)
+                       -> IO (ErrorLogger String)
+computePackageLoadPath cfg pkgdir getRepoGC =
+  getRepoGC >>= \ (repo,gc) ->
+  loadPackageSpec pkgdir |>= \pkg ->
+  resolveAndCopyDependenciesForPackage cfg repo gc pkgdir pkg |>= \pkgs ->
+  getAbsolutePath pkgdir >>= \abs -> succeedIO () |>
+  let srcdirs = map (abs </>) (sourceDirsOf pkg)
+      currypath = joinSearchPath (srcdirs ++ dependencyPathsSeparate pkgs abs)
+  in saveCurryPathToCache pkgdir currypath >> succeedIO currypath
 
 
 -- Clean auxiliary files in the current package
@@ -1389,7 +1395,7 @@ newPackage (NewOptions pname) = do
 
 --- The name of the cache file in a package directory.
 curryPathCacheFile :: String -> String
-curryPathCacheFile pkgdir = pkgdir </> ".cpm" </> "currypath_cache"
+curryPathCacheFile pkgdir = pkgdir </> ".cpm" </> "CURRYPATH_CACHE"
 
 --- Saves package CURRYPATH in local cache file in the given package dir.
 saveCurryPathToCache :: String -> String -> IO ()

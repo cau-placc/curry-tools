@@ -21,7 +21,7 @@ if [ ! -x "$ERD2CURRY" ] ; then
   if [ ! -x "$ERD2CURRY" ] ; then
     echo "SQL integration not tested: no executable 'erd2curry' found!"
     echo "To run the SQL integration test, install 'erd2curry' by:"
-    echo "> cpm installbin ertools"
+    echo "> cypm install ertools"
     exit
   fi
 fi
