@@ -5,17 +5,7 @@ Curry_Main_Goal.curry
 cpm/src/CPM/ConfigPackage.curry
 *.agdai
 *_cache
-currypp/.cpm/packages/cass-2.0.0
-currypp/.cpm/packages/cass-analysis-2.0.0
-currypp/.cpm/packages/cdbi-2.0.0
-currypp/.cpm/packages/currycheck-2.0.0
-currypp/.cpm/packages/rewriting-2.0.0
-currypp/.cpm/packages/abstract-curry-2.0.0
-currypp/.cpm/packages/flatcurry-2.0.0
-currypp/.cpm/packages/html-2.0.0
-currypp/.cpm/packages/xml-2.0.0
-currypp/.cpm/packages/fl-parser-1.0.0
-currypp/.cpm/packages/regexp-1.1.0
+*_CACHE
 optimize/.cpm/packages/cass-2.0.0
 optimize/.cpm/packages/cass-analysis-2.0.0
 optimize/.cpm/packages/flatcurry-2.0.0
@@ -25,8 +15,6 @@ optimize/.cpm/packages/xml-2.0.0
 # executables
 cpm/src/CPM.Main
 cpns/CPNSD
-currypp/Main
 optimize/BindingOpt
-runcurry/RunCurry
 www/Registry
 www/SubmitForm
