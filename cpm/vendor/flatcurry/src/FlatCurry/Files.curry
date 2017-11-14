@@ -3,8 +3,8 @@
 --- Curry programs in Curry. This library defines I/O actions
 --- to read Curry programs and transform them into this representation.
 ---
---- @author Michael Hanus
---- @version October 2015
+--- @author Michael Hanus, Finn Teegen
+--- @version November 2017
 --- @category meta
 ------------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ module FlatCurry.Files where
 import Directory       (doesFileExist)
 import Distribution    ( FrontendParams, FrontendTarget (..), defaultParams
                        , setQuiet, inCurrySubdir, stripCurrySuffix
-                       , callFrontend, callFrontendWithParams
+                       , callFrontendWithParams
                        , lookupModuleSourceInLoadPath, getLoadPathForModule
                        )
 import FileGoodies     (getFileInPath, lookupFileInPath)

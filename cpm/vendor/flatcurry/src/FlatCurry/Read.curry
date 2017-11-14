@@ -2,8 +2,8 @@
 --- This library defines operations to read FlatCurry programs or interfaces
 --- together with all its imported modules in the current load path.
 ---
---- @author Michael Hanus, Bjoern Peemoeller
---- @version December 2016
+--- @author Michael Hanus, Bjoern Peemoeller, Finn Teegen
+--- @version November 2017
 --- @category meta
 ------------------------------------------------------------------------------
 
@@ -15,13 +15,10 @@ module FlatCurry.Read
   , readFlatCurryIntWithImportsInPath
   ) where
 
-import Char         (toUpper)
 import Directory    (getModificationTime)
 import Distribution ( getLoadPathForModule, lookupModuleSource
                     , FrontendTarget (FCY), callFrontendWithParams
-                    , defaultParams, setQuiet, setFullPath, setDefinitions
-                    , curryCompiler, curryCompilerMajorVersion
-                    , curryCompilerMinorVersion
+                    , defaultParams, setQuiet, setFullPath
                     )
 import FileGoodies  (baseName, lookupFileInPath, stripSuffix)
 import FilePath     (normalise)
@@ -97,14 +94,11 @@ parseFlatCurryFile withImp verb loadpath modname suffixes = do
     putStrLn $ ">>>>> FlatCurry files not up-to-date, parsing module \""
                 ++ modname ++ "\"..."
   callFrontendWithParams FCY
-     (setQuiet True (setFullPath loadpath (setDefinitions defs defaultParams)))
-     modname
+     (setQuiet True (setFullPath loadpath defaultParams)) modname
   when verb $ putStr "Reading FlatCurry files "
   eiMods <- tryReadFlatCurryFile withImp verb loadpath modname suffixes
   return (either (error . notFound) id eiMods)
- where defs = [( "__" ++ map toUpper curryCompiler ++ "__"
-               , curryCompilerMajorVersion * 100 + curryCompilerMinorVersion )]
-       notFound mods = "FlatCurry file not found for the following module(s): "
+ where notFound mods = "FlatCurry file not found for the following module(s): "
                          ++ unwords mods
 
 -- Read a FlatCurry file (with all its imports if first argument is true).
