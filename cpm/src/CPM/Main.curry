@@ -35,8 +35,8 @@ import CPM.PackageCache.Global ( GlobalCache, readInstalledPackagesFromDir
 import CPM.Package
 import CPM.Resolution ( isCompatibleToCompiler, showResult )
 import CPM.Repository ( Repository, readRepository, findVersion, listPackages
-                      , findLatestVersion, updateRepository, searchPackages
-                      , updateRepositoryCache )
+                      , findAllVersions, findLatestVersion, updateRepository
+                      , searchPackages, updateRepositoryCache )
 import CPM.PackageCache.Runtime ( dependencyPathsSeparate, writePackageConfig )
 import CPM.PackageCopy
 import CPM.Diff.API as APIDiff
@@ -48,7 +48,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 09/11/2017)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 14/11/2017)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -722,15 +722,18 @@ infoCmd opts cfg getRepoGC = case (infoPackage opts, infoVersion opts) of
 
 infoCmdRepoGC :: String -> Maybe Version -> Bool -> Bool -> Config
               -> Repository -> GlobalCache -> IO (ErrorLogger ())
-infoCmdRepoGC pkg Nothing allinfos plain cfg repo gc =
-  case findLatestVersion cfg repo pkg False of
-    Nothing -> failIO $
-                 "Package '" ++ pkg ++ "' not found in package repository."
-    Just p  -> printInfo allinfos plain (Just (isPackageInstalled gc p)) p
+infoCmdRepoGC pkgname Nothing allinfos plain cfg repo gc =
+  case findAllVersions repo pkgname False of
+    [] -> packageNotFoundFailure pkgname
+    ps -> case filter (isCompatibleToCompiler cfg) ps of
+            [] -> let lvers = showVersion (version (head ps))
+                  in compatPackageNotFoundFailure cfg pkgname
+                       ("Use 'info " ++ pkgname ++ " " ++ lvers ++
+                        "' to print info about the latest version.")
+            (p:_) -> printInfo allinfos plain (Just (isPackageInstalled gc p)) p
 infoCmdRepoGC pkg (Just v) allinfos plain _ repo gc =
   case findVersion repo pkg v of
-    Nothing -> failIO $ "Package '" ++ pkg ++ "-" ++ showVersion v ++
-                        "' not found in package repository."
+    Nothing -> packageNotFoundFailure $ pkg ++ "-" ++ showVersion v
     Just p  -> printInfo allinfos plain (Just (isPackageInstalled gc p)) p
 
 printInfo :: Bool -> Bool -> Maybe Bool -> Package
@@ -743,16 +746,16 @@ printInfo allinfos plain mbinstalled pkg =
 -- `checkout` command:
 checkout :: CheckoutOptions -> Config -> Repository -> GlobalCache
          -> IO (ErrorLogger ())
-checkout (CheckoutOptions pkg Nothing pre) cfg repo gc =
- case findLatestVersion cfg repo pkg pre of
-  Nothing -> failIO $ "Package '" ++ pkg ++
-                      "' not found in package repository."
-  Just  p -> acquireAndInstallPackageWithDependencies cfg repo gc p |>
+checkout (CheckoutOptions pkgname Nothing pre) cfg repo gc =
+ case findAllVersions repo pkgname pre of
+  [] -> packageNotFoundFailure pkgname
+  ps -> case filter (isCompatibleToCompiler cfg) ps of
+    []    -> compatPackageNotFoundFailure cfg pkgname cpmUpdate
+    (p:_) -> acquireAndInstallPackageWithDependencies cfg repo gc p |>
              checkoutPackage cfg repo gc p
 checkout (CheckoutOptions pkg (Just ver) _) cfg repo gc =
  case findVersion repo pkg ver of
-  Nothing -> failIO $ "Package '" ++ pkg ++ "-" ++ showVersion ver ++
-                      "' not found in package repository."
+  Nothing -> packageNotFoundFailure $ pkg ++ "-" ++ showVersion ver
   Just  p -> acquireAndInstallPackageWithDependencies cfg repo gc p |>
              checkoutPackage cfg repo gc p
 
@@ -811,7 +814,8 @@ installapp opts cfg repo gc = do
 checkCompiler :: Config -> Package -> IO ()
 checkCompiler cfg pkg =
   unless (isCompatibleToCompiler cfg pkg)
-    (error $ "Compiler incompatible to package: " ++ showCompilerVersion cfg)
+    (error $ "Current compiler '" ++ showCompilerVersion cfg ++
+             "' incompatible to package specification!")
 
 --- Installs the executable specified in the package in the
 --- bin directory of CPM (compare .cpmrc).
@@ -889,8 +893,7 @@ uninstallPackageExecutable cfg pkg =
 
 tryFindVersion :: String -> Version -> Repository -> IO (ErrorLogger Package)
 tryFindVersion pkg ver repo = case findVersion repo pkg ver of
-  Nothing -> failIO $ "Package '" ++ pkg ++ "-" ++ (showVersion ver) ++
-                      "' not found in package repository."
+  Nothing -> packageNotFoundFailure $ pkg ++ "-" ++ showVersion ver
   Just  p -> succeedIO $ p
 
 --- Lists all (compiler-compatible if `lall` is false) packages
@@ -1056,12 +1059,13 @@ useForce = "Use option '-f' or '--force' to overwrite it."
 addDependencyCmd :: String -> Bool -> Config -> IO (ErrorLogger ())
 addDependencyCmd pkgname force config =
   readRepository config >>= \repo ->
-  case findLatestVersion config repo pkgname False of
-    Nothing -> failIO $
-                 "Package '" ++ pkgname ++ "' not found in package repository."
-    Just p  -> searchLocalPackageSpec "." |>=
-               maybe (genNewLocalPackage (version p))
-                     (addDepToLocalPackage (version p))
+  case findAllVersions repo pkgname False of
+    [] -> packageNotFoundFailure pkgname
+    ps -> case filter (isCompatibleToCompiler config) ps of
+             []    -> compatPackageNotFoundFailure config pkgname cpmUpdate
+             (p:_) -> searchLocalPackageSpec "." |>=
+                      maybe (genNewLocalPackage (version p))
+                            (addDepToLocalPackage (version p))
  where
   addDepToLocalPackage vers pkgdir =
     loadPackageSpec pkgdir |>= \pkgSpec ->
@@ -1270,6 +1274,7 @@ diff :: DiffOptions -> Config -> Repository -> GlobalCache
 diff opts cfg repo gc =
   getLocalPackageSpec "." |>= \specDir ->
   loadPackageSpec specDir     |>= \localSpec ->
+  checkCompiler cfg localSpec >>
   let localname  = name localSpec
       localv     = version localSpec
       showlocalv = showVersion localv
@@ -1284,9 +1289,11 @@ diff opts cfg repo gc =
  where
   getDiffVersion localname = case diffVersion opts of
     Nothing -> case findLatestVersion cfg repo localname False of
-                 Nothing -> failIO $ "No other version of local package '" ++
-                                 localname ++ "' found in package repository."
-                 Just p  -> succeedIO (version p)
+      Nothing -> failIO $
+        "No other version of local package '" ++ localname ++
+        "' compatible to '" ++ showCompilerVersion cfg ++
+        "' found in package repository."
+      Just p  -> succeedIO (version p)
     Just v  -> succeedIO v
  
   diffAPIIfEnabled specDir localSpec diffversion =
@@ -1415,6 +1422,20 @@ newPackage (NewOptions pname) = do
     , "Run the main program with:"
     , "> cypm curry :load Main :eval main :quit"
     ]
+
+
+--- Fail with a "package not found" message.
+packageNotFoundFailure :: String -> IO (ErrorLogger _)
+packageNotFoundFailure pkgname =
+  failIO $ "Package '" ++ pkgname ++ "' not found in package repository.\n" ++
+           cpmUpdate
+
+--- Fail with a "compatible package not found" message and a comment
+compatPackageNotFoundFailure :: Config -> String -> String -> IO (ErrorLogger _)
+compatPackageNotFoundFailure cfg pkgname helpcmt =
+  failIO $ "No version of package '" ++ pkgname ++ "' compatible to '" ++
+           showCompilerVersion cfg ++ "' found!\n" ++
+           helpcmt
 
 ---------------------------------------------------------------------------
 -- Caching the current CURRYPATH of a package for faster startup.
