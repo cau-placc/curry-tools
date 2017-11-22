@@ -1,7 +1,7 @@
 module JSON.Pretty (ppJSON, ppJValue) where
 
 import JSON.Data
-import Pretty
+import Text.Pretty
 
 --- Pretty print a JSON value with the default options of Curry's Pretty module.
 ppJSON :: JValue -> String

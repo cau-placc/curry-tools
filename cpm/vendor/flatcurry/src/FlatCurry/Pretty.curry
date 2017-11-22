@@ -8,7 +8,7 @@
 
 module FlatCurry.Pretty where
 
-import Pretty
+import Text.Pretty
 
 import FlatCurry.Types
 

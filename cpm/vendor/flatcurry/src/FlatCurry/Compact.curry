@@ -515,7 +515,7 @@ readCurrentFlatCurry modname = do
 processPrimitives :: String -> Prog -> IO Prog
 processPrimitives progname prog = do
   pspecs <- readPrimSpec (moduleName prog)
-                         (stripCurrySuffix progname ++ ".prim_c2p")
+                         (stripCurrySuffix progname ++ ".pakcs")
   return (mergePrimSpecIntoModule pspecs prog)
 
 mergePrimSpecIntoModule :: [(QName,QName)] -> Prog -> Prog

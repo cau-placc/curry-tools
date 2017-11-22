@@ -7,7 +7,8 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "xml": ">= 2.0.0"
+        "wl-pprint": ">= 0.0.1",
+        "xml"      : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

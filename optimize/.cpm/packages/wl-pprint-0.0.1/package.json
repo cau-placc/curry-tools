@@ -1,0 +1,21 @@
+{
+  "name": "wl-pprint",
+  "version": "0.0.1",
+  "author": "Sebastian Fischer <sebf@informatik.uni-kiel.de>, Bjoern Peemoeller <bjp@informatik.uni-kiel.de>, Jan Rasmus Tikovsky <jrt@informatik.uni-kiel.de>",
+  "synopsis": "Pretty printing combinators for Curry (inspired by Leijen's library for Haskell)",
+  "category": [ "Printing" ],
+  "description": "This package includes a library providing general combinators for pretty printing. The interface is inspired by Daan Leijen's pretty printing library for Haskell and the linear-time bounded implementation is based on an approach by Olaf Chitil.",
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+  },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+  },
+    "exportedModules": [ "Text.Pretty" ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/wl-pprint.git",
+      "tag": "$version"
+    }
+}
