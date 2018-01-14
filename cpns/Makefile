@@ -26,7 +26,7 @@ uninstall: clean
 
 
 $(TOOL): $(LIBDIR)/CPNS.curry
-	$(REPL) $(REPL_OPTS) $(ADD_OPTS) :load CPNSD :save :q
+	$(REPL) --nocypm $(REPL_OPTS) $(ADD_OPTS) :load CPNSD :save :q
 
 # Show the currently registered ports:
 show:

@@ -24,10 +24,10 @@ uninstall: clean
 
 $(SUBMITFORM): SubmitForm.curry HtmlCgi.curry \
 	    $(LIBDIR)/NamedSocket.curry $(LIBDIR)/CPNS.curry
-	$(REPL) $(REPL_OPTS) :load SubmitForm :save :q
+	$(REPL) --nocypm $(REPL_OPTS) :load SubmitForm :save :q
 
 $(REGISTRY): Registry.curry HtmlCgi.curry
-	$(REPL) $(REPL_OPTS) :load Registry :save :q
+	$(REPL) --nocypm $(REPL_OPTS) :load Registry :save :q
 
 
 cleanServers:
