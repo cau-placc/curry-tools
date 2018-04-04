@@ -16,6 +16,7 @@ CPM="cypm $CPMOPTS"
 ##############################################################################
 echo "Updating 'cpm'..."
 mv cpm/Makefile Makefile.cpm  # keep old Makefile
+mv cpm/vendor/cass/src/CASS/PackageConfig.curry CASS_PackageConfig.curry
 rm -rf cpm
 $CPM checkout cpm
 cd cpm
@@ -25,11 +26,14 @@ rm -rf vendor/*/.git*
 rm -rf dependencies.txt fetch-dependencies.sh Makefile
 cd ..
 mv Makefile.cpm cpm/Makefile
+mv CASS_PackageConfig.curry cpm/vendor/cass/src/CASS/PackageConfig.curry
 echo "'cpm' updated from package repository."
 
 ##############################################################################
 echo "Updating 'optimize'..."
 mv optimize/Makefile Makefile.optimize  # keep old Makefile
+mv optimize/.cpm/packages/cass/src/CASS/PackageConfig.curry CASS_PackageConfig.curry
+mv optimize/package.json optimize_package.json
 rm -rf optimize
 $CPM checkout transbooleq
 mv transbooleq optimize
@@ -57,4 +61,6 @@ cd .cpm/packages
 cd ../..
 cd ..
 mv Makefile.optimize optimize/Makefile
+mv CASS_PackageConfig.curry optimize/.cpm/packages/cass/src/CASS/PackageConfig.curry
+mv optimize_package.json optimize/package.json
 echo "'optimize' updated from package repository."
