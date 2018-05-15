@@ -36,6 +36,8 @@ import CPM.PackageCache.Global ( GlobalCache, readGlobalCache, allPackages
                                , installFromZip, checkoutPackage
                                , uninstallPackage, packageInstalled )
 import CPM.Package
+import CPM.Package.Helpers ( cleanPackage, getLocalPackageSpec
+                           , renderPackageInfo )
 import CPM.Resolution ( isCompatibleToCompiler, showResult )
 import CPM.Repository ( Repository, findVersion, listPackages
                       , findAllVersions, findLatestVersion
@@ -54,7 +56,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 04/04/2018)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 27/04/2018)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -706,6 +708,7 @@ checkRequiredExecutables = do
     [ "curl"  
     , "git"   
     , "unzip" 
+    , "tar"
     , "cp"
     , "rm"
     , "ln"
@@ -1103,15 +1106,14 @@ docCmd opts cfg =
   let docdir = maybe "cdoc" id (docDir opts) </> packageId pkg
   absdocdir <- getAbsolutePath docdir
   createDirectoryIfMissing True absdocdir
-  (if docManual opts then genPackageManual opts cfg pkg absdocdir
+  (if docManual opts then genPackageManual pkg specDir absdocdir
                      else succeedIO ()) |>
     (if docPrograms opts then genDocForPrograms opts cfg absdocdir specDir pkg
                          else succeedIO ())
 
 --- Generate manual according to  documentation specification of package.
-genPackageManual :: DocOptions -> Config -> Package -> String
-                 -> IO (ErrorLogger ())
-genPackageManual _ _ pkg outputdir = case documentation pkg of
+genPackageManual :: Package -> String -> String -> IO (ErrorLogger ())
+genPackageManual pkg specDir outputdir = case documentation pkg of
     Nothing -> succeedIO ()
     Just (PackageDocumentation docdir docmain doccmd) -> do
       let formatcmd = replaceSubString "OUTDIR" outputdir $
@@ -1122,7 +1124,7 @@ genPackageManual _ _ pkg outputdir = case documentation pkg of
                            docmain ++ "' (unknown kind)"
         else do
           debugMessage $ "Executing command: " ++ formatcmd
-          inDirectory docdir $ system formatcmd
+          inDirectory (specDir </> docdir) $ system formatcmd
           let outfile = outputdir </> replaceExtension docmain ".pdf"
           system ("chmod -f 644 " ++ quote outfile) -- make it readable
           infoMessage $ "Package documentation written to '" ++ outfile ++ "'."
@@ -1372,21 +1374,6 @@ computePackageLoadPath cfg pkgdir =
  where
   notCurrentBase pkg = name pkg /= "base" ||
                        showVersion (version pkg) /= compilerBaseVersion cfg
-
--- Clean auxiliary files in the current package
-cleanPackage :: Config -> LogLevel -> IO (ErrorLogger ())
-cleanPackage cfg ll =
-  getLocalPackageSpec cfg "." |>= \specDir ->
-  loadPackageSpec specDir     |>= \pkg ->
-  let dotcpm   = specDir </> ".cpm"
-      srcdirs  = map (specDir </>) (sourceDirsOf pkg)
-      testdirs = map (specDir </>)
-                     (maybe []
-                            (map (\ (PackageTest m _ _ _) -> m))
-                            (testSuite pkg))
-      rmdirs   = nub (dotcpm : map addCurrySubdir (srcdirs ++ testdirs))
-  in log ll ("Removing directories: " ++ unwords rmdirs) |>
-     (showExecCmd (unwords $ ["rm", "-rf"] ++ rmdirs) >> succeedIO ())
 
 
 --- Creates a new package.

@@ -9,7 +9,7 @@
 --- the argument `True` to compute the result `False`.
 ---
 --- @author Michael Hanus
---- @version April 2016
+--- @version April 2018
 -----------------------------------------------------------------------------
 
 module Analysis.RequiredValues
@@ -141,7 +141,8 @@ reqValueAnalysis =
   combinedDependencyFuncAnalysis "RequiredValues"
                                  siblingCons EmptyFunc analyseReqVal
 
-analyseReqVal :: ProgInfo [QName] -> FuncDecl -> [(QName,AFType)] -> AFType
+analyseReqVal :: ProgInfo [(QName,Int)] -> FuncDecl -> [(QName,AFType)]
+              -> AFType
 analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
  | m==prelude = maybe (anaresult rule) id (lookup f preludeFuncs)
  | otherwise  = --trace ("Analyze "++f++"\n"++showCalledFuncs calledfuncs++
@@ -163,7 +164,7 @@ analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
                  ,("compare",AFType [([AnyC,AnyC],AnyC)])
                  ]
 
-analyseReqValRule :: ProgInfo [QName] -> [(QName,AFType)] -> [Int] -> Expr
+analyseReqValRule :: ProgInfo [(QName,Int)] -> [(QName,AFType)] -> [Int] -> Expr
                   -> AFType
 analyseReqValRule consinfo calledfuncs args rhs =
   let initenv = extendEnv [] args
@@ -177,7 +178,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
        let somecons = maybe (error "Internal error")
                             (\ (Cons (c:_)) -> c)
                             (find isConsValue rtypes)
-           othercons = maybe [] id (lookupProgInfo somecons consinfo)
+           othercons = maybe [] (map fst) (lookupProgInfo somecons consinfo)
            consenvtypes = foldr lubEnvTypes []
                                 (map (\rt -> reqValExp initenv rhs rt)
                                    (map (\c -> Cons [c]) (somecons:othercons)))

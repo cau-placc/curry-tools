@@ -4,6 +4,8 @@
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "CASS: the Curry Analysis Server System",
     "category": [ "Analysis" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
     "dependencies": {
         "cass-analysis": ">= 2.0.0",
         "flatcurry"    : ">= 2.0.0",

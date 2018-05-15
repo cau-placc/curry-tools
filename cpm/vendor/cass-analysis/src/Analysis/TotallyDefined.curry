@@ -6,7 +6,7 @@
 --- constructor terms
 ---
 --- @author Johannes Koj, Michael Hanus
---- @version May 2013
+--- @version April 2018
 -----------------------------------------------------------------------------
 
 module Analysis.TotallyDefined
@@ -25,18 +25,18 @@ import List(delete)
 --- same data type) for a data constructor.
 
 --- Shows the result of the sibling constructors analysis, i.e.,
---- shows a list of constructor names.
-showSibling :: AOutFormat -> [QName] -> String
+--- shows a list of constructor names together with their arities.
+showSibling :: AOutFormat -> [(QName,Int)] -> String
 showSibling _ = show
 
-siblingCons :: Analysis [QName]
-siblingCons =
-  simpleConstructorAnalysis "SiblingCons" consNamesOfType
+siblingCons :: Analysis [(QName,Int)]
+siblingCons = simpleConstructorAnalysis "SiblingCons" consNamesArOfType
  where
-  -- get all constructor names of datatype declaration
-  consNamesOfType cdecl (Type _ _ _ consDecls) =
-    filter (/= (consName cdecl)) (map consName consDecls)
-  consNamesOfType _ (TypeSyn _ _ _ _) = []
+  -- get all constructor names and arities of a datatype declaration
+  consNamesArOfType cdecl (Type _ _ _ consDecls) =
+    map (\cd -> (consName cd, consArity cd))
+        (filter (\cd -> consName cd /= consName cdecl) consDecls)
+  consNamesArOfType _ (TypeSyn _ _ _ _) = []
 
 ------------------------------------------------------------------------------
 -- The completeness analysis assigns to an operation a flag indicating
@@ -81,13 +81,13 @@ showComplete _     InComplete   = "incomplete"
 showComplete _     InCompleteOr = "incomplete in each disjunction"
 
 
-analysePatComplete :: ProgInfo [QName] -> FuncDecl -> Completeness
+analysePatComplete :: ProgInfo [(QName,Int)] -> FuncDecl -> Completeness
 analysePatComplete consinfo fdecl = anaFun fdecl
  where
   anaFun (Func _ _ _ _ (Rule _ e)) = isComplete consinfo e
   anaFun (Func _ _ _ _ (External _)) = Complete
 
-isComplete :: ProgInfo [QName] -> Expr -> Completeness
+isComplete :: ProgInfo [(QName,Int)] -> Expr -> Completeness
 isComplete _ (Var _)      = Complete
 isComplete _ (Lit _)      = Complete
 isComplete consinfo (Comb _ f es) =
@@ -104,13 +104,14 @@ isComplete _ (Case _ _ []) = InComplete
 isComplete _ (Case _ _ (Branch (LPattern _)   _ : _)) = InComplete
 isComplete consinfo (Case _ _ (Branch (Pattern cons _) bexp : ces)) =
     combineAndResults
-      (checkAllCons (maybe [] id (lookupProgInfo cons consinfo)) ces)
+      (checkAllCons (maybe [] (map fst) (lookupProgInfo cons consinfo)) ces)
       (isComplete consinfo bexp)
   where
    -- check for occurrences of all constructors in each case branch:
    checkAllCons []    _  = Complete
    checkAllCons (_:_) [] = InComplete
-   checkAllCons (_:_) (Branch (LPattern _)   _ : _) = InComplete -- should not occur
+   checkAllCons (_:_)
+                (Branch (LPattern _)   _ : _) = InComplete -- should not occur
    checkAllCons (c:cs) (Branch (Pattern i _) e : ps) =
      combineAndResults (checkAllCons (delete i (c:cs)) ps)
                        (isComplete consinfo e)
