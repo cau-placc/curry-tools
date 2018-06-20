@@ -67,7 +67,7 @@ getInterfaceInfos anaName (mod:mods) =
 loadDefaultAnalysisValues :: String -> String -> IO [(QName,a)]
 loadDefaultAnalysisValues anaName moduleName = do
   (_,fileName) <- findModuleSourceInLoadPath moduleName
-  let defaultFileName = stripCurrySuffix fileName ++ ".defaults."++anaName
+  let defaultFileName = stripCurrySuffix fileName ++ ".defaults." ++ anaName
   fileExists <- doesFileExist defaultFileName
   if fileExists
     then do debugMessage 3 ("Load default values from " ++ defaultFileName)

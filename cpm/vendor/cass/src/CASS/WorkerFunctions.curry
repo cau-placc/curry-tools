@@ -3,22 +3,18 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2017
+--- @version June 2018
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
 
-import FlatCurry.Types
-import FlatCurry.Files
-import FlatCurry.Goodies
-import ReadShowTerm(readQTerm,showQTerm)
-import List(partition)
-import IOExts
-import System(getCPUTime)
-import Maybe(fromJust)
 import FiniteMap
+import IOExts
+import List         ( partition )
+import Maybe        ( fromJust )
+import SCC          ( scc )
 import SetRBT
-import SCC(scc)
+import System       ( getCPUTime )
 
 import Analysis.Files
 import Analysis.Logging  ( debugMessage, debugString )
@@ -26,9 +22,13 @@ import Analysis.Types    ( Analysis(..), isSimpleAnalysis, isCombinedAnalysis
                          , analysisName, startValue)
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
                          , publicProgInfo, lookupProgInfo, lists2ProgInfo
-                         ,equalProgInfo, showProgInfo )
+                         , equalProgInfo, publicListFromProgInfo, showProgInfo )
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies
+
 import CASS.Configuration
-import CASS.FlatCurryDependency( callsDirectly, dependsDirectlyOnTypes )
+import CASS.FlatCurryDependency ( callsDirectly, dependsDirectlyOnTypes )
 
 -----------------------------------------------------------------------
 -- Datatype to store already read ProgInfos for modules.
@@ -171,17 +171,17 @@ execCombinedAnalysis analysis prog importInfos startvals moduleName fpmethod =
 
 -----------------------------------------------------------------------
 --- Run an analysis but load default values (e.g., for external operations)
---- before and do not analyse the operations or type for these defaults.
+--- before and do not analyse the operations or types for these defaults.
 runAnalysis :: Eq a => Analysis a -> Prog -> ProgInfo a -> [(QName,a)] -> String
             -> IO (ProgInfo a)
 runAnalysis analysis prog importInfos startvals fpmethod = do
   deflts <- loadDefaultAnalysisValues (analysisName analysis) (progName prog)
   let defaultFuncs =
-        updProgFuncs (filter (\fd -> funcName fd `elem` map fst deflts)) prog
+        updProgFuncs (filter (\fd -> funcName fd `elem`    map fst deflts)) prog
       definedFuncs =
         updProgFuncs (filter (\fd -> funcName fd `notElem` map fst deflts)) prog
       defaultTypes =
-        updProgTypes (filter (\fd -> typeName fd `elem` map fst deflts)) prog
+        updProgTypes (filter (\fd -> typeName fd `elem`    map fst deflts)) prog
       definedTypes =
         updProgTypes (filter (\fd -> typeName fd `notElem` map fst deflts)) prog
   let (progWithoutDefaults,defaultproginfo) = case analysis of
@@ -196,11 +196,21 @@ runAnalysis analysis prog importInfos startvals fpmethod = do
          (definedFuncs, funcInfos2ProgInfo defaultFuncs deflts)
         DependencyTypeAnalysis _ _ _ ->
          (definedTypes, typeInfos2ProgInfo defaultTypes deflts)
+        SimpleModuleAnalysis _ _ ->
+         if null deflts then (definedFuncs, emptyProgInfo)
+                        else error defaultNotEmptyError
+        DependencyModuleAnalysis _ _ ->
+         if null deflts then (definedFuncs, emptyProgInfo)
+                        else error defaultNotEmptyError
         _ -> error "Internal error in WorkerFunctions.runAnalysis"
   let result = executeAnalysis analysis progWithoutDefaults
                                (combineProgInfo importInfos defaultproginfo)
                                startvals fpmethod
   return $ combineProgInfo defaultproginfo result
+ where
+  defaultNotEmptyError = "Default analysis information for analysis '" ++
+                         analysisName analysis ++ "' and module '" ++
+                         progName prog ++ "' not empty!"
 
 --- Executes an anlysis on a given program w.r.t. an imported ProgInfo
 --- and some start values (for dependency analysis).
@@ -208,6 +218,18 @@ runAnalysis analysis prog importInfos startvals fpmethod = do
 executeAnalysis :: Eq a => Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
                 -> String
                 -> ProgInfo a
+
+-- The results of a module analysis for module `m` are encoded as
+-- a `ProgInfo` with a single entry for the qualified name `m.m`.
+executeAnalysis (SimpleModuleAnalysis _ anaFunc) prog _ _ _ =
+ let pname = progName prog
+ in lists2ProgInfo ([((pname,pname), anaFunc prog)], [])
+executeAnalysis (DependencyModuleAnalysis _ anaFunc) prog impproginfos _ _ =
+ let pname       = progName prog
+     importinfos = map (\ (qn,a) -> (fst qn,a))
+                       (publicListFromProgInfo impproginfos)
+ in lists2ProgInfo ([((pname,pname), anaFunc prog importinfos)], [])
+
 executeAnalysis (SimpleFuncAnalysis _ anaFunc) prog _ _ _ = 
   (lists2ProgInfo . map2 (\func -> (funcName func, anaFunc func))
                   . partition isVisibleFunc . progFuncs) prog
