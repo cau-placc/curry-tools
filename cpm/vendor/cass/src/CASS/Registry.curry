@@ -46,6 +46,7 @@ import Analysis.SolutionCompleteness
 import Analysis.Termination
 import Analysis.TotallyDefined
 import Analysis.TypeUsage
+import Analysis.UnsafeModule
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -79,8 +80,8 @@ registeredAnalysis =
   ,cassAnalysis "Root replacements"          rootReplAnalysis showRootRepl
   ,cassAnalysis "Terminating operations"     terminationAnalysis showTermination
   ,cassAnalysis "Types in values"            typesInValuesAnalysis showTypeNames
+  ,cassAnalysis "Unsafe module"              unsafeModuleAnalysis  showUnsafe
   ]
-
 
 
 --------------------------------------------------------------------

@@ -10,7 +10,7 @@
 ---                (instead of the data constructors).
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2017
+--- @version June 2018
 -------------------------------------------------------------------------
 
 module Analysis.Types
@@ -20,12 +20,13 @@ module Analysis.Types
   , combinedSimpleFuncAnalysis, combined2SimpleFuncAnalysis
   , combinedSimpleTypeAnalysis
   , combinedDependencyFuncAnalysis, combinedDependencyTypeAnalysis
+  , simpleModuleAnalysis, dependencyModuleAnalysis
   , isSimpleAnalysis, isCombinedAnalysis, isFunctionAnalysis
   , analysisName, baseAnalysisNames, startValue
   , AOutFormat(..)
   ) where
 
-import FlatCurry.Types   ( ConsDecl, FuncDecl, TypeDecl, QName )
+import FlatCurry.Types   ( Prog, ConsDecl, FuncDecl, TypeDecl, QName )
 import FlatCurry.Goodies ( progImports )
 
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, lookupProgInfo )
@@ -49,6 +50,8 @@ data Analysis a =
                                   (String -> IO (FuncDecl -> [(QName,a)] -> a))
  | CombinedDependencyTypeAnalysis [String] String Bool a
                                   (String -> IO (TypeDecl -> [(QName,a)] -> a))
+ | SimpleModuleAnalysis     String (Prog -> a)
+ | DependencyModuleAnalysis String (Prog -> [(String,a)] -> a)
 
 
 --- A simple analysis for functions takes an operation that computes
@@ -160,18 +163,38 @@ combinedDependencyTypeAnalysis ananame baseAnalysis startval anaType =
     [analysisName baseAnalysis] ananame True startval
     (runWithBaseAnalysis baseAnalysis anaType)
 
+--- Construct a simple analysis for entire modules.
+--- The analysis has a name and takes an operation that computes
+--- some information from a given module.
+simpleModuleAnalysis :: String -> (Prog -> a) -> Analysis a
+simpleModuleAnalysis anaName anaFunc =
+  SimpleModuleAnalysis anaName anaFunc 
+
+--- Construct a module analysis which uses analysis information on
+--- imported modules.
+--- The analysis has a name and an operation to analyze a module.
+--- The analysis operation could use already computed information
+--- of imported modules, represented as a list of module name/information pairs.
+--- Note that a fixpoint iteration is not necessary
+--- since module dependencies must be acyclic.
+dependencyModuleAnalysis :: String -> (Prog -> [(String,a)] -> a) -> Analysis a
+dependencyModuleAnalysis anaName anaFunc =
+  DependencyModuleAnalysis anaName anaFunc
+
+
+-------------------------------------------------------------------------
 
 --- Is the analysis a simple analysis?
 --- Otherwise, it is a dependency analysis which requires a fixpoint
 --- computation to compute the results.
 isSimpleAnalysis :: Analysis a -> Bool
 isSimpleAnalysis analysis = case analysis of
-  SimpleFuncAnalysis _ _ -> True
-  SimpleTypeAnalysis _ _ -> True
-  SimpleConstructorAnalysis _ _ -> True
+  SimpleFuncAnalysis         _ _     -> True
+  SimpleTypeAnalysis         _ _     -> True
+  SimpleConstructorAnalysis  _ _     -> True
   CombinedSimpleFuncAnalysis _ _ _ _ -> True
   CombinedSimpleTypeAnalysis _ _ _ _ -> True
-  _ -> False
+  _                                  -> False
 
 --- Is the analysis a combined analysis?
 isCombinedAnalysis :: Analysis a -> Bool
@@ -180,30 +203,32 @@ isCombinedAnalysis analysis = case analysis of
   CombinedSimpleTypeAnalysis     _ _ _ _   -> True
   CombinedDependencyFuncAnalysis _ _ _ _ _ -> True
   CombinedDependencyTypeAnalysis _ _ _ _ _ -> True
-  _ -> False
+  _                                        -> False
 
 --- Is the analysis a function analysis?
 --- Otherwise, it is a type or constructor analysis.
 isFunctionAnalysis :: Analysis a -> Bool
 isFunctionAnalysis analysis = case analysis of
-  SimpleFuncAnalysis _ _ -> True
-  DependencyFuncAnalysis _ _ _ -> True
-  CombinedSimpleFuncAnalysis _ _ _ _ -> True
+  SimpleFuncAnalysis             _ _       -> True
+  DependencyFuncAnalysis         _ _ _     -> True
+  CombinedSimpleFuncAnalysis     _ _ _ _   -> True
   CombinedDependencyFuncAnalysis _ _ _ _ _ -> True
-  _ -> False
+  _                                        -> False
 
 --- Name of the analysis to be used in server communication and
 --- analysis files.
 analysisName :: Analysis a -> String
-analysisName (SimpleFuncAnalysis name _) = name
-analysisName (SimpleTypeAnalysis name _) = name
-analysisName (SimpleConstructorAnalysis name _) = name
-analysisName (DependencyFuncAnalysis name _ _) = name
-analysisName (DependencyTypeAnalysis name _ _) = name
+analysisName (SimpleFuncAnalysis        name _  ) = name
+analysisName (SimpleTypeAnalysis        name _  ) = name
+analysisName (SimpleConstructorAnalysis name _  ) = name
+analysisName (DependencyFuncAnalysis    name _ _) = name
+analysisName (DependencyTypeAnalysis    name _ _) = name
 analysisName (CombinedSimpleFuncAnalysis _ nameB _ _) = nameB
 analysisName (CombinedSimpleTypeAnalysis _ nameB _ _) = nameB
 analysisName (CombinedDependencyFuncAnalysis _ nameB _ _ _) = nameB
 analysisName (CombinedDependencyTypeAnalysis _ nameB _ _ _) = nameB
+analysisName (SimpleModuleAnalysis           name _) = name
+analysisName (DependencyModuleAnalysis       name _) = name
 
 --- Names of the base analyses of a combined analysis.
 baseAnalysisNames :: Analysis a -> [String]
