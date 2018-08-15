@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version October 2016
+--- @version August 2018
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -35,7 +35,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 20/10/2016)"
+  let bannerText = "Curry Binding Optimizer (version of 15/08/2018)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -117,7 +117,7 @@ modNameOfFcyName name =
 transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
 transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
   let (dir, name) = splitModuleFileName (progName prog) modname
-  let oldprogfile = normalise $ addCurrySubdir dir </>  name         <.> "fcy"
+      oldprogfile = normalise $ addCurrySubdir dir </>  name         <.> "fcy"
       newprogfile = normalise $ addCurrySubdir dir </>  name ++ "_O" <.> "fcy"
   starttime <- getCPUTime
   (newprog, transformed) <- transformFlatProg opts modname prog
@@ -279,8 +279,8 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
 -- The first argument is "==" (for checking equalities) or "/="
 -- (for checking disequalities).
 -- If type classes are present, a Boolean (dis)equality call can be
--- * an instance (dis)equality call: "_impl#==#Prelude.Eq#..." e1 e2
---   (where there can be an additional first argument for another Eq dict)
+-- * an instance (dis)equality call: "_impl#==#Prelude.Eq#..." ... e1 e2
+--   (where there can be additional arguments for other Eq dicts)
 -- * a class (dis)equality call: apply (apply ("==" [dict]) e1) e2
 --   (where dict is a dictionary parameter)
 -- * a default instance (dis)equality call:
@@ -289,9 +289,8 @@ checkBoolEqualCall :: String -> Expr -> Maybe [Expr]
 checkBoolEqualCall deq exp = case exp of
   Comb FuncCall qf es ->
     if isNotEqualInstanceFunc qf && length es > 1
-      then Just (if length es == 2
-                   then es
-                   else tail es) -- since first argument might be Eq dict.
+      then Just (drop (length es - 2) es)
+                -- drop possible Eq dictionary arguments
       else if qf == pre "apply"
              then case es of
                     [Comb FuncCall qfa [Comb FuncCall qfe [_],e1],e2] ->
