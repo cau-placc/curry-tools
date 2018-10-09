@@ -6,7 +6,7 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version January 2017
+--- @version September 2018
 --------------------------------------------------------------------------
 
 module CASS.Configuration
@@ -34,7 +34,7 @@ import CASS.PackageConfig (packagePath, packageExecutable, packageVersion)
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 05/06/2018 for " ++
+                   packageVersion ++ " of 13/09/2018 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine

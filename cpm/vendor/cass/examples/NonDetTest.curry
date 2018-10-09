@@ -1,4 +1,4 @@
--- Tests for the RootReplaced analysis
+-- Tests for the non-determinism dependency analysis `NonDetDeps`.
 --
 -- Runt test with:
 -- > cass NonDetDeps NonDetTest.curry

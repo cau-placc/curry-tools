@@ -16,8 +16,8 @@ import FlatCurry.Goodies ( progImports, progName )
 import FlatCurry.Types
 
 ------------------------------------------------------------------------
---- This analysis associates to a module the of all module names
---- which directly imports the module `Unsafe`.
+--- This analysis associates to a module the list of the names of all
+--- modules which directly imports the module `Unsafe`.
 --- Such modules might hide dangerous operations in
 --- purely functional operations.
 --- Thus, a module is safe if the analysis result is the empty list.

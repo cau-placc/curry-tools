@@ -3,7 +3,7 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version June 2018
+--- @version September 2018
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
@@ -50,9 +50,12 @@ analysisClient analysis modnames = do
 analysisClientWithStore :: Eq a => IORef (ProgInfoStore a) -> Analysis a -> String
                         -> String -> IO ()
 analysisClientWithStore store analysis fpmethod moduleName = do
-  prog <- readNewestFlatCurry moduleName
-  let importList   = progImports prog
-      ananame = analysisName analysis
+  prog        <- readNewestFlatCurry moduleName
+  withprelude <- getWithPrelude
+  let progimports = progImports prog
+      importList  = if withprelude=="no" then filter (/="Prelude") progimports
+                                         else progimports
+      ananame     = analysisName analysis
   importInfos <-
     if isSimpleAnalysis analysis
     then return emptyProgInfo

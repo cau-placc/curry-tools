@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2017
+--- @version September 2018
 --------------------------------------------------------------------
 
 module CASS.Registry
@@ -40,6 +40,7 @@ import Analysis.Indeterministic
 import Analysis.RequiredValue
 import qualified Analysis.RequiredValues as RVS
 import Analysis.RightLinearity
+import Analysis.Residuation
 import Analysis.RootReplaced
 import Analysis.SensibleTypes
 import Analysis.SolutionCompleteness
@@ -76,6 +77,7 @@ registeredAnalysis =
   ,cassAnalysis "Sibling constructors"       siblingCons      showSibling
   ,cassAnalysis "Required value"             reqValueAnalysis showAFType
   ,cassAnalysis "Required value sets"        RVS.reqValueAnalysis RVS.showAFType
+  ,cassAnalysis "Residuating operations"     residuationAnalysis showResInfo
   ,cassAnalysis "Root cyclic replacements"   rootCyclicAnalysis showRootCyclic
   ,cassAnalysis "Root replacements"          rootReplAnalysis showRootRepl
   ,cassAnalysis "Terminating operations"     terminationAnalysis showTermination
