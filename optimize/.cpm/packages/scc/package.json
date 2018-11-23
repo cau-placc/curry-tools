@@ -1,0 +1,22 @@
+{
+    "name": "scc",
+    "version": "0.0.1",
+    "author": "Wolfgang Lux <wlux@uni-muenster.de>",
+    "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Computing strongly connected components",
+    "category": [ "Data" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base": ">= 1.0.0, < 2.0.0"
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "exportedModules": [ "Data.SCC" ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/scc.git",
+      "tag": "$version"
+    }
+}

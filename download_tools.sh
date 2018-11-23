@@ -58,6 +58,15 @@ cd .cpm/packages
  PKGV=`ls -d xml-*`
  mv $PKGV xml
  ln -s xml $PKGV
+ PKGV=`ls -d scc-*`
+ mv $PKGV scc
+ ln -s scc $PKGV
+ PKGV=`ls -d frontend-exec-*`
+ mv $PKGV frontend-exec
+ ln -s frontend-exec $PKGV
+ PKGV=`ls -d propertyfile-*`
+ mv $PKGV propertyfile
+ ln -s propertyfile $PKGV
 cd ../..
 cd ..
 mv Makefile.optimize optimize/Makefile

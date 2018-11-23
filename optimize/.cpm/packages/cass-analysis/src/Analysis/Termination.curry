@@ -23,8 +23,9 @@ import Char(isDigit)
 import FlatCurry.Types
 import FlatCurry.Goodies
 import List
-import SCC(scc)
 import Sort(sort)
+
+import Data.SCC(scc)
 
 ------------------------------------------------------------------------------
 -- The termination analysis is a global function dependency analysis.

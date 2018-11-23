@@ -1,0 +1,22 @@
+{
+    "name": "frontend-exec",
+    "version": "0.0.1",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Operations to execute the front end of the Curry system",
+    "category": [ "System" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"        : ">= 1.0.0, < 2.0.0",
+        "propertyfile": ">= 0.0.1"
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "exportedModules": [ "System.FrontendExec" ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/frontend-exec.git",
+      "tag": "$version"
+    }
+}

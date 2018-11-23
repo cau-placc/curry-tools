@@ -10,7 +10,10 @@ optimize/.cpm/packages/cass-2.0.0
 optimize/.cpm/packages/cass-analysis-2.0.0
 optimize/.cpm/packages/flatcurry-2.0.0
 optimize/.cpm/packages/csv-1.0.0
+optimize/.cpm/packages/scc-0.0.1
 optimize/.cpm/packages/xml-2.0.0
+optimize/.cpm/packages/frontend-exec-0.0.1
+optimize/.cpm/packages/propertyfile-0.0.1
 
 # executables
 cpm/src/CPM.Main

@@ -3,8 +3,7 @@
 --- together with all its imported modules in the current load path.
 ---
 --- @author Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version November 2017
---- @category meta
+--- @version November 2018
 ------------------------------------------------------------------------------
 
 module FlatCurry.Read
@@ -15,13 +14,13 @@ module FlatCurry.Read
   , readFlatCurryIntWithImportsInPath
   ) where
 
-import Directory    (getModificationTime)
-import Distribution ( getLoadPathForModule, lookupModuleSource
-                    , FrontendTarget (FCY), callFrontendWithParams
-                    , defaultParams, setQuiet, setFullPath
-                    )
-import FileGoodies  (baseName, lookupFileInPath, stripSuffix)
-import FilePath     (normalise)
+import Directory    ( getModificationTime )
+import Distribution ( getLoadPathForModule, lookupModuleSource )
+import FileGoodies  ( baseName, lookupFileInPath, stripSuffix )
+import FilePath     ( normalise )
+
+import System.FrontendExec ( FrontendTarget (FCY), callFrontendWithParams
+                           , defaultParams, setQuiet, setFullPath )
 
 import FlatCurry.Types
 import FlatCurry.Files

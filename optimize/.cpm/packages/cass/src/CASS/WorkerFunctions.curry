@@ -12,7 +12,6 @@ import FiniteMap
 import IOExts
 import List         ( partition )
 import Maybe        ( fromJust )
-import SCC          ( scc )
 import SetRBT
 import System       ( getCPUTime )
 
@@ -26,6 +25,7 @@ import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
 import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.Goodies
+import Data.SCC          ( scc )
 
 import CASS.Configuration
 import CASS.FlatCurryDependency ( callsDirectly, dependsDirectlyOnTypes )
