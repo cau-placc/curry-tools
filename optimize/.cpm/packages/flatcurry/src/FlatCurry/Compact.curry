@@ -5,7 +5,7 @@
 --- a set of main functions.
 ---
 --- @author Michael Hanus, Carsten Heine
---- @version August 2016
+--- @version December 2018
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
@@ -19,13 +19,14 @@ import FlatCurry.Files
 import SetRBT
 import TableRBT
 import Maybe
-import List             (nub, union)
+import List             ( nub, union )
 import FileGoodies
-import FilePath         (takeFileName, (</>))
+import FilePath         ( takeFileName, (</>) )
 import Directory
-import Sort             (cmpString, leqString)
+import Sort             ( cmpString, leqString )
 import XML
-import Distribution     (lookupModuleSourceInLoadPath, stripCurrySuffix)
+
+import System.CurryPath ( lookupModuleSourceInLoadPath, stripCurrySuffix )
 
 infix 0 `requires`
 

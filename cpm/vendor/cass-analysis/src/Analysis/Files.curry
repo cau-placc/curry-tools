@@ -3,23 +3,24 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2017
+--- @version December 2018
 --------------------------------------------------------------------------
 
 module Analysis.Files where
 
 import Directory
-import Distribution      ( installDir, lookupModuleSourceInLoadPath
-                         , stripCurrySuffix )
-import FlatCurry.Files
-import FlatCurry.Goodies (progImports)
-import FlatCurry.Types   (Prog, QName)
+import Distribution      ( installDir )
 import FilePath
-import List              (isPrefixOf, isSuffixOf)
-import ReadShowTerm      (readQTerm, showQTerm)
-import Time              (ClockTime)
+import List              ( isPrefixOf, isSuffixOf )
+import ReadShowTerm      ( readQTerm, showQTerm )
+import Time              ( ClockTime )
 
-import Analysis.Logging  (debugMessage)
+import FlatCurry.Files
+import FlatCurry.Goodies ( progImports )
+import FlatCurry.Types   ( Prog, QName )
+import System.CurryPath  ( lookupModuleSourceInLoadPath, stripCurrySuffix )
+
+import Analysis.Logging  ( debugMessage )
 import Analysis.ProgInfo
 
 

@@ -5,7 +5,7 @@
 --- might be changed in the future!
 ---
 --- @author Michael Hanus
---- @version September 2017
+--- @version June 2018
 ------------------------------------------------------------------------------
 
 module XML(XmlExp(..),Encoding(..),XmlDocParams(..),

@@ -10,7 +10,7 @@ import Directory    ( doesFileExist, getAbsolutePath, doesDirectoryExist
                     , getCurrentDirectory, getDirectoryContents
                     , getModificationTime
                     , renameFile, removeFile, setCurrentDirectory )
-import Distribution ( installDir, stripCurrySuffix, addCurrySubdir )
+import Distribution ( installDir )
 import Either
 import FilePath     ( (</>), splitSearchPath, replaceExtension, takeExtension
                     , pathSeparator, isPathSeparator )
@@ -22,10 +22,11 @@ import Sort         ( sortBy )
 import System       ( getArgs, getEnviron, setEnviron, unsetEnviron, exitWith
                     , system )
 
-import Boxes        ( table, render )
+import Boxes            ( table, render )
 import OptParse
-import System.Path  ( fileInPath )
-import Text.CSV     ( showCSV )
+import System.CurryPath ( addCurrySubdir, stripCurrySuffix )
+import System.Path      ( fileInPath )
+import Text.CSV         ( showCSV )
 
 import CPM.ErrorLogger
 import CPM.FileUtil ( joinSearchPath, safeReadFile, whenFileExists
@@ -58,7 +59,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 23/11/2018)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 10/12/2018)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -1116,7 +1117,7 @@ linkCmd (LinkOptions src) cfg =
   getLocalPackageSpec cfg "." |>= \specDir ->
   cleanCurryPathCache specDir |>
   log Info ("Linking '" ++ src ++ "' into local package cache...") |>
-  linkToLocalCache src specDir
+  linkToLocalCache cfg src specDir
 
 --- `add` command:
 --- Option `--package`: copy the given package to the repository index

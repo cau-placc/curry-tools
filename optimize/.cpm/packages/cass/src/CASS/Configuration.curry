@@ -6,7 +6,7 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version September 2018
+--- @version December 2018
 --------------------------------------------------------------------------
 
 module CASS.Configuration
@@ -17,19 +17,19 @@ module CASS.Configuration
  , getDefaultPath, waitTime, numberOfWorkers
  ) where
 
-import System
-import Distribution (curryCompiler)
-import PropertyFile
-import ReadNumeric
-import FilePath     (FilePath, (</>), (<.>))
+import Char         ( isSpace )
 import Directory
-import ReadShowTerm
-import Sort         (mergeSort)
+import Distribution ( curryCompiler )
+import FilePath     ( FilePath, (</>), (<.>) )
 import Global
-import Char         (isSpace)
+import ReadNumeric
+import ReadShowTerm
+import Sort         ( mergeSort )
+import System
 
-import Analysis.Logging   (debugMessage, setDebugLevel)
-import CASS.PackageConfig (packagePath, packageExecutable, packageVersion)
+import Analysis.Logging   ( debugMessage, setDebugLevel )
+import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
+import Data.PropertyFile  ( readPropertyFile, updatePropertyFile )
 
 systemBanner :: String
 systemBanner =

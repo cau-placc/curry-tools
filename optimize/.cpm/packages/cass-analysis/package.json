@@ -7,8 +7,10 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "flatcurry": ">= 2.0.0",
-        "scc"      : ">= 0.0.1"
+        "base"      : ">= 1.0.0, < 2.0.0",
+        "currypath" : ">= 0.0.1",
+        "flatcurry" : ">= 2.0.0",
+        "scc"       : ">= 0.0.1"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

@@ -9,9 +9,7 @@
 module BindingOpt (main, transformFlatProg) where
 
 import Directory         ( renameFile )
-import Distribution      ( installDir, curryCompiler, currySubdir
-                         , addCurrySubdir, splitModuleFileName
-                         )
+import Distribution      ( installDir, curryCompiler )
 import FileGoodies
 import FilePath          ( (</>), (<.>), normalise, pathSeparator )
 import List
@@ -25,6 +23,7 @@ import Analysis.Types
 import Analysis.ProgInfo
 import Analysis.RequiredValues
 import CASS.Server       ( analyzeGeneric, analyzePublic, analyzeInterface )
+import System.CurryPath  ( currySubdir, addCurrySubdir, splitModuleFileName )
 import Text.CSV
 
 

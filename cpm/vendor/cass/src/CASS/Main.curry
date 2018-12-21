@@ -2,28 +2,28 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version March 2017
+--- @version December 2018
 --------------------------------------------------------------------------
 
-module CASS.Main(main) where
+module CASS.Main ( main ) where
 
-import Char           (toLower)
-import Distribution   (stripCurrySuffix)
-import FilePath       ((</>), (<.>))
+import Char           ( toLower )
+import FilePath       ( (</>), (<.>) )
 import GetOpt
-import List           (isPrefixOf)
-import ReadNumeric    (readNat)
-import ReadShowTerm   (readQTerm)
-import Sort           (sort)
-import System         (exitWith,getArgs)
+import List           ( isPrefixOf )
+import ReadNumeric    ( readNat )
+import ReadShowTerm   ( readQTerm )
+import Sort           ( sort )
+import System         ( exitWith, getArgs )
 
-import Analysis.Files   (deleteAllAnalysisFiles)
-import Analysis.Logging (debugMessage)
-import CASS.Doc         (getAnalysisDoc)
+import Analysis.Files     ( deleteAllAnalysisFiles )
+import Analysis.Logging   ( debugMessage )
+import CASS.Doc           ( getAnalysisDoc )
 import CASS.Server
 import CASS.Configuration
 import CASS.Registry
-import CASS.Worker      (startWorker)
+import CASS.Worker        ( startWorker )
+import System.CurryPath   ( stripCurrySuffix )
 
 --- Main function to start the analysis system.
 --- With option -s or --server, the server is started on a socket.

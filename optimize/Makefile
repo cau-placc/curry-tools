@@ -22,11 +22,11 @@ compile: BindingOpt
 # Load the application into the interactive Curry system:
 .PHONY: load
 load: 
-	$(REPL) --nocypm $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt
+	$(REPL) -Dbindingoptimization=no --nocypm $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt
 
 # Compile and create an executable of the binding optimizer:
 BindingOpt: $(DEPS)
-	$(REPL) --nocypm $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt :save :q
+	$(REPL) -Dbindingoptimization=no --nocypm $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt :save :q
 
 # Clean intermediate files:
 .PHONY: clean
