@@ -67,6 +67,9 @@ cd .cpm/packages
  PKGV=`ls -d scc-*`
  mv $PKGV scc
  ln -s scc $PKGV
+ PKGV=`ls -d socket-*`
+ mv $PKGV socket
+ ln -s socket $PKGV
  PKGV=`ls -d frontend-exec-*`
  mv $PKGV frontend-exec
  ln -s frontend-exec $PKGV

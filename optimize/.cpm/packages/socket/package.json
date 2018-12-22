@@ -1,0 +1,21 @@
+{
+    "name": "socket",
+    "version": "0.0.1",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Library for programming with sockets",
+    "category": [ "Network" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"    : ">= 1.0.0, < 2.0.0"
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "exportedModules": [ "Network.Socket" ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/socket.git",
+      "tag": "$version"
+    }
+}

@@ -2,17 +2,18 @@
 --- Implementation of a worker client to analyze a module
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version December 2018
 ------------------------------------------------------------------------
 
 module CASS.Worker(main, startWorker) where
 
 import IO(Handle,hClose,hFlush,hWaitForInput,hPutStrLn,hGetLine)
 import ReadShowTerm(readQTerm)
-import Socket(connectToSocket)
 import System(getArgs,setEnviron)
 
 import Analysis.Logging     ( debugMessage )
+import Network.Socket       ( connectToSocket )
+
 import CASS.Configuration   ( waitTime, getDefaultPath )
 import CASS.Registry        ( lookupRegAnaWorker )
 import CASS.ServerFunctions ( WorkerMessage(..) )

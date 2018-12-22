@@ -13,6 +13,7 @@
         "flatcurry"     : ">= 2.0.0",
         "propertyfile"  : ">= 0.0.1",
         "scc"           : ">= 0.0.1",
+        "socket"        : ">= 0.0.1",
         "xml"           : ">= 2.0.0"
     },
     "compilerCompatibility": {

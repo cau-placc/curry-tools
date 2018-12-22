@@ -2,7 +2,7 @@
 --- Implementation of the analysis computations on the server side
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2015
+--- @version December 2018
 ------------------------------------------------------------------------
 
 -- analysis computations on the server side
@@ -11,7 +11,6 @@ module CASS.ServerFunctions where
 
 import FlatCurry.Types   (QName)
 import FlatCurry.Goodies (progImports)
-import Socket(Socket(..),listenOnFresh,sClose,waitForSocketAccept)
 import IO(Handle(..),hClose,hFlush,hGetLine,hPutStrLn,hWaitForInput,hWaitForInputs)
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep)

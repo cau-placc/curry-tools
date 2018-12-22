@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2017
+--- @version December 2018
 --------------------------------------------------------------------------
 
 module CASS.Server
@@ -18,15 +18,17 @@ import ReadNumeric   (readNat)
 import Char          (isSpace)
 import Directory
 import FileGoodies   (splitDirectoryBaseName)
-import FlatCurry.Types(QName)
 import IO
 import ReadShowTerm (readQTerm, showQTerm)
-import Socket (Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import System       (system, sleep, setEnviron, getArgs)
 
-import Analysis.Logging (debugMessage)
+import Analysis.Logging  ( debugMessage )
 import Analysis.ProgInfo
-import Analysis.Types(Analysis,AOutFormat(..))
+import Analysis.Types    ( Analysis, AOutFormat(..) )
+import FlatCurry.Types   ( QName )
+import Network.Socket    ( Socket(..), listenOn, listenOnFresh
+                         , close, waitForSocketAccept )
+
 import CASS.Configuration
 import CASS.Registry
 import CASS.ServerFormats
@@ -63,7 +65,7 @@ mainServer mbport = do
     debugMessage 2 ("SERVER: port to workers: "++show workerport)
     handles <- startWorkers numworkers workersocket serveraddress workerport []
     serverLoop socket1 handles
-    sClose workersocket
+    close workersocket
    else
     serverLoop socket1 []
 
@@ -122,7 +124,7 @@ analyzeModule ananame moduleName enforce aoutformat = do
       handles <- startWorkers numworkers socket serveraddress port []
       result <- runAnalysisWithWorkers ananame aoutformat enforce handles mname
       stopWorkers handles
-      sClose socket
+      close socket
       return result
      else runAnalysisWithWorkers ananame aoutformat enforce [] mname
   setCurrentDirectory curdir
@@ -149,7 +151,7 @@ analyzeGeneric analysis moduleName = do
       handles <- startWorkers numworkers socket serveraddress port []
       result <- analyzeMain analysis mname handles False True
       stopWorkers handles
-      sClose socket
+      close socket
       return result
      else
       analyzeMain analysis mname [] False True
@@ -269,7 +271,7 @@ serverLoopOnHandle socket1 whandles handle = do
          stopWorkers whandles
          sendServerResult handle ""
          hClose handle
-         sClose socket1
+         close socket1
          putStrLn "Stop Server"
          removeServerPortNumber
  where
