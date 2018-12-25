@@ -1,0 +1,26 @@
+{
+    "name": "redblacktree",
+    "version": "0.0.1",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Libraries implementing red-black trees for tables and sets",
+    "category": [ "Data" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"    : ">= 1.0.0, < 2.0.0",
+        "random"  : ">= 0.0.1"
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "exportedModules": [ "Data.RedBlackTree", "Data.Set.RBTree", "Data.Table.RBTree" ],
+    "testsuite": {
+        "src-dir": "test",
+        "modules": [ "TestRedBlackTree" ]
+    },
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/redblacktree.git",
+      "tag": "$version"
+    }
+}

@@ -3,7 +3,7 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version September 2018
+--- @version December 2018
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
@@ -12,7 +12,6 @@ import FiniteMap
 import IOExts
 import List         ( partition )
 import Maybe        ( fromJust )
-import SetRBT
 import System       ( getCPUTime )
 
 import Analysis.Files
@@ -26,6 +25,7 @@ import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.Goodies
 import Data.SCC          ( scc )
+import Data.Set.RBTree as Set ( SetRBT, member, empty, insert, null )
 
 import CASS.Configuration
 import CASS.FlatCurryDependency ( callsDirectly, dependsDirectlyOnTypes )
@@ -193,17 +193,17 @@ runAnalysis analysis prog importInfos startvals fpmethod = do
         SimpleTypeAnalysis _ _ ->
          (definedTypes, typeInfos2ProgInfo defaultTypes deflts)
         SimpleConstructorAnalysis _ _ -> -- there are no external constructors
-         if null deflts then (prog,emptyProgInfo)
+         if Prelude.null deflts then (prog,emptyProgInfo)
          else error "SimpleConstructorAnalysis with default values!"
         DependencyFuncAnalysis _ _ _ ->
          (definedFuncs, funcInfos2ProgInfo defaultFuncs deflts)
         DependencyTypeAnalysis _ _ _ ->
          (definedTypes, typeInfos2ProgInfo defaultTypes deflts)
         SimpleModuleAnalysis _ _ ->
-         if null deflts then (definedFuncs, emptyProgInfo)
+         if Prelude.null deflts then (definedFuncs, emptyProgInfo)
                         else error defaultNotEmptyError
         DependencyModuleAnalysis _ _ ->
-         if null deflts then (definedFuncs, emptyProgInfo)
+         if Prelude.null deflts then (definedFuncs, emptyProgInfo)
                         else error defaultNotEmptyError
         _ -> error "Internal error in WorkerFunctions.runAnalysis"
   let result = executeAnalysis analysis progWithoutDefaults
@@ -260,7 +260,7 @@ executeAnalysis (DependencyFuncAnalysis _ _ anaFunc) prog
   "wlist" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
      in funcInfos2ProgInfo prog $ fmToList $ 
-          wlIteration anaFunc funcName declsWithDeps [] (emptySetRBT (<))
+          wlIteration anaFunc funcName declsWithDeps [] (empty (<))
                       importInfos (listToFM (<) startvals)
   "wlistscc" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
@@ -268,7 +268,7 @@ executeAnalysis (DependencyFuncAnalysis _ _ anaFunc) prog
         sccDecls = scc ((:[]) . funcName . fst) snd declsWithDeps
      in funcInfos2ProgInfo prog $ fmToList $ 
           foldr (\scc sccstartvals ->
-                   wlIteration anaFunc funcName scc [] (emptySetRBT (<))
+                   wlIteration anaFunc funcName scc [] (empty (<))
                                importInfos sccstartvals)
                 (listToFM (<) startvals)
                 (reverse sccDecls)
@@ -284,7 +284,7 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
   "wlist" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
      in typeInfos2ProgInfo prog $ fmToList $ 
-          wlIteration anaType typeName declsWithDeps [] (emptySetRBT (<))
+          wlIteration anaType typeName declsWithDeps [] (empty (<))
                       importInfos (listToFM (<) startvals)
   "wlistscc" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
@@ -292,7 +292,7 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
         sccDecls = scc ((:[]) . typeName . fst) snd declsWithDeps
      in typeInfos2ProgInfo prog $ fmToList $ 
           foldr (\scc sccstartvals ->
-                   wlIteration anaType typeName scc [] (emptySetRBT (<))
+                   wlIteration anaType typeName scc [] (empty (<))
                                importInfos sccstartvals)
                 (listToFM (<) startvals)
                 (reverse sccDecls)
@@ -359,13 +359,13 @@ wlIteration :: Eq a => (t -> [(QName,a)] -> a) -> (t -> QName)
 --            importInfos currvals
 
 wlIteration analysis nameOf [] alldecls changedEntities importInfos currvals =
-  if isEmptySetRBT changedEntities
+  if Set.null changedEntities
   then currvals -- no todos, no changed values, so we are done:
   else -- all declarations processed, compute todos for next round:
        let (declsToDo,declsDone) =
-              partition (\ (_,calls) -> any (`elemRBT` changedEntities) calls)
+              partition (\ (_,calls) -> any (`member` changedEntities) calls)
                         alldecls
-        in wlIteration analysis nameOf declsToDo declsDone (emptySetRBT (<))
+        in wlIteration analysis nameOf declsToDo declsDone (empty (<))
                        importInfos currvals
 -- process a single declaration:
 wlIteration analysis nameOf (decldeps@(decl,calls):decls) declsDone
@@ -380,7 +380,7 @@ wlIteration analysis nameOf (decldeps@(decl,calls):decls) declsDone
       then wlIteration analysis nameOf decls (decldeps:declsDone)
                        changedEntities importInfos currvals
       else wlIteration analysis nameOf decls (decldeps:declsDone)
-                       (insertRBT decname changedEntities) importInfos
+                       (insert decname changedEntities) importInfos
                        (updFM currvals decname (const newval))
 
 

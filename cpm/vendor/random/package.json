@@ -1,0 +1,22 @@
+{
+    "name": "random",
+    "version": "0.0.1",
+    "author": "Sergio Antoy <antoy@cs.pdx.edu>",
+    "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Library for pseudo-random number generation",
+    "category": [ "Programming", "Numeric" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"    : ">= 1.0.0, < 2.0.0"
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "exportedModules": [ "System.Random" ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/random.git",
+      "tag": "$version"
+    }
+}

@@ -8,8 +8,9 @@
 module CASS.FlatCurryDependency(dependsDirectlyOnTypes,callsDirectly) where
 
 import FlatCurry.Types
-import List
-import SetRBT
+import List ( nub )
+
+import Data.Set.RBTree ( SetRBT, empty, insert, toList, union)
 
 --- Return the type constructors occurring in a type declaration.
 dependsDirectlyOnTypes :: TypeDecl -> [QName]
@@ -31,7 +32,7 @@ tconsOf (ForallType _ te)   = tconsOf te
 -----------------------------------------------------------------------------
 -- list of direct dependencies for a function
 callsDirectly :: FuncDecl -> [QName]
-callsDirectly fun = setRBT2list (snd (directlyDependent fun))
+callsDirectly fun = toList (snd (directlyDependent fun))
 
 -- set of direct dependencies for a function
 directlyDependent :: FuncDecl -> (QName,SetRBT QName)
@@ -45,12 +46,12 @@ funcSetOfExpr (Var _) = emptySet
 funcSetOfExpr (Lit _) = emptySet
 funcSetOfExpr (Comb ct f es) =
   if isConstructorComb ct then unionMap funcSetOfExpr es
-                          else insertRBT f (unionMap funcSetOfExpr es)
+                          else insert f (unionMap funcSetOfExpr es)
 funcSetOfExpr (Free _ e) = funcSetOfExpr e
-funcSetOfExpr (Let bs e) = unionRBT (unionMap (funcSetOfExpr . snd) bs)
+funcSetOfExpr (Let bs e) = union (unionMap (funcSetOfExpr . snd) bs)
                                     (funcSetOfExpr e)
-funcSetOfExpr (Or e1 e2) = unionRBT (funcSetOfExpr e1) (funcSetOfExpr e2)
-funcSetOfExpr (Case _ e bs) = unionRBT (funcSetOfExpr e)
+funcSetOfExpr (Or e1 e2) = union (funcSetOfExpr e1) (funcSetOfExpr e2)
+funcSetOfExpr (Case _ e bs) = union (funcSetOfExpr e)
                                        (unionMap funcSetOfBranch bs)
  where funcSetOfBranch (Branch _ be) = funcSetOfExpr be
 funcSetOfExpr (Typed e _) = funcSetOfExpr e
@@ -62,10 +63,10 @@ isConstructorComb ct = case ct of
   _              -> False
 
 unionMap :: (a -> SetRBT QName) -> [a] -> SetRBT QName
-unionMap f = foldr unionRBT emptySet . map f
+unionMap f = foldr union emptySet . map f
 
 emptySet :: SetRBT QName
-emptySet = emptySetRBT leqQName
+emptySet = empty leqQName
 
 leqQName :: QName -> QName -> Bool
 leqQName (m1,n1) (m2,n2) = m1++('.':n1) <= m2++('.':n2)

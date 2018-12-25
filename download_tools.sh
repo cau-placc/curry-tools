@@ -64,6 +64,12 @@ cd .cpm/packages
  PKGV=`ls -d propertyfile-*`
  mv $PKGV propertyfile
  ln -s propertyfile $PKGV
+ PKGV=`ls -d random-*`
+ mv $PKGV random
+ ln -s random $PKGV
+ PKGV=`ls -d redblacktree-*`
+ mv $PKGV redblacktree
+ ln -s redblacktree $PKGV
  PKGV=`ls -d scc-*`
  mv $PKGV scc
  ln -s scc $PKGV

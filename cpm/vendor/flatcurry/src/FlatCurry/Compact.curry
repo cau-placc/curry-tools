@@ -14,19 +14,20 @@ module FlatCurry.Compact(generateCompactFlatCurryFile,computeCompactFlatCurry,
                          Option(..),RequiredSpec,requires,alwaysRequired,
                          defaultRequired) where
 
-import FlatCurry.Types
-import FlatCurry.Files
-import SetRBT
-import TableRBT
-import Maybe
-import List             ( nub, union )
+import Directory
 import FileGoodies
 import FilePath         ( takeFileName, (</>) )
-import Directory
+import List             ( nub, union )
+import Maybe
 import Sort             ( cmpString, leqString )
 import XML
 
-import System.CurryPath ( lookupModuleSourceInLoadPath, stripCurrySuffix )
+import Data.Set.RBTree as Set     ( SetRBT, member, empty, insert )
+import Data.Table.RBTree as Table ( TableRBT, empty, lookup, update )
+import System.CurryPath           ( lookupModuleSourceInLoadPath, stripCurrySuffix )
+
+import FlatCurry.Types
+import FlatCurry.Files
 
 infix 0 `requires`
 
@@ -180,7 +181,7 @@ computeCompactFlatCurry orgoptions progname =
 makeCompactFlatCurry :: Prog -> [Option] -> IO Prog
 makeCompactFlatCurry mainmod options = do
   (initfuncs,loadedmnames,loadedmods) <- requiredInCompactProg mainmod options
-  let initFuncTable = extendFuncTable (emptyTableRBT leqQName)
+  let initFuncTable = extendFuncTable (Table.empty leqQName)
                                       (concatMap moduleFuns loadedmods)
       required = getRequiredFromOptions options
       loadedreqfuns = concatMap (getRequiredInModule required)
@@ -189,8 +190,8 @@ makeCompactFlatCurry mainmod options = do
   (finalmods,finalfuncs,finalcons,finaltcons) <-
      getCalledFuncs required
                     loadedmnames loadedmods initFuncTable
-                    (foldr insertRBT (emptySetRBT leqQName) initreqfuncs)
-                    (emptySetRBT leqQName) (emptySetRBT leqQName)
+                    (foldr insert (Set.empty leqQName) initreqfuncs)
+                    (Set.empty leqQName) (Set.empty leqQName)
                     initreqfuncs
   putStrLn ("\nCompactFlat: Total number of functions (without unused imports): "
             ++ show (foldr (+) 0 (map (length . moduleFuns) finalmods)))
@@ -201,7 +202,7 @@ makeCompactFlatCurry mainmod options = do
                     reqTCons  = extendTConsWithConsType finalcons finaltcons
                                                         allTDecls
                     allReqTCons = requiredDatatypes reqTCons allTDecls
-                 in filter (\tdecl->tconsName tdecl `elemRBT` allReqTCons)
+                 in filter (\tdecl->tconsName tdecl `member` allReqTCons)
                            allTDecls)
                finalfuncs
                (filter (\ (Op oname _ _) -> oname `elem` finalfnames)
@@ -215,18 +216,18 @@ requiredDatatypes tcnames tdecls =
   let newtcons = concatMap (newTypeConsOfTDecl tcnames) tdecls
    in if null newtcons
       then tcnames
-      else requiredDatatypes (foldr insertRBT tcnames newtcons) tdecls
+      else requiredDatatypes (foldr insert tcnames newtcons) tdecls
 
 -- Extract the new type constructors (w.r.t. a given set) contained in a
 -- type declaration:
 newTypeConsOfTDecl :: SetRBT QName -> TypeDecl -> [QName]
 newTypeConsOfTDecl tcnames (TypeSyn tcons _ _ texp) =
-  if tcons `elemRBT` tcnames
-  then filter (\tc -> not (tc `elemRBT` tcnames)) (allTypesOfTExpr texp)
+  if tcons `member` tcnames
+  then filter (\tc -> not (tc `member` tcnames)) (allTypesOfTExpr texp)
   else []
 newTypeConsOfTDecl tcnames (Type tcons _ _ cdecls) =
-  if tcons `elemRBT` tcnames
-  then filter (\tc -> not (tc `elemRBT` tcnames))
+  if tcons `member` tcnames
+  then filter (\tc -> not (tc `member` tcnames))
           (concatMap (\ (Cons _ _ _ texps) -> concatMap allTypesOfTExpr texps)
                     cdecls)
   else []
@@ -237,11 +238,11 @@ extendTConsWithConsType :: SetRBT QName -> SetRBT QName -> [TypeDecl]
                         -> SetRBT QName
 extendTConsWithConsType _ tcons [] = tcons
 extendTConsWithConsType cnames tcons (TypeSyn tname _ _ _ : tds) =
-  extendTConsWithConsType cnames (insertRBT tname tcons) tds
+  extendTConsWithConsType cnames (insert tname tcons) tds
 extendTConsWithConsType cnames tcons (Type tname _ _ cdecls : tds) =
   if tname `elem` defaultRequiredTypes ||
-     any (\cdecl->consName cdecl `elemRBT` cnames) cdecls
-  then extendTConsWithConsType cnames (insertRBT tname tcons) tds
+     any (\cdecl->consName cdecl `member` cnames) cdecls
+  then extendTConsWithConsType cnames (insert tname tcons) tds
   else extendTConsWithConsType cnames tcons tds
 
 -- Extend function table (mapping from qualified names to function declarations)
@@ -249,7 +250,7 @@ extendTConsWithConsType cnames tcons (Type tname _ _ cdecls : tds) =
 extendFuncTable :: TableRBT QName FuncDecl -> [FuncDecl]
                 -> TableRBT QName FuncDecl
 extendFuncTable ftable fdecls =
-  foldr (\f t -> updateRBT (functionName f) f t) ftable fdecls
+  foldr (\f t -> update (functionName f) f t) ftable fdecls
 
 
 -------------------------------------------------------------------------------
@@ -289,9 +290,9 @@ requiredInCompactProg mainmod options
 
    mainexports = exportedFuncNames (moduleFuns mainmod)
 
-   mainmodset = insertRBT mainmodname (emptySetRBT leqString)
+   mainmodset = insert mainmodname (Set.empty leqString)
 
-   add2mainmodset mnames = foldr insertRBT mainmodset mnames
+   add2mainmodset mnames = foldr insert mainmodset mnames
 
 
 -- extract the names of all exported functions:
@@ -321,30 +322,30 @@ getCalledFuncs :: [RequiredSpec] -> SetRBT String -> [Prog]
 getCalledFuncs _ _ progs _ _ dcs ts [] = return (progs,[],dcs,ts)
 getCalledFuncs required loadedmnames progs functable loadedfnames loadedcnames
                loadedtnames ((m,f):fs)
-  | not (elemRBT m loadedmnames)
+  | not (member m loadedmnames)
    = do newmod <- readCurrentFlatCurry m
         let reqnewfun = getRequiredInModule required m
-        getCalledFuncs required (insertRBT m loadedmnames) (newmod:progs)
+        getCalledFuncs required (insert m loadedmnames) (newmod:progs)
                        (extendFuncTable functable (moduleFuns newmod))
-                       (foldr insertRBT loadedfnames reqnewfun) loadedcnames
+                       (foldr insert loadedfnames reqnewfun) loadedcnames
                        loadedtnames ((m,f):fs ++ reqnewfun)
-  | isNothing (lookupRBT (m,f) functable)
+  | isNothing (Table.lookup (m,f) functable)
    = -- this must be a data constructor: ingore it since already considered
      getCalledFuncs required loadedmnames progs
                     functable loadedfnames loadedcnames loadedtnames fs
   | otherwise = do
-   let fdecl = fromJust (lookupRBT (m,f) functable)
+   let fdecl = fromJust (Table.lookup (m,f) functable)
        funcCalls = allFuncCalls fdecl
-       newFuncCalls = filter (\qn->not (elemRBT qn loadedfnames)) funcCalls
+       newFuncCalls = filter (\qn->not (member qn loadedfnames)) funcCalls
        newReqs = concatMap (getImplicitlyRequired required) newFuncCalls
        consCalls = allConstructorsOfFunc fdecl
-       newConsCalls = filter (\qn->not (elemRBT qn loadedcnames)) consCalls
+       newConsCalls = filter (\qn->not (member qn loadedcnames)) consCalls
        newtcons = allTypesOfFunc fdecl
    (newprogs,newfuns,newcons, newtypes) <-
        getCalledFuncs required loadedmnames progs functable
-                      (foldr insertRBT loadedfnames (newFuncCalls++newReqs))
-                      (foldr insertRBT loadedcnames consCalls)
-                      (foldr insertRBT loadedtnames newtcons)
+                      (foldr insert loadedfnames (newFuncCalls++newReqs))
+                      (foldr insert loadedcnames consCalls)
+                      (foldr insert loadedtnames newtcons)
                       (fs ++ newFuncCalls ++ newReqs ++ newConsCalls)
    return (newprogs, fdecl:newfuns, newcons, newtypes)
 
@@ -525,7 +526,7 @@ mergePrimSpecIntoModule trans (Prog name imps types funcs ops) =
 
 mergePrimSpecIntoFunc :: [(QName,QName)] -> FuncDecl -> [FuncDecl]
 mergePrimSpecIntoFunc trans (Func name ar vis tp rule) =
- let fname = lookup name trans in
+ let fname = Prelude.lookup name trans in
  if fname==Nothing
  then [Func name ar vis tp rule]
  else let Just (lib,entry) = fname
