@@ -64,6 +64,9 @@ cd .cpm/packages
  PKGV=`ls -d propertyfile-*`
  mv $PKGV propertyfile
  ln -s propertyfile $PKGV
+ PKGV=`ls -d queue-*`
+ mv $PKGV queue
+ ln -s queue $PKGV
  PKGV=`ls -d random-*`
  mv $PKGV random
  ln -s random $PKGV
@@ -76,6 +79,9 @@ cd .cpm/packages
  PKGV=`ls -d socket-*`
  mv $PKGV socket
  ln -s socket $PKGV
+ PKGV=`ls -d wl-pprint-*`
+ mv $PKGV wl-pprint
+ ln -s wl-pprint $PKGV
  PKGV=`ls -d frontend-exec-*`
  mv $PKGV frontend-exec
  ln -s frontend-exec $PKGV
