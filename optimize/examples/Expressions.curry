@@ -2,7 +2,7 @@
 -- ExpVarFunPats
 --------------------------------------------------------------
 
-import Test.EasyCheck
+import Test.Prop
 
 
 data Peano = O | S Peano

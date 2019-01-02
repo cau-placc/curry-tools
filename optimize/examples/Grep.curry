@@ -2,7 +2,7 @@
 -- grep
 ---------------------------------------------------------------
 
-import Test.EasyCheck
+import Test.Prop
 
 -- Representation of regular expression:
 data RE a = Lit a

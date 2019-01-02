@@ -1,6 +1,10 @@
--- Some examples for matching in XML documents based on the `XCuery` library
+-- Some examples for matching in XML documents based on the `XCuery` library.
+--
+-- Note that this module requires the installation
+-- of the package `setfunctions`!
 
-import SetFunctions
+import Control.SetFunctions
+
 import XML
 import XCuery
 

@@ -7,14 +7,13 @@
 import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.XML
-import SearchTree(someValue)
 import XML
 import Test.Prop
 
 -- Shows a program in XML format:
 showxml mod = do
   prog <- readFlatCurry mod
-  putStrLn (someValue (showXmlDoc (flatCurry2Xml prog)))
+  putStrLn $ showXmlDoc (flatCurry2Xml prog)
 
 -- Store a program in XML format:
 store mod = do
@@ -27,7 +26,7 @@ testEqualFcy prog = prog == xml2FlatCurry (flatCurry2Xml prog)
 
 readAndTestEqualFcy mod = do
   prog <- readFlatCurry mod
-  return (someValue (testEqualFcy prog))
+  return $ testEqualFcy prog
 
 
 testXML_test_for_rev = (readAndTestEqualFcy "rev") `returns` True

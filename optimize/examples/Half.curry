@@ -1,6 +1,6 @@
 -- Half of a natural number:
 
-import Test.EasyCheck
+import Test.Prop
 
 
 data Peano = O | S Peano

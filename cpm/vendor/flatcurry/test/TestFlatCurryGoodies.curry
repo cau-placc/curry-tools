@@ -8,7 +8,7 @@
 import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.Goodies
-import Test.EasyCheck
+import Test.Prop
 
 testIdentityTransformation = identity `returns` True
 

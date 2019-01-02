@@ -9,7 +9,7 @@
 ------------------------------------------------------------------------------
 
 import List(nub)
-import Test.EasyCheck
+import Test.Prop
 
 import System.Random
 

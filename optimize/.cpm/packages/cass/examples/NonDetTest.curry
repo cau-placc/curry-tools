@@ -3,8 +3,6 @@
 -- Runt test with:
 -- > cass NonDetDeps NonDetTest.curry
 
-import SetFunctions
-
 last xs | _ ++ [x] == xs = x where x free
 
 lastfp (_ ++ [x]) = x
@@ -26,7 +24,3 @@ g x = f x
 -- non-determinism depends on `f`.
 -- However, the analysis NonDetAllDeps reports also the dependency
 -- on the non-deterministic operations coin, last,...
-
-main0 = set0 lastCoin
-main1 = set1 last [1,2,3]
-main2 = set1 last [1,2,coin]
