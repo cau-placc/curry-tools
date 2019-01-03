@@ -61,6 +61,9 @@ cd .cpm/packages
  PKGV=`ls -d currypath-*`
  mv $PKGV currypath
  ln -s currypath $PKGV
+ PKGV=`ls -d finite-map-*`
+ mv $PKGV finite-map
+ ln -s finite-map $PKGV
  PKGV=`ls -d propertyfile-*`
  mv $PKGV propertyfile
  ln -s propertyfile $PKGV

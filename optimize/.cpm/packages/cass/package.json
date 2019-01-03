@@ -10,6 +10,7 @@
         "base"          : ">= 1.0.0, < 2.0.0",
         "cass-analysis" : ">= 2.0.0",
         "currypath"     : ">= 0.0.1",
+        "finite-map"    : ">= 0.0.1",
         "flatcurry"     : ">= 2.0.0",
         "propertyfile"  : ">= 0.0.1",
         "redblacktree"  : ">= 0.0.1",

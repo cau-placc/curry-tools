@@ -3,12 +3,11 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version December 2018
+--- @version January 2019
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
 
-import FiniteMap
 import IOExts
 import List         ( partition )
 import Maybe        ( fromJust )
@@ -21,6 +20,7 @@ import Analysis.Types    ( Analysis(..), isSimpleAnalysis, isCombinedAnalysis
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
                          , publicProgInfo, lookupProgInfo, lists2ProgInfo
                          , equalProgInfo, publicListFromProgInfo, showProgInfo )
+import Data.FiniteMap
 import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.Goodies

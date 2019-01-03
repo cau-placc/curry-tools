@@ -2,7 +2,7 @@
 --- This module defines a datatype to represent the analysis information.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2015
+--- @version January 2019
 -----------------------------------------------------------------------
 
 module Analysis.ProgInfo
@@ -14,8 +14,9 @@ module Analysis.ProgInfo
   ) where
 
 import Directory     (removeFile)
-import FiniteMap
 import FilePath      ((<.>))
+
+import Data.FiniteMap
 import FlatCurry.Types
 import XML
 

@@ -1,0 +1,30 @@
+{
+    "name": "finite-map",
+    "version": "0.0.1",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Library implementing finite maps (efficient mappings from keys to values)",
+    "category": [ "Data" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"    : ">= 1.0.0, < 2.0.0",
+        "random"  : ">= 0.0.1"
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "exportedModules": [ "Data.Map", "Data.FiniteMap" ],
+    "testsuite": [
+        { "src-dir": "src",
+          "modules": [ "Data.Map", "Data.FiniteMap" ]
+        },
+        { "src-dir": "test",
+          "modules": [ "TestFiniteMap" ]
+        }
+    ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/finite-map.git",
+      "tag": "$version"
+    }
+}
