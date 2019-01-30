@@ -249,7 +249,7 @@ prune p = filterTree (not . p)
 
 --- Shows a textual representation of a tree.
 showTree :: Tree Doc -> String
-showTree = pPrint . ppTree 
+showTree t = "Package dependencies:\n" ++ pPrint (ppTree t)
 
 --- Pretty prints a tree of Docs into a single Doc.
 ppTree :: Tree Doc -> Doc
@@ -686,7 +686,7 @@ test_prefersLocalPackageCacheEvenIfOlder =
         db = addPackage (addPackage emptySet b101 FromLocalCache) b105 FromRepository
 
 test_reportsCompilerIncompatibility :: Prop
-test_reportsCompilerIncompatibility = showResult result -=- "The package json-1.0.0, dependency constraint json = 1.0.0, is not compatible to the current compiler. It was activated because:\nsample\n  |- json (json = 1.0.0)"
+test_reportsCompilerIncompatibility = showResult result -=- "The package json-1.0.0, dependency constraint json = 1.0.0, is not compatible to the current compiler. It was activated because:\nPackage dependencies:\nsample\n  |- json (json = 1.0.0)"
   where result = resolve defaultConfig pkg db
         pkg = cPackage "sample" (0, 0, 1, Nothing) [cDep "json" "= 1.0.0"]
         json = cPackageCC "json" (1, 0, 0, Nothing) [cCC "nocompiler" "= 1.0.0"]

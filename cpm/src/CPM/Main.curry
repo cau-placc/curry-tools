@@ -59,7 +59,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 10/12/2018)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 17/01/2019)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -123,6 +123,10 @@ data Options = Options
   , optDefConfig :: [(String,String)]
   , optWithTime  :: Bool
   , optCommand   :: Command }
+
+-- The default options: no command, no timing, info log level
+defaultOptions :: Options
+defaultOptions = Options Info [] False NoCommand
 
 data Command 
   = NoCommand
@@ -365,9 +369,7 @@ applyEither (f:fs) z = case f z of
   Right z' -> applyEither fs z'
 
 applyParse :: [Options -> Either String Options] -> Either String Options
-applyParse fs = applyEither fs defaultOpts
- where
-  defaultOpts = Options Info [] False NoCommand
+applyParse fs = applyEither fs defaultOptions
 
 (>.>) :: Either String a -> (a -> b) -> Either String b
 a >.> f = case a of 
@@ -744,7 +746,7 @@ optionParser allargs = optParser
                                  Add (addOpts a) { addDependency = True } })
             (  short "d"
             <> long "dependency"
-            <> help "Add a dependency to the current package" )
+            <> help "Add only dependency to the current package" )
    <.> flag (\a -> Right $ a { optCommand =
                                  Add (addOpts a) { forceAdd = True } })
             (  short "f"
@@ -752,8 +754,8 @@ optionParser allargs = optParser
             <> help "Force, i.e., overwrite existing package" )
    <.> arg (\s a -> Right $ a { optCommand =
                                   Add (addOpts a) { addSource = s } })
-           (  metavar "PACKAGE"
-           <> help "The package directory or name to be added" )
+         (  metavar "PACKAGE"
+         <> help "The package name (or directory for option '-p') to be added" )
 
 -- Check if operating system executables we depend on are present on the
 -- current system. Since this takes some time, it is only checked with
@@ -891,7 +893,7 @@ installCmd (InstallOptions (Just pkg) vers pre _ _) cfg = do
   fileExists <- doesFileExist pkg
   if fileExists
     then installFromZip cfg pkg
-    else installapp (CheckoutOptions pkg vers pre) cfg
+    else installApp (CheckoutOptions pkg vers pre) cfg
 installCmd (InstallOptions Nothing (Just _) _ _ _) _ =
   failIO "Must specify package name"
 
@@ -903,9 +905,10 @@ installCmd (InstallOptions Nothing (Just _) _ _ _) _ =
 --- Internal note: the installed package should not be cleaned or removed
 --- after the installation since its execution might refer (via the
 --- config module) to some data stored in the package.
-installapp :: CheckoutOptions -> Config -> IO (ErrorLogger ())
-installapp opts cfg = do
+installApp :: CheckoutOptions -> Config -> IO (ErrorLogger ())
+installApp opts cfg = do
   let apppkgdir = appPackageDir cfg
+      copname   = coPackage opts
       copkgdir  = apppkgdir </> coPackage opts
   curdir <- getCurrentDirectory
   removeDirectoryComplete copkgdir
@@ -915,13 +918,15 @@ installapp opts cfg = do
       log Debug ("Change into directory " ++ copkgdir) |>
       (setCurrentDirectory copkgdir >> succeedIO ()) |>
       loadPackageSpec "." |>= \pkg ->
-      maybe (setCurrentDirectory curdir >>
-             removeDirectoryComplete copkgdir >>
-             failIO ("Package '" ++ name pkg ++
-                     "' does not contain an executable, nothing installed."))
-            (\_ -> installCmd (InstallOptions Nothing Nothing False True False)
-                              cfg)
-            (executableSpec pkg)
+      maybe
+       (setCurrentDirectory curdir >>
+        removeDirectoryComplete copkgdir >>
+        failIO ("Package '" ++ name pkg ++
+                "' has no executable, nothing installed.\n" ++
+                "Hint: use 'cypm add " ++ copname ++
+                "' to add new dependency and install it."))
+       (\_ -> installCmd (InstallOptions Nothing Nothing False True False) cfg)
+       (executableSpec pkg)
     )
 
 --- Checks the compiler compatibility.
@@ -951,19 +956,11 @@ installExecutable cfg pkg =
            in compiler (ExecOptions cmd) cfg |>
               log Info ("Installing executable '" ++ name ++ "' into '" ++
                         bindir ++ "'") |>
-              (whenFileExists binexec (backupExistingBin binexec) >>
-               -- renaming might not work across file systems, hence we move:
+              (-- renaming might not work across file systems, hence we move:
                showExecCmd (unwords ["mv", mainmod, binexec]) >>
                checkPath path bindir))
         (executableSpec pkg)
  where
-  backupExistingBin binexec = do
-    let binexecbak = binexec ++ ".bak"
-    showExecCmd $ "rm -f " ++ binexecbak
-    renameFile binexec binexecbak
-    infoMessage $ "Existing executable '" ++ binexec ++ "' saved to '" ++
-                  binexecbak ++ "'."
-
   checkPath path bindir =
     if bindir `elem` splitSearchPath path
       then succeedIO ()
@@ -1125,11 +1122,14 @@ linkCmd (LinkOptions src) cfg =
 --- any other package.
 --- Option `--dependency`: add the package name as a dependency to the
 --- current package
+--- No option: like `--package` followed by `install` command
 addCmd :: AddOptions -> Config -> IO (ErrorLogger ())
 addCmd (AddOptions addpkg adddep pkg force) config
   | addpkg    = addPackageToRepository config pkg force True
   | adddep    = addDependencyCmd pkg force config
-  | otherwise = log Critical "Option --package or --dependency missing!"
+  | otherwise = addDependencyCmd pkg force config |>
+                installCmd (installOpts defaultOptions) config
+
 
 useForce :: String
 useForce = "Use option '-f' or '--force' to overwrite it."
