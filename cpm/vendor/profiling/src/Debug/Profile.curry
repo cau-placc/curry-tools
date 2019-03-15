@@ -4,15 +4,12 @@
 --- @author Michael Hanus
 --- @version January 2019
 ------------------------------------------------------------------------------
-{-# LANGUAGE CPP #-}
 
 module Debug.Profile
   ( ProcessInfo(..), getProcessInfos, showMemInfo, printMemInfo
   , garbageCollectorOff, garbageCollectorOn, garbageCollect
   , profileTime, profileTimeNF, profileSpace, profileSpaceNF
-#ifdef __PAKCS__
-  , evalTime, evalSpace
-#endif
+  , getTimings, getTimingsNF
   )
  where
 
@@ -82,22 +79,37 @@ printMemInfo = getProcessInfos >>= putStrLn . showMemInfo
 --- Print the time needed to execute a given IO action.
 profileTime :: IO a -> IO a
 profileTime action = do
+  (result,rt,et,gc) <- getTimings action
+  putStrLn $ "Run time:            " ++ show rt ++ " msec."
+  putStrLn $ "Elapsed time:        " ++ show et ++ " msec."
+  putStrLn $ "Garbage collections: " ++ show gc
+  return result
+
+--- Returns the run time, elapsed time, and number of garbage collections
+--- needed to execute a given IO action.
+getTimings :: IO a -> IO (a,Int,Int,Int)
+getTimings action = do
   garbageCollect
   pi1 <- getProcessInfos
   result <- action
   pi2 <- getProcessInfos
-  putStrLn $ "Run time:            "
-             ++ (showInfoDiff pi1 pi2 RunTime) ++ " msec."
-  putStrLn $ "Elapsed time:        "
-             ++ (showInfoDiff pi1 pi2 ElapsedTime) ++ " msec."
-  putStrLn $ "Garbage collections: "
-             ++ (showInfoDiff pi1 pi2 GarbageCollections)
-  return result
+  return (result,
+          infoDiff pi1 pi2 RunTime,
+          infoDiff pi1 pi2 ElapsedTime,
+          infoDiff pi1 pi2 GarbageCollections)
 
 --- Evaluates the argument to normal form
 --- and print the time needed for this evaluation.
 profileTimeNF :: a -> IO ()
 profileTimeNF exp = profileTime (seq (id $!! exp) done)
+
+--- Evaluates the argument to normal form
+--- and returns the run time, elapsed time, and number of garbage collections
+--- needed for this evaluation.
+getTimingsNF :: a -> IO (Int,Int,Int)
+getTimingsNF exp = do
+  (_,rt,et,gc) <- getTimings (seq (id $!! exp) done)
+  return (rt,et,gc)
 
 --- Print the time and space needed to execute a given IO action.
 --- During the executation, the garbage collector is turned off to get the
@@ -134,17 +146,6 @@ showInfoDiff :: [(ProcessInfo, Int)] -> [(ProcessInfo, Int)] -> ProcessInfo
 showInfoDiff infos1 infos2 item =
   show (maybe 0 id (lookup item infos2) - maybe 0 id (lookup item infos1))
 
-#ifdef __PAKCS__
---- Evaluates the argument to normal form (and return the normal form)
---- and print the time needed for this evaluation on standard error.
---- Included for backward compatibility only, use profileTime!
-evalTime :: a -> a
-evalTime external
-
---- Evaluates the argument to normal form (and return the normal form)
---- and print the time and space needed for this evaluation on standard error.
---- During the evaluation, the garbage collector is turned off.
---- Included for backward compatibility only, use profileSpace!
-evalSpace :: a -> a
-evalSpace external
-#endif
+infoDiff :: [(ProcessInfo, Int)] -> [(ProcessInfo, Int)] -> ProcessInfo -> Int
+infoDiff infos1 infos2 item =
+  maybe 0 id (lookup item infos2) - maybe 0 id (lookup item infos1)

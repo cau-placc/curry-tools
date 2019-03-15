@@ -17,12 +17,4 @@
   <library>prim_debug_profile</library>
   <entry>prim_garbageCollect</entry>
  </primitive>
- <primitive name="evalTime" arity="1">
-  <library>prim_debug_profile</library>
-  <entry>prim_evalTime[raw]</entry>
- </primitive>
- <primitive name="evalSpace" arity="1">
-  <library>prim_debug_profile</library>
-  <entry>prim_evalSpace[raw]</entry>
- </primitive>
 </primitives>

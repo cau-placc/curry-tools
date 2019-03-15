@@ -523,7 +523,6 @@ isDisjunctionCompatible ver cs = any id (map (all id) rs)
   isCompatible (VGte v) = ver `vgte` v && preReleaseCompatible ver v
   isCompatible (VCompatible v) = ver `vgte` v && ver `vlt` (nextMinor v) &&
     preReleaseCompatible ver v
-  nextMinor (maj, min, _, _) = (maj, min + 1, 0, Nothing)
 
 test_onlyConjunctionCompatible :: Prop
 test_onlyConjunctionCompatible = isDisjunctionCompatible ver dis -=- True
@@ -696,10 +695,10 @@ cPackage :: String -> Version -> [Dependency] -> Package
 cPackage p v ds = emptyPackage {
     name = p
   , version = v
-  , author = "author"
+  , author = ["author"]
   , synopsis = "JSON library for Curry"
   , dependencies = ds
-  , maintainer = Nothing
+  , maintainer = []
   , description = Nothing
   , license = Nothing
   , licenseFile = Nothing
@@ -716,10 +715,10 @@ cPackageCC :: String -> Version -> [CompilerCompatibility] -> Package
 cPackageCC p v cs = emptyPackage {
     name = p
   , version = v
-  , author = "author"
+  , author = ["author"]
   , synopsis = "JSON library for Curry"
   , dependencies = []
-  , maintainer = Nothing
+  , maintainer = []
   , description = Nothing
   , license = Nothing
   , licenseFile = Nothing

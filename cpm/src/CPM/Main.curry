@@ -59,7 +59,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 17/01/2019)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 15/03/2019)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -1149,7 +1149,8 @@ addDependencyCmd pkgname force config =
   addDepToLocalPackage vers pkgdir =
     loadPackageSpec pkgdir |>= \pkgSpec ->
     let depexists = pkgname `elem` dependencyNames pkgSpec
-        newdeps   = addDep [[VGte vers]] (dependencies pkgSpec)
+        newdeps   = addDep [[VGte vers, VLt (nextMajor vers)]]
+                           (dependencies pkgSpec)
         newpkg    = pkgSpec { dependencies = newdeps }
     in if force || not depexists
          then writePackageSpec newpkg (pkgdir </> "package.json") |>>
@@ -1466,7 +1467,7 @@ newPackage (NewOptions pname) = do
   createDirectory pname
   let pkgSpec = emptyPackage { name            = pname
                              , version         = initialVersion
-                             , author          = emptyAuthor
+                             , author          = [emptyAuthor]
                              , synopsis        = emptySynopsis
                              , category        = ["Programming"]
                              , dependencies    = [] 
