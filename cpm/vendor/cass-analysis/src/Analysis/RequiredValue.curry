@@ -22,9 +22,7 @@ import Analysis.TotallyDefined(siblingCons)
 
 import FlatCurry.Types
 import FlatCurry.Goodies
-import List
-import Sort(mergeSortBy)
-
+import Data.List
 
 ------------------------------------------------------------------------------
 -- Our abstract (non-standard) type domain.
@@ -120,7 +118,7 @@ dropEnv n (env,rtype) = (drop n env, rtype)
 
 -- Sorts a list of environment/type pairs by the type.
 sortEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)]
-sortEnvTypes = mergeSortBy (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
+sortEnvTypes = sortBy (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
 
 ------------------------------------------------------------------------------
 --- The maximum number of different constructors considered for the

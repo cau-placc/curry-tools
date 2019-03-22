@@ -1,7 +1,7 @@
 module CASS.PackageConfig where
 
-import Distribution(installDir)
-import FilePath((</>))
+import System.Distribution(installDir)
+import System.FilePath((</>))
 
 --- Package version as a string.
 packageVersion :: String
@@ -10,7 +10,7 @@ packageVersion = "2.0.0"
 --- Package location.
 packagePath :: String
 packagePath =
-  installDir </> "currytools" </> "optimize" </> ".cpm" </> "packages" </> "cass"
+  installDir </> "currytools" </> "cpm" </> "vendor" </> "cass"
 
 --- Location of the executable installed by this package.
 packageExecutable :: String

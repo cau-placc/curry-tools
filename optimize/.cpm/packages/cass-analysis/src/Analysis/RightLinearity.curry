@@ -11,8 +11,8 @@ module Analysis.RightLinearity
 
 import Analysis.Types
 import FlatCurry.Types
-import Maybe
-import List
+import Data.Maybe
+import Data.List
 
 ------------------------------------------------------------------------------
 --- The right-linearity analysis is a global function dependency analysis.
@@ -60,27 +60,27 @@ linearVariables (Comb _ f es)
  | f==("Prelude","?") && length es == 2  -- treat "?" as Or:
   = linearVariables (Or (head es) (head (tail es)))
  | otherwise
-  = mapMMaybe linearVariables es >>- \esvars ->
+  = mapM linearVariables es >>= \esvars ->
     let vars = concat esvars
      in if nub vars == vars
         then Just vars
         else Nothing
 linearVariables (Free vs e) =
-  linearVariables e >>- \evars -> Just (evars \\ vs)
+  linearVariables e >>= \evars -> Just (evars \\ vs)
 linearVariables (Let bs e) =
-  mapMMaybe linearVariables (map snd bs) >>- \bsvars ->
-  linearVariables e >>- \evars ->
+  mapM linearVariables (map snd bs) >>= \bsvars ->
+  linearVariables e >>= \evars ->
   let vars = concat (evars : bsvars)
    in if nub vars == vars
       then Just (vars \\ (map fst bs))
       else Nothing
 linearVariables (Or e1 e2) =
-  linearVariables e1 >>- \e1vars ->
-  linearVariables e2 >>- \e2vars ->
+  linearVariables e1 >>= \e1vars ->
+  linearVariables e2 >>= \e2vars ->
   Just (union e1vars e2vars)
 linearVariables (Case _ e bs) =
-  linearVariables e >>- \evars ->
-  mapMMaybe linearVariables (map (\ (Branch _ be) -> be) bs) >>- \bsvars ->
+  linearVariables e >>= \evars ->
+  mapM linearVariables (map (\ (Branch _ be) -> be) bs) >>= \bsvars ->
   let vars = foldr union [] (map (\ (branch,bsv) -> bsv \\ patternVars branch)
                                  (zip bs bsvars)) ++ evars
    in if nub vars == vars

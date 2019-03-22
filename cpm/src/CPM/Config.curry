@@ -1,26 +1,25 @@
 ------------------------------------------------------------------------------
---- This module defines the data type for CPM's configuration options, the 
+--- This module defines the data type for CPM's configuration options, the
 --- default values for all options, and functions for reading the user's .cpmrc
 --- file and merging its contents into the default options.
 ------------------------------------------------------------------------------
 
-module CPM.Config 
+module CPM.Config
   ( Config ( Config, packageInstallDir, binInstallDir, repositoryDir
            , appPackageDir, packageIndexURL, homePackageDir, curryExec
            , compilerVersion, compilerBaseVersion, baseVersion )
   , readConfigurationWith, defaultConfig
   , showConfiguration, showCompilerVersion ) where
 
-import Char         ( toUpper )
-import Directory    ( doesDirectoryExist, createDirectoryIfMissing
-                    , getHomeDirectory )
-import qualified Distribution as Dist
-import FilePath     ( (</>), isAbsolute )
-import Function     ( (***) )
-import IOExts       ( evalCmd )
-import List         ( split, splitOn, intersperse )
-import Maybe        ( mapMaybe )
-import Read         ( readInt )
+import Data.Char         ( toUpper )
+import System.Directory  ( doesDirectoryExist, createDirectoryIfMissing
+                         , getHomeDirectory )
+import qualified System.Distribution as Dist
+import System.FilePath   ( (</>), isAbsolute )
+import Data.Maybe        ( mapMaybe )
+import Data.List         ( split, splitOn, intersperse )
+import Control.Monad     ( when )
+import IOExts            ( evalCmd )
 
 import Data.PropertyFile ( readPropertyFile )
 import System.Path       ( getFileInPath )
@@ -66,7 +65,7 @@ defaultConfig :: Config
 defaultConfig = Config
   { packageInstallDir      = "$HOME/.cpm/packages"
   , binInstallDir          = "$HOME/.cpm/bin"
-  , repositoryDir          = "$HOME/.cpm/index" 
+  , repositoryDir          = "$HOME/.cpm/index"
   , appPackageDir          = ""
   , packageIndexURL        = packageIndexDefaultURL
   , homePackageDir         = ""
@@ -93,7 +92,7 @@ showConfiguration cfg = unlines
   , "HOME_PACKAGE_PATH      : " ++ homePackageDir      cfg
   , "PACKAGE_INDEX_URL      : " ++ packageIndexURL     cfg
   ]
-  
+
 --- Shows the compiler version in the configuration.
 showCompilerVersion :: Config -> String
 showCompilerVersion cfg =
@@ -162,8 +161,8 @@ setCompilerVersion cfg0 = do
                 (majs:mins:revs:_) = split (=='.') cvers
             debugMessage $ unwords ["Compiler version:",cname,cvers]
             debugMessage $ "Base lib version: " ++ bvers
-            return cfg { compilerVersion = (cname, readInt majs,
-                                            readInt mins, readInt revs)
+            return cfg { compilerVersion = (cname, read majs,
+                                            read mins, read revs)
                        , compilerBaseVersion = bvers
                        , baseVersion         = if null initbase
                                                  then bvers
@@ -253,7 +252,7 @@ mergeConfigSettings cfg props = applyEither setters cfg
 ---
 --- @param opts - the options
 stripProps :: [(String, String)] -> [(String, String)]
-stripProps = map ((map toUpper . filter (/='_') . strip) *** strip) 
+stripProps = map (\(a,b) -> ((map toUpper $ filter (/='_') $ strip a), strip b))
 
 --- A map from option names to functions that will update a configuration
 --- record with a value for that option.
@@ -270,7 +269,7 @@ keySetters =
   ]
 
 --- Sequentially applies a list of functions that transform a value to a value
---- of that type (i.e. a fold). Each function can error out with a Left, in 
+--- of that type (i.e. a fold). Each function can error out with a Left, in
 --- which case no further applications are done and the Left is returned from
 --- the overall application of applyEither.
 ---

@@ -10,15 +10,15 @@ module System.Path
   ( dirsInPath, fileInPath, getFileInPath )
  where
 
-import Directory ( doesFileExist, getAbsolutePath )
-import FilePath  ( (</>), searchPathSeparator )
-import List      ( split )
-import System    ( getEnviron )
+import System.Directory   ( doesFileExist, getAbsolutePath )
+import System.FilePath    ( (</>), searchPathSeparator )
+import System.Environment ( getEnv )
+import Data.List          ( split )
 
 --- Returns the list of the directories of the environment variable `PATH`.
 dirsInPath :: IO [String]
 dirsInPath = do
-  path <- getEnviron "PATH"
+  path <- getEnv "PATH"
   return $ split (== searchPathSeparator) path
 
 --- Checks whether a file exists in one of the directories
@@ -26,7 +26,7 @@ dirsInPath = do
 fileInPath :: String -> IO Bool
 fileInPath file = do
   dirs <- dirsInPath
-  (liftIO (any id)) $ mapIO (doesFileExist . (</> file)) dirs
+  or  <$> mapM (doesFileExist . (</> file)) dirs
 
 --- Checks whether a file exists in one of the directories
 --- of the environment variable `PATH` and returns its absolute path,

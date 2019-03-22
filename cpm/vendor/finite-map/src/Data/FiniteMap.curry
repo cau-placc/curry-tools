@@ -59,7 +59,7 @@ module Data.FiniteMap (
         showFM, readFM
     ) where
 
-import Maybe
+import Data.Maybe
 import ReadShowTerm (readQTerm, showQTerm)
 
 --- order predicates are boolean

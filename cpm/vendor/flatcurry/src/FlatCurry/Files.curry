@@ -9,17 +9,17 @@
 
 module FlatCurry.Files where
 
-import Directory       (doesFileExist)
-import FileGoodies     (getFileInPath, lookupFileInPath)
-import FilePath        (takeFileName, (</>), (<.>))
-import ReadShowTerm    (readUnqualifiedTerm, showTerm)
-
+import System.Directory    ( doesFileExist, getFileWithSuffix
+                           , findFileWithSuffix )
+import System.FilePath     ( takeFileName, (</>), (<.>))
 import System.CurryPath    ( inCurrySubdir, stripCurrySuffix
                            , lookupModuleSourceInLoadPath, getLoadPathForModule
                            )
 import System.FrontendExec ( FrontendParams, FrontendTarget (..), defaultParams
                            , setQuiet, callFrontendWithParams
                            )
+import ReadShowTerm        (readUnqualifiedTerm, showTerm)
+
 
 import FlatCurry.Types
 
@@ -44,8 +44,9 @@ readFlatCurryWithParseOptions progname options = do
   case mbsrc of
     Nothing -> do -- no source file, try to find FlatCurry file in load path:
       loadpath <- getLoadPathForModule progname
-      filename <- getFileInPath (flatCurryFileName (takeFileName progname)) [""]
-                                loadpath
+      filename <- getFileWithSuffix 
+                     (flatCurryFileName (takeFileName progname)) [""]
+                     loadpath
       readFlatCurryFile filename
     Just (dir,_) -> do
       callFrontendWithParams FCY options progname
@@ -108,8 +109,9 @@ readFlatCurryIntWithParseOptions progname options = do
   case mbsrc of
     Nothing -> do -- no source file, try to find FlatCurry file in load path:
       loadpath <- getLoadPathForModule progname
-      filename <- getFileInPath (flatCurryIntName (takeFileName progname)) [""]
-                                loadpath
+      filename <- getFileWithSuffix
+                    (flatCurryIntName (takeFileName progname)) [""]
+                    loadpath
       readFlatCurryFile filename
     Just (dir,_) -> do
       callFrontendWithParams FINT options progname
@@ -126,11 +128,11 @@ writeFCY file prog = writeFile file (showTerm prog)
 lookupFlatCurryFileInLoadPath :: String -> IO (Maybe String)
 lookupFlatCurryFileInLoadPath modname =
   getLoadPathForModule modname >>=
-  lookupFileInPath (flatCurryFileName modname) [""]
+  findFileWithSuffix (flatCurryFileName modname) [""]
 
 --- Returns the name of the FlatCurry file of a module in the load path,
 --- if this file exists.
 getFlatCurryFileInLoadPath :: String -> IO String
 getFlatCurryFileInLoadPath modname =
   getLoadPathForModule modname >>=
-  getFileInPath (flatCurryFileName modname) [""]
+  getFileWithSuffix (flatCurryFileName modname) [""]

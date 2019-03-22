@@ -40,16 +40,16 @@ module CPM.Package
   , packageSpecToJSON
   ) where
 
-import Char
-import Either
-import FilePath    ( (</>) )
-import IOExts      ( readCompleteFile )
+import Data.Char
+import Data.Either
+import Data.List       ( intercalate, intersperse, isInfixOf, splitOn )
+import System.FilePath ( (</>) )
+import IOExts          ( readCompleteFile )
 import JSON.Data
 import JSON.Parser
-import JSON.Pretty ( ppJSON )
-import List        ( intercalate, intersperse, isInfixOf, splitOn )
-import Read        ( readInt )
+import JSON.Pretty     ( ppJSON )
 import Test.Prop
+import Prelude hiding  ( (<$>), (<*>), (<*), (*>), (<|>), some, empty )
 
 import DetParse
 
@@ -91,7 +91,7 @@ data Dependency = Dependency String Disjunction
 --- @cons VLte - version must be smaller or equal to specified version
 --- @cons VCompatible - semver arrow, version must be larger or equal and
 ---                     within same minor version
-data VersionConstraint = VExact      Version  
+data VersionConstraint = VExact      Version
                        | VGt         Version
                        | VLt         Version
                        | VGte        Version
@@ -100,7 +100,7 @@ data VersionConstraint = VExact      Version
  deriving (Eq,Show)
 
 --- Compiler compatibility constraint, takes the name of the compiler (kics2 or
---- pakcs), as well as a disjunctive normal form combination of version 
+--- pakcs), as well as a disjunctive normal form combination of version
 --- constraints (see Dependency).
 data CompilerCompatibility = CompilerCompatibility String Disjunction
  deriving (Eq,Show)
@@ -137,14 +137,14 @@ data PackageDocumentation = PackageDocumentation String String String
  deriving (Eq,Show)
 
 --- A source where the contents of a package can be acquired.
---- @cons Http - URL to a ZIP file 
---- @cons Git - URL to a Git repository and an optional revision spec to check 
+--- @cons Http - URL to a ZIP file
+--- @cons Git - URL to a Git repository and an optional revision spec to check
 ---   out
 --- @cons FileSource - The path to a ZIP file to install. Cannot be specified in
 ---   a package specification file, for internal use only.
-data PackageSource = Http String 
+data PackageSource = Http String
                    | Git String (Maybe GitRevision)
-                   | FileSource String 
+                   | FileSource String
  deriving (Eq,Show)
 
 --- A Git revision.
@@ -370,7 +370,7 @@ replaceVersionInTag pkg =
 vlt :: Version -> Version -> Bool
 vlt (majorA, minorA, patchA, preA) (majorB, minorB, patchB, preB) =
   major || minor || patch || pre
- where 
+ where
   major = majorA < majorB
   minor = majorA <= majorB && minorA < minorB
   patch = majorA <= majorB && minorA <= minorB && patchA < patchB
@@ -383,7 +383,7 @@ vlt (majorA, minorA, patchA, preA) (majorB, minorB, patchB, preB) =
       Just b  -> a `ltPre` b
 
 ltPre :: String -> String -> Bool
-ltPre a b | isNumeric a && isNumeric b = readInt a < readInt b
+ltPre a b | isNumeric a && isNumeric b = (read a :: Int) < read b
           | isNumeric a = True
           | isNumeric b = False
           | otherwise   = a `ltShortlex` b
@@ -540,7 +540,7 @@ packageSpecFromJObject kv =
     mustBeVersion s f = case readVersion s of
       Nothing -> Left $ "'" ++ s ++ "' is not a valid version specification."
       Just v -> f v
-      
+
     getDependencies :: ([Dependency] -> Either String a) -> Either String a
     getDependencies f = case lookup "dependencies" kv of
       Nothing -> f []
@@ -677,7 +677,7 @@ mandatoryString k kv f = case lookup k kv of
   Just JFalse      -> Left $ "Expected a string, got 'false'" ++ forKey
   Just JNull       -> Left $ "Expected a string, got 'null'" ++ forKey
  where forKey = " for key '" ++ k ++ "'"
-     
+
 optionalString :: String -> [(String, JValue)]
                -> (Maybe String -> Either String a) -> Either String a
 optionalString k kv f = case lookup k kv of
@@ -745,7 +745,7 @@ dependenciesFromJObject kv = if any isLeft dependencies
 
   wrongVersionConstraint = Left "Version constraint must be a string"
 
---- Reads the compiler compatibility constraints of a package from the 
+--- Reads the compiler compatibility constraints of a package from the
 --- key-value-pairs of a JObject.
 compilerCompatibilityFromJObject :: [(String, JValue)]
                                  -> Either String [CompilerCompatibility]
@@ -808,7 +808,7 @@ execSpecFromJObject kv =
     in if any isLeft os
          then Left $ head (lefts os)
          else Right (zip (map fst o) (map fromRight os))
-  
+
   extractString s = case s of
     JString s' -> Right s'
     _          -> Left $ "'executable>options': values must be strings"
@@ -871,7 +871,7 @@ docuSpecFromJObject kv =
   Right $ PackageDocumentation docdir docmain (maybe "" id doccmd)
 
 
---- Reads a dependency constraint expression in disjunctive normal form into 
+--- Reads a dependency constraint expression in disjunctive normal form into
 --- a list of lists of version constraints. The inner lists are conjunctions of
 --- version constraints, the outer list is a disjunction of conjunctions.
 readVersionConstraints :: String -> Maybe [[VersionConstraint]]

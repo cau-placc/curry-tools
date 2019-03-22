@@ -9,13 +9,15 @@ module CPM.Repository.Update
   )
  where
 
-import Directory
-import FilePath
-import List              ( isSuffixOf )
-import System            ( system )
+import System.Directory
+import System.FilePath
+import System.Process   ( system )
+import Data.List        ( isSuffixOf )
+import Control.Monad
+import Prelude hiding (log)
 
-import CPM.Config        ( Config, packageInstallDir, packageIndexURL
-                         , repositoryDir )
+import CPM.Config       ( Config, packageInstallDir, packageIndexURL
+                        , repositoryDir )
 import CPM.ErrorLogger
 import CPM.Package
 import CPM.Package.Helpers    ( cleanPackage )
@@ -73,7 +75,7 @@ updateRepository cfg cleancache = do
 --- Sets the date of the last update by touching README.md.
 setLastUpdate :: Config -> IO ()
 setLastUpdate cfg =
-  system (unwords ["touch", repositoryDir cfg </> "README.md"]) >> done
+  system (unwords ["touch", repositoryDir cfg </> "README.md"]) >> return ()
 
 ------------------------------------------------------------------------------
 --- Adds a package stored in the given directory to the repository index.
@@ -110,7 +112,7 @@ addPackageToRepository cfg pkgdir force cpdir = do
     copyFile (pkgdir </> "package.json") (pkgRepositoryDir </> "package.json")
     when cpdir $ do copyDirectory pkgdir pkgInstallDir
                     inDirectory pkgInstallDir (cleanPackage cfg Debug)
-                    done
+                    return ()
     if exrepodir then updatePackageInRepositoryCache cfg pkg
                  else addPackageToRepositoryCache    cfg pkg
 

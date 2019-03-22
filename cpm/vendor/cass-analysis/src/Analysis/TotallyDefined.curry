@@ -18,7 +18,7 @@ import Analysis.ProgInfo
 import Analysis.Types
 import FlatCurry.Types
 import FlatCurry.Goodies
-import List(delete)
+import Data.List         (delete)
 
 -----------------------------------------------------------------------
 --- An analysis to compute the sibling constructors (belonging to the

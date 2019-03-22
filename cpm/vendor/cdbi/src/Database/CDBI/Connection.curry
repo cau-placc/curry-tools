@@ -1,7 +1,7 @@
 --- ----------------------------------------------------------------------------
 --- This module defines basis data types and functions for accessing
 --- database systems using SQL. Currently, only SQLite3 is supported,
---- but this is easy to extend. It also provides execution of SQL-Queries 
+--- but this is easy to extend. It also provides execution of SQL-Queries
 --- with types. Allowed datatypes for these queries are defined and
 --- the conversion to standard SQL-Queries is provided.
 ---
@@ -21,19 +21,19 @@ module Database.CDBI.Connection
   , runWithDB
   ) where
 
-import Char         ( isDigit )
-import Function     ( on )
-import Global       ( Global, GlobalSpec(..), global, readGlobal, writeGlobal )
-import IOExts       ( connectToCommand )
-import IO           ( Handle, hPutStrLn, hGetLine, hFlush, hClose, stderr )
-import List         ( init, insertBy, intercalate, isInfixOf, isPrefixOf
-                    , nub, tails, (\\) )
-import ReadShowTerm ( readQTerm, readsQTerm, showQTerm )
-import ReadNumeric  ( readInt )
-import System       ( system )
-import Time
+import Data.Time
+import Data.Char      ( isDigit )
+import Data.Function  ( on )
+import Data.List      ( init, insertBy, intercalate, isInfixOf, isPrefixOf
+                      , nub, tails, (\\) )
+import System.IO      ( Handle, hPutStrLn, hGetLine, hFlush, hClose, stderr )
+import System.Process ( system )
+import Control.Monad  ( when, unless )
+import ReadShowTerm   ( readQTerm, readsQTerm, showQTerm )
+import Global         ( Global, GlobalSpec(..), global, readGlobal, writeGlobal )
+import IOExts         ( connectToCommand )
 
-import Text.CSV     ( readCSV )
+import Text.CSV       ( readCSV )
 
 infixl 1 >+, >+=
 
@@ -48,7 +48,7 @@ dbWithCSVMode :: Bool
 dbWithCSVMode = True
 
 -- -----------------------------------------------------------------------------
--- Datatypes 
+-- Datatypes
 -- -----------------------------------------------------------------------------
 
 --- The result of SQL-related actions. It is either a `DBError` or some value.
@@ -64,7 +64,7 @@ fromSQLResult (Right val) = val
 --- or the list of result elements.
 printSQLResults :: Show a => SQLResult [a] -> IO ()
 printSQLResults (Left  err) = putStrLn $ show err
-printSQLResults (Right res) = mapIO_ print res
+printSQLResults (Right res) = mapM_ print res
 
 
 --- `DBError`s are composed of an `DBErrorKind` and a `String`
@@ -103,7 +103,7 @@ data SQLType
   | SQLTypeChar
   | SQLTypeBool
   | SQLTypeDate
-  
+
 -- -----------------------------------------------------------------------------
 -- Database actions with types
 -- -----------------------------------------------------------------------------
@@ -171,11 +171,20 @@ returnDB r = DBAction $ \_ -> return r
 failDB :: DBError -> DBAction a
 failDB err = returnDB (Left err)
 
+instance Functor DBAction where
+  fmap f x = x >>= \a -> return (f a)
+
+instance Applicative DBAction where
+  pure      = return
+  a1 <*> a2 = a1 >>= \x -> fmap x a2
+
 --- The `Monad` instance of `DBAction`.
 instance Monad DBAction where
   a1 >>= a2 = a1 >+= a2
   a1 >>  a2 = a1 >+  a2
   return x  = returnDB (Right x)
+
+instance MonadFail DBAction where
   fail s    = returnDB (Left (DBError UnknownError s))
 
 -----------------------------------------------------------------------------
@@ -203,9 +212,9 @@ select query values types =
 --- @param conn - A Connection to a database where the query will be executed
 --- @return An empty if the execution was successful, otherwise an error
 execute :: String -> [SQLValue] -> DBAction ()
-execute query values = 
+execute query values =
   executeRaw query (map valueToString values)  >+ return ()
-  
+
 --- Executes a query multiple times with different SQLValues without a result
 --- @param query - The SQL Query as a String, might have '?' as placeholder
 --- @param values - A list of lists of SQLValues that replace the '?'
@@ -215,7 +224,7 @@ execute query values =
 ---         execution fails, the rest wont be executed.
 executeMultipleTimes :: String -> [[SQLValue]] -> DBAction ()
 executeMultipleTimes query values = mapM_ (execute query) values
-  
+
 -- -----------------------------------------------------------------------------
 -- Database connections
 -- -----------------------------------------------------------------------------
@@ -333,9 +342,9 @@ executeRaw query para =
   case insertParams query para of
     Left err -> failDB err
     Right qu -> DBAction $ \conn -> do
-      writeConnection qu conn 
+      writeConnection qu conn
       parseLines conn
-  
+
 
 --- Returns a list with the names of every column in a table
 --- The parameter is the name of the table.
@@ -389,12 +398,12 @@ getRandom = do
 --- of the list
 insertParams :: String -> [String] -> SQLResult String
 insertParams qu xs =
-  if (length xs == (countPlaceholder qu)) 
+  if (length xs == (countPlaceholder qu))
     then Right (insertParams' qu xs)
-    else Left (DBError ParameterError 
+    else Left (DBError ParameterError
                "Amount of placeholders not equal to length of placeholder-list")
 
-  where 
+  where
   insertParams' sql []            = sql
   insertParams' sql params@(p:ps) = case sql of
     ""             -> ""
@@ -403,7 +412,7 @@ insertParams qu xs =
   countPlaceholder qu2 = case qu2 of
       ""             -> 0
       ''':'?':''':cs -> 1 + (countPlaceholder cs)
-      _:cs           -> countPlaceholder cs 
+      _:cs           -> countPlaceholder cs
 
 
 --- Reads the current output of SQLite line by line until a specific stop
@@ -427,7 +436,7 @@ parseCSVUntil stop conn = do
                    else do rest <- readLinesUntil
                            case rest of Left err -> return $ Left err
                                         Right ls -> return $ Right (s:ls)
-  
+
 parseLinesUntil :: String -> Connection -> IO (SQLResult [[String]])
 parseLinesUntil stop conn@(SQLiteConnection _) = next
   where
@@ -455,17 +464,17 @@ parseLinesUntil stop conn@(SQLiteConnection _) = next
 --- Read a line from a SQLite Connection and check if it represents a value
 readConnectionLine :: Connection -> IO (SQLResult String)
 readConnectionLine conn =
-  check `liftIO` readRawConnectionLine conn
+  check <$> readRawConnectionLine conn
  where
   --- Ensure that a line read from a database connection represents a value.
   check :: String -> SQLResult String
   check s = if dbWithCSVMode then checkCSV s else checkLine s
-  
+
   checkCSV s | "Error" `isPrefixOf` s
              = Left (DBError (getErrorKindSQLite s) s)
              | otherwise
              = Right s
-            
+
   checkLine s | null s
               = Left (DBError NoLineError "")
               | "Error" `isPrefixOf` s
@@ -476,7 +485,7 @@ readConnectionLine conn =
               = Right "index"
               | otherwise
               = Left (DBError (getErrorKindSQLite s) s)
-            
+
 --- Get the value from a line with a '='
 getValue :: String -> String
   --getValue (_ ++ "= " ++ b) = b
@@ -514,8 +523,8 @@ valueToString :: SQLValue -> String
 valueToString x = replaceEmptyString $
   case x of
     SQLString a            -> "'" ++ encodeStringToSQL a ++ "'"
-    SQLChar a              -> "'" ++ encodeStringToSQL [a] ++ "'"  
-    SQLNull                -> "NULL" 
+    SQLChar a              -> "'" ++ encodeStringToSQL [a] ++ "'"
+    SQLNull                -> "NULL"
     SQLDate a              -> "'" ++ show (toUTCTime a) ++ "'"
     SQLInt a               -> show a--"'" ++ show a ++ "'"
     SQLFloat a             -> show a --"'" ++ show a ++ "'"
@@ -547,9 +556,9 @@ convertValue (s, SQLTypeString) = if null s
                                     else SQLString (decodeStringFromSQL s)
 
 convertValue (s, SQLTypeInt) =
-  case readInt s of
-    Just (a,_)   -> SQLInt a
-    Nothing      -> SQLNull
+  case reads s of
+    [(a,"")] -> SQLInt a
+    _        -> SQLNull
 
 convertValue (s, SQLTypeFloat) =
   if isFloat s
@@ -618,7 +627,7 @@ ensureSQLiteConnection db = do
 
 -- Performs an action on all open database connections.
 withAllDBConnections :: (Connection -> IO _) -> IO ()
-withAllDBConnections f = readGlobal openDBConnections >>= mapIO_ (f . snd)
+withAllDBConnections f = readGlobal openDBConnections >>= mapM_ (f . snd)
 
 --- Closes all database connections. Should be called when no more
 --- database access will be necessary.

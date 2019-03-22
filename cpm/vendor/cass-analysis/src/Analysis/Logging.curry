@@ -10,6 +10,7 @@ module Analysis.Logging
  ( getDebugLevel, setDebugLevel, debugMessage, debugString
  ) where
 
+import Control.Monad
 import Global
 
 --------------------------------------------------------------------------

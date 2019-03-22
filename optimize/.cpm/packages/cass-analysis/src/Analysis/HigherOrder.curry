@@ -9,7 +9,7 @@ import Analysis.Types
 import Analysis.ProgInfo
 import FlatCurry.Types
 import FlatCurry.Goodies
-import Maybe
+import Data.Maybe
 
 -- datatype order: higher-order or first-order
 data Order = HO | FO

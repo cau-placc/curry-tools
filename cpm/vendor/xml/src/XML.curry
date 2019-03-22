@@ -14,9 +14,9 @@ module XML(XmlExp(..),Encoding(..),XmlDocParams(..),
        writeXmlFile,writeXmlFileWithParams,parseXmlString,readXmlFile,
        readUnsafeXmlFile,readFileWithXmlDocs,updateXmlFile) where
 
-import Char
-import Read
-import List(intersperse)
+import Data.Char
+import Data.List (intersperse)
+import Numeric
 
 ------------------------------------------------------------------------------
 --- The data type for representing XML expressions.
@@ -233,9 +233,10 @@ unquoteUnicode :: String -> String
 unquoteUnicode [] = []
 unquoteUnicode (c:cs)
   | c=='#'     = case cs of
-                   'x':cs' -> [chr (readHex cs')]
-                   _       -> [chr (readInt cs)]
+                   'x':cs' -> [chr (extr (readHex cs'))]
+                   cs'     -> [chr (extr (readInt cs'))]
   | otherwise  = '&':(c:cs) ++ ";"
+  where extr [(a,"")] = a
 
 ------------------------------------------------------------------------------
 -- Parser for XML documents

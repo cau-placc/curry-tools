@@ -17,15 +17,16 @@ module CASS.Configuration
  , getDefaultPath, waitTime, numberOfWorkers
  ) where
 
-import Char         ( isSpace )
-import Directory
-import Distribution ( curryCompiler )
-import FilePath     ( FilePath, (</>), (<.>) )
+import Data.Char           ( isSpace )
+import Data.List           ( sort )
+import System.Directory
+import System.Distribution ( curryCompiler )
+import System.FilePath     ( FilePath, (</>), (<.>) )
+import System.Environment
+import System.Process
 import Global
-import ReadNumeric
+import Numeric
 import ReadShowTerm
-import Sort         ( mergeSort )
-import System
 
 import Analysis.Logging   ( debugMessage, setDebugLevel )
 import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
@@ -73,7 +74,7 @@ installPropertyFile :: IO ()
 installPropertyFile = do
   fname <- propertyFileName
   pfexists <- doesFileExist fname
-  if pfexists then done else do
+  if pfexists then return () else do
     copyFile defaultPropertyFileName fname
     putStrLn ("New analysis configuration file '"++fname++"' installed.")
 
@@ -86,23 +87,23 @@ updateRCFile :: IO ()
 updateRCFile = do
   hashomedir <- getHomeDirectory >>= doesDirectoryExist
   if not hashomedir
-   then readPropertiesAndStoreLocally >> done
+   then readPropertiesAndStoreLocally >> return ()
    else do
      installPropertyFile
      userprops <- readPropertiesAndStoreLocally
      distprops <- readPropertyFile defaultPropertyFileName
-     if (rcKeys userprops == rcKeys distprops) then done else do
+     if (rcKeys userprops == rcKeys distprops) then return () else do
        rcName    <- propertyFileName
        putStrLn $ "Updating \"" ++ rcName ++ "\"..."
        renameFile rcName $ rcName <.> "bak"
        copyFile defaultPropertyFileName rcName
-       mapIO_ (\ (n, v) -> maybe done
-                 (\uv -> if uv==v then done else updatePropertyFile rcName n uv)
+       mapM_ (\ (n, v) -> maybe (return ())
+                 (\uv -> if uv==v then return () else updatePropertyFile rcName n uv)
                  (lookup n userprops))
               distprops
 
 rcKeys :: [(String, String)] -> [String]
-rcKeys = mergeSort . map fst
+rcKeys = sort . map fst
 
 --- Reads the user property file or, if it does not exist,
 --- the default property file of CASS,
@@ -128,11 +129,11 @@ updateDebugLevel :: [(String,String)] -> IO ()
 updateDebugLevel properties = do
   let number = lookup "debugLevel" properties
   case number of
-    Just value -> do 
-      case (readInt value) of
-        Just (dl,_) -> setDebugLevel dl
-        Nothing -> done
-    Nothing -> done
+    Just value -> do
+      case readInt value of
+        [(dl,_)] -> setDebugLevel dl
+        _        -> return ()
+    Nothing -> return ()
 
 --- Global variable to store the current properties.
 currProps :: Global (Maybe [(String,String)])
@@ -154,7 +155,7 @@ replaceKeyValue k v ((k1,v1):kvs) =
 
 --------------------------------------------------------------------------
 --- Gets the name of file containing the current server port and pid
---- ($HOME has to be set) 
+--- ($HOME has to be set)
 getServerPortFileName :: IO String
 getServerPortFileName = do
   homeDir <- getHomeDirectory
@@ -225,7 +226,7 @@ getWithPrelude =
 
 -- timeout for network message passing: -1 is wait time infinity
 waitTime :: Int
-waitTime = -1  
+waitTime = -1
 
 -- Default number of workers (if the number is not found in the
 -- configuration file).
@@ -236,7 +237,7 @@ defaultWorkers=0
 --- of CURRYPATH).
 getDefaultPath :: IO String
 getDefaultPath = do
-  currypath <- getEnviron "CURRYPATH"
+  currypath <- getEnv "CURRYPATH"
   properties <- getProperties
   let proppath = lookup "path" properties
   return $ case proppath of
@@ -250,8 +251,8 @@ numberOfWorkers = do
   properties <- getProperties
   let number = lookup "numberOfWorkers" properties
   case number of
-    Just value -> do 
-      case (readInt value) of
-        Just (int,_) -> return int
-        Nothing -> return defaultWorkers
-    Nothing -> return defaultWorkers 
+    Just value -> do
+      case readInt value of
+        [(int,_)] -> return int
+        _         -> return defaultWorkers
+    Nothing -> return defaultWorkers

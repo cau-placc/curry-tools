@@ -9,12 +9,14 @@ module CPM.Repository.CacheDB
   ( repositoryCacheDB, tryWriteRepositoryDB, addPackagesToRepositoryDB )
  where
 
-import Directory    ( removeFile )
-import FilePath     ( (</>) )
-import IO           ( hFlush, stdout )
+import System.Directory    ( removeFile )
+import System.FilePath     ( (</>) )
+import System.IO           ( hFlush, stdout )
+import Control.Monad
+import Prelude hiding (log)
 import ReadShowTerm
 
-import Database.CDBI.ER 
+import Database.CDBI.ER
 import Database.CDBI.Connection
 import System.Path  ( fileInPath )
 
@@ -63,7 +65,7 @@ addPackagesToRepositoryDB cfg quiet pkgs =
       Left (DBError kind str) -> log Critical $ "Repository DB failure: " ++
                                                 show kind ++ " " ++ str
       Right _ -> (unless quiet $ putChar '.' >> hFlush stdout) >> succeedIO ()
-  
+
   newEntry p = newIndexEntry
     (name p)
     (showTerm (version p))

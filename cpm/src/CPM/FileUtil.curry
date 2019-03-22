@@ -3,7 +3,7 @@
 --- for the Curry Package Manager.
 --------------------------------------------------------------------------------
 
-module CPM.FileUtil 
+module CPM.FileUtil
   ( joinSearchPath
   , copyDirectory
   , createSymlink
@@ -21,14 +21,18 @@ module CPM.FileUtil
   , whenFileExists, ifFileExists
   ) where
 
-import Directory ( doesFileExist, doesDirectoryExist, getCurrentDirectory
-                 , setCurrentDirectory, getDirectoryContents
-                 , getTemporaryDirectory, doesDirectoryExist, createDirectory
-                 , createDirectoryIfMissing, getAbsolutePath )
-import System    ( system, getEnviron, exitWith )
-import IOExts    ( evalCmd, readCompleteFile )
-import FilePath  ( FilePath, replaceFileName, (</>), searchPathSeparator )
-import List      ( intercalate, isPrefixOf, splitOn )
+import System.Directory   ( doesFileExist, doesDirectoryExist
+                          , setCurrentDirectory, getDirectoryContents
+                          , getTemporaryDirectory, doesDirectoryExist
+                          , createDirectory, createDirectoryIfMissing
+                          , getAbsolutePath, getCurrentDirectory )
+import System.Process     ( system, exitWith )
+import System.Environment ( getEnv )
+import System.FilePath    ( FilePath, replaceFileName, (</>)
+                          , searchPathSeparator )
+import Data.List          ( intercalate, isPrefixOf, splitOn )
+import Control.Monad      ( when )
+import IOExts             ( evalCmd, readCompleteFile )
 
 --- Joins a list of directories into a search path.
 joinSearchPath :: [FilePath] -> String
@@ -86,7 +90,7 @@ tempDir = do
   t <- getTemporaryDirectory
   return (t </> "cpm")
 
---- Executes an IO action with the current directory set to  CPM's temporary 
+--- Executes an IO action with the current directory set to  CPM's temporary
 --- directory.
 inTempDir :: IO b -> IO b
 inTempDir b = do
@@ -97,7 +101,7 @@ inTempDir b = do
     else createDirectory t
   inDirectory t b
 
---- Executes an IO action with the current directory set to a specific 
+--- Executes an IO action with the current directory set to a specific
 --- directory.
 inDirectory :: String -> IO b -> IO b
 inDirectory dir b = do
@@ -118,7 +122,7 @@ recreateDirectory dir = do
 removeDirectoryComplete :: String -> IO ()
 removeDirectoryComplete dir = do
   exists <- doesDirectoryExist dir
-  when exists $ system ("rm -Rf " ++ quote dir) >> done
+  when exists $ system ("rm -Rf " ++ quote dir) >> return ()
 
 --- Reads the complete contents of a file and catches any error
 --- (which is returned).

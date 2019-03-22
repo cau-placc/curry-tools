@@ -15,7 +15,8 @@ module CASS.Registry
 
 import FlatCurry.Types
 import FlatCurry.Goodies(progImports)
-import IO
+import System.IO
+import Control.Monad
 import IOExts
 import XML
 
@@ -164,7 +165,7 @@ lookupRegAnaServer aname =
 -- Look up a registered analysis worker with a given analysis name.
 lookupRegAnaWorker :: String -> ([String] -> IO ())
 lookupRegAnaWorker aname =
-  maybe (const done) regAnaWorker (lookupRegAna aname registeredAnalysis)
+  maybe (const (return ())) regAnaWorker (lookupRegAna aname registeredAnalysis)
 
 --------------------------------------------------------------------
 -- Run an analysis with a given name on a given module with a list
@@ -178,7 +179,7 @@ runAnalysisWithWorkers ananame aoutformat enforce handles moduleName =
 -- of workers identified by their handles but do not load analysis results.
 runAnalysisWithWorkersNoLoad :: String -> [Handle] -> String -> IO ()
 runAnalysisWithWorkersNoLoad ananame handles moduleName =
-  (lookupRegAnaServer ananame) moduleName False handles Nothing >> done
+  () <$ (lookupRegAnaServer ananame) moduleName False handles Nothing
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the show operation for analysis results,
@@ -254,17 +255,17 @@ prepareCombinedAnalysis analysis moduleName depmods handles =
     then do
       -- the directly imported interface information might be required...
       importedModules <- getImports moduleName
-      mapIO_ (\basename ->
-                mapIO_ (runAnalysisWithWorkersNoLoad basename handles)
+      mapM_ (\basename ->
+                mapM_ (runAnalysisWithWorkersNoLoad basename handles)
                        (importedModules++[moduleName]))
              baseAnaNames
     else
       -- for a dependency analysis, the information of all implicitly
       -- imported modules might be required:
-      mapIO_ (\baseaname ->
-                mapIO_ (runAnalysisWithWorkersNoLoad baseaname handles) depmods)
+      mapM_ (\baseaname ->
+                mapM_ (runAnalysisWithWorkersNoLoad baseaname handles) depmods)
              baseAnaNames
-  else done
+  else return ()
  where
    baseAnaNames = baseAnalysisNames analysis
 

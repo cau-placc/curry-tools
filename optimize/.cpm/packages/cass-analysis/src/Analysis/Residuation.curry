@@ -11,7 +11,7 @@ module Analysis.Residuation
   ( ResiduationInfo(..), residuationAnalysis, showResInfo )
  where
 
-import List ( intercalate, union )
+import Data.List ( intercalate, union )
 
 import Analysis.Types
 import FlatCurry.Types

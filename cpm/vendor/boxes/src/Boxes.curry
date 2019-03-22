@@ -2,7 +2,7 @@ module Boxes where
 
 -- Adapted from the Haskell boxes library by Brent Yorgey
 
-import List (intersperse, transpose)
+import Data.List (intersperse, transpose)
 
 --- A box has a defined size (rows x cols) and some content.
 data Box = Box

@@ -11,11 +11,13 @@ module CPM.Package.Helpers
   , getLocalPackageSpec
   ) where
 
-import Directory
-import FilePath
-import List         ( splitOn, nub )
+import System.Directory
+import System.FilePath
+import Data.List          ( splitOn, nub )
+import Control.Monad
+import Prelude hiding     ( empty, log )
 
-import System.CurryPath ( addCurrySubdir )
+import System.CurryPath   ( addCurrySubdir )
 import Text.Pretty hiding ( (</>) )
 
 import CPM.Config   ( Config, homePackageDir )
@@ -30,7 +32,7 @@ import CPM.Package
 --- into the subdirectory `packageId pkg` of the given directory.
 installPackageSourceTo :: Package -> PackageSource -> String
                          -> IO (ErrorLogger ())
---- 
+---
 --- @param pkg        - the package specification of the package
 --- @param source     - the source of the package
 --- @param installdir - the directory where the package subdirectory should be
@@ -45,8 +47,8 @@ installPackageSourceTo pkg (Git url rev) installdir = do
                                           (replaceVersionInTag pkg tag)
       Just (Ref ref)    -> checkoutGitRef pkgDir ref
       Just VersionAsTag ->
-        let tag = "v" ++ (showVersion $ version pkg) 
-        in checkoutGitRef pkgDir tag |> 
+        let tag = "v" ++ (showVersion $ version pkg)
+        in checkoutGitRef pkgDir tag |>
            log Info ("Package '" ++ packageId pkg ++ "' installed")
     else removeDirectoryComplete pkgDir >>
          failIO ("Failed to clone repository from '" ++ url ++
@@ -87,7 +89,7 @@ installPkgFromFile pkg pkgfile pkgDir rmfile = do
                                         " " ++ quote absfile
          else inDirectory pkgDir $ showExecCmd $
                 "tar -xzf " ++ quote absfile
-  when rmfile (showExecCmd ("rm -f " ++ absfile) >> done)
+  when rmfile (showExecCmd ("rm -f " ++ absfile) >> return ())
   if c == 0
     then log Info $ "Installed " ++ packageId pkg
     else do removeDirectoryComplete pkgDir
@@ -95,7 +97,7 @@ installPkgFromFile pkg pkgfile pkgDir rmfile = do
 
 --- Checks out a specific ref of a Git repository and deletes
 --- the Git auxiliary files (i.e., `.git` and `.gitignore`).
---- 
+---
 --- @param dir - the directory containing the repo
 --- @param ref - the ref to check out
 checkoutGitRef :: String -> String -> IO (ErrorLogger ())
@@ -147,7 +149,7 @@ renderPackageInfo allinfos plain installed pkg = pPrint doc
 
   pkgId = packageId pkg
 
-  heading   = text pkgId 
+  heading   = text pkgId
   instTxt i = if i || plain then empty
                             else red $ text "Not installed"
   rule      = text (take (length pkgId) $ repeat '-')

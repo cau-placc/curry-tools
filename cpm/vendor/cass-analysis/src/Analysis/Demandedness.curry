@@ -13,7 +13,7 @@ module Analysis.Demandedness
 import Analysis.Types
 import FlatCurry.Types
 import FlatCurry.Goodies
-import List((\\),intercalate)
+import Data.List         ( (\\), intercalate )
 
 ------------------------------------------------------------------------------
 --- Data type to represent information about demanded arguments.

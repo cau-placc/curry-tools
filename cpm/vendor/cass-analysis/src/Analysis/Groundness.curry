@@ -12,7 +12,7 @@ module Analysis.Groundness
   ) where
 
 import FlatCurry.Types
-import List
+import Data.List
 
 import Analysis.Types
 import Analysis.ProgInfo

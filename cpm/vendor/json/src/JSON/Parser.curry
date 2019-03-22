@@ -1,10 +1,11 @@
 module JSON.Parser (parseJSON) where
 
 import JSON.Data
-import Char
-import Float
+import Data.Char
 import DetParse
 import Test.Prop
+
+import Prelude hiding (some, empty, (<|>), (<$>), (<*>), (<*), (*>))
 
 --- Parses a JSON string into a JValue. Returns Nothing if the string could not
 --- be parsed.
@@ -162,12 +163,12 @@ pJNumber :: Parser JValue
 pJNumber = JNumber <$> pNumber
 
 pNumber :: Parser Float
-pNumber =   negateFloat <$> (char '-' *> pPositiveFloat)
+pNumber =   (0-) <$> (char '-' *> pPositiveFloat)
         <|> pPositiveFloat
 
 -- number without decimal point, decimal digits, base 10 exponent
 toFloat :: Int -> Int -> Int -> Float
-toFloat n d e = (i2f n) *. (10.0 ^. (d + e))
+toFloat n d e = (fromInt n) * (10 ^ (d + e))
 
 pPositiveFloat :: Parser Float
 pPositiveFloat = (uncurry toFloat) <$> pWithDecimalPoint <*> pExponent
@@ -178,7 +179,7 @@ pExponent =   (char 'e' <|> char 'E') *> (char '-' *> yield negate <|> char '+' 
 
 pWithDecimalPoint :: Parser (Int, Int)
 pWithDecimalPoint = combine <$> some pDigit <*> (char '.' *> some pDigit <|> yield "")
-  where 
+  where
     s2i cs = foldl1 ((+).(10*)) (map (\c' -> ord c' - ord '0') cs)
     combine n d = (s2i (n ++ d), negate $ length d)
 

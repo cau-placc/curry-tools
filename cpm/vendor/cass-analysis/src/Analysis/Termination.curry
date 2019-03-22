@@ -19,13 +19,12 @@ import Analysis.Types
 import Analysis.ProgInfo
 import Analysis.RootReplaced (rootCyclicAnalysis)
 
-import Char(isDigit)
+import Data.Char (isDigit)
+import Data.List
 import FlatCurry.Types
 import FlatCurry.Goodies
-import List
-import Sort(sort)
 
-import Data.SCC(scc)
+import Data.SCC (scc)
 
 ------------------------------------------------------------------------------
 -- The termination analysis is a global function dependency analysis.

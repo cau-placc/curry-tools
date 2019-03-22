@@ -13,7 +13,7 @@ module Debug.Profile
   )
  where
 
-import List(intersperse)
+import Data.List (intersperse)
 
 --- The data type for representing information about the state
 --- of a Curry process.
@@ -101,14 +101,14 @@ getTimings action = do
 --- Evaluates the argument to normal form
 --- and print the time needed for this evaluation.
 profileTimeNF :: a -> IO ()
-profileTimeNF exp = profileTime (seq (id $!! exp) done)
+profileTimeNF exp = profileTime (seq (id $!! exp) (return ()))
 
 --- Evaluates the argument to normal form
 --- and returns the run time, elapsed time, and number of garbage collections
 --- needed for this evaluation.
 getTimingsNF :: a -> IO (Int,Int,Int)
 getTimingsNF exp = do
-  (_,rt,et,gc) <- getTimings (seq (id $!! exp) done)
+  (_,rt,et,gc) <- getTimings (seq (id $!! exp) (return ()))
   return (rt,et,gc)
 
 --- Print the time and space needed to execute a given IO action.
@@ -139,7 +139,7 @@ profileSpace action = do
 --- During the evaluation, the garbage collector is turned off to get the
 --- total space usage.
 profileSpaceNF :: a -> IO ()
-profileSpaceNF exp = profileSpace (seq (id $!! exp) done)
+profileSpaceNF exp = profileSpace (seq (id $!! exp) (return ()))
 
 showInfoDiff :: [(ProcessInfo, Int)] -> [(ProcessInfo, Int)] -> ProcessInfo
              -> String

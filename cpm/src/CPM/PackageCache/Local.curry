@@ -1,15 +1,15 @@
 --------------------------------------------------------------------------------
 --- This module implements the local package cache. The local package cache is
---- located in the .cpm/package_cache of the current package. It contains 
+--- located in the .cpm/package_cache of the current package. It contains
 --- symlinks to all dependencies used by the current package. Package files are
 --- copied from the local cache to the runtime cache when they need to be used.
 --- The package manager usually creates symlinks to the global package cache.
---- Symlinks to other locations can be used to include modified versions of 
+--- Symlinks to other locations can be used to include modified versions of
 --- packages that are not yet published to the package repository or installed
 --- in the global cache.
 --------------------------------------------------------------------------------
 
-module CPM.PackageCache.Local 
+module CPM.PackageCache.Local
   ( cacheDir
   , createLinkToGlobalCache
   , linkPackages
@@ -21,18 +21,20 @@ module CPM.PackageCache.Local
   , allPackages
   ) where
 
-import Debug
-import Directory ( createDirectoryIfMissing, copyFile, getAbsolutePath
-                 , getDirectoryContents, doesDirectoryExist, doesFileExist )
-import Either    ( rights )
-import FilePath  ( (</>) ) 
-import IOExts    ( readCompleteFile )
-import List      ( isPrefixOf )
+import Debug.Trace
+import System.Directory ( createDirectoryIfMissing, copyFile, getAbsolutePath
+                        , getDirectoryContents, doesDirectoryExist
+                        , doesFileExist )
+import System.FilePath  ( (</>) )
+import Data.Either      ( rights )
+import Data.List        ( isPrefixOf )
+import Control.Monad
+import IOExts           ( readCompleteFile )
 
-import CPM.Config     ( Config, packageInstallDir )
+import CPM.Config       ( Config, packageInstallDir )
 import CPM.ErrorLogger
-import CPM.FileUtil   ( isSymlink, removeSymlink, createSymlink, linkTarget )
-import CPM.Package    ( Package, packageId, readPackageSpec )
+import CPM.FileUtil     ( isSymlink, removeSymlink, createSymlink, linkTarget )
+import CPM.Package      ( Package, packageId, readPackageSpec )
 import CPM.PackageCache.Global ( installedPackageDir )
 
 --- The cache directory of the local package cache.
@@ -52,13 +54,13 @@ allPackages pkgDir = do
       debugMessage $ "Reading local package cache from '" ++ cdir ++ "'..."
       cdircont <- getDirectoryContents cdir
       let pkgDirs = filter (not . isPrefixOf ".") cdircont
-      pkgPaths <- mapIO removeIfIllegalSymLink $ map (cdir </>) pkgDirs
+      pkgPaths <- mapM removeIfIllegalSymLink $ map (cdir </>) pkgDirs
       specPaths <- return $ map (</> "package.json") $ concat pkgPaths
-      specs <- mapIO (readPackageSpecIO . readCompleteFile) specPaths
+      specs <- mapM (readPackageSpecIO . readCompleteFile) specPaths
       succeedIO $ rights specs
     else succeedIO []
  where
-  readPackageSpecIO = liftIO readPackageSpec
+  readPackageSpecIO = fmap readPackageSpec
   cdir = cacheDir pkgDir
 
   removeIfIllegalSymLink target = do
@@ -67,7 +69,7 @@ allPackages pkgDir = do
     isLink     <- isSymlink target
     if isLink && (dirExists || fileExists)
       then return [target]
-      else when isLink (removeSymlink target >> done) >> return []
+      else when isLink (removeSymlink target >> return ()) >> return []
 
 --- Creates a link to a package from the global cache in the local cache. Does
 --- not overwrite existing links.
@@ -77,7 +79,7 @@ allPackages pkgDir = do
 --- @param gc the global package cache
 --- @param pkg the package to copy
 createLinkToGlobalCache :: Config -> String -> Package -> IO (ErrorLogger ())
-createLinkToGlobalCache cfg pkgDir pkg = 
+createLinkToGlobalCache cfg pkgDir pkg =
   createLink pkgDir (installedPackageDir cfg pkg) (packageId pkg) False
 
 --- Links a list of packages from the global cache into the local cache. Does
@@ -89,7 +91,7 @@ createLinkToGlobalCache cfg pkgDir pkg =
 --- @param pkgs the list of packages
 linkPackages :: Config -> String -> [Package]
              -> IO (ErrorLogger ())
-linkPackages cfg pkgDir pkgs = 
+linkPackages cfg pkgDir pkgs =
   mapEL (createLinkToGlobalCache cfg pkgDir) pkgs |> succeedIO ()
 
 --- Tests whether a link in the local package cache points to a package in the
@@ -124,7 +126,7 @@ isPackageInCache pkgDir pkg = do
   return $ dirExists || fileExists
  where
   packageDir' = packageDir pkgDir pkg
-  
+
 --- Clear the local package cache.
 ---
 --- @param dir the package directory
@@ -134,7 +136,7 @@ clearCache pkgDir = do
   if cacheExists
     then do
       pkgDirs <- getDirectoryContents cdir
-      forIO (map (cdir </>) $ filter (not . isDotOrDotDot) pkgDirs) deleteIfLink
+      mapM deleteIfLink (map (cdir </>) $ filter (not . isDotOrDotDot) pkgDirs)
       return ()
     else return ()
  where
@@ -142,7 +144,7 @@ clearCache pkgDir = do
 
 ensureCacheDir :: String -> IO String
 ensureCacheDir pkgDir = do
-  createDirectoryIfMissing True (cacheDir pkgDir) 
+  createDirectoryIfMissing True (cacheDir pkgDir)
   return (cacheDir pkgDir)
 
 deleteIfLink :: String -> IO (ErrorLogger ())
@@ -179,7 +181,7 @@ isDotOrDotDot s = case s of
 ---
 --- @param pkgDir the package directory
 --- @param from the source directory to be linked into the local cache
---- @param name the name of the link in the package directory (should be a 
+--- @param name the name of the link in the package directory (should be a
 ---        package id)
 --- @param replace replace existing link?
 createLink :: String -> String -> String -> Bool -> IO (ErrorLogger ())

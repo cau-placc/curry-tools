@@ -13,7 +13,7 @@ module Text.CSV
   , writeCSVFile, readCSVFile, readCSVFileWithDelims
   ) where
 
-import List(intersperse)
+import Data.List (intersperse)
 
 --- Writes a list of records (where each record is a list of strings)
 --- into a file in CSV format.

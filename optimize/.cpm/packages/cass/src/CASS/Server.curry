@@ -14,20 +14,22 @@ module CASS.Server
   , analyzeGeneric, analyzePublic, analyzeInterface
   ) where
 
-import ReadNumeric   (readNat)
-import Char          (isSpace)
-import Directory
-import FileGoodies   (splitDirectoryBaseName)
-import IO
-import ReadShowTerm (readQTerm, showQTerm)
-import System       (system, sleep, setEnviron, getArgs)
+import Numeric            ( readNat )
+import ReadShowTerm       ( readQTerm, showQTerm )
+import Data.Char          ( isSpace )
+import Control.Monad      ( unless )
+import System.Directory
+import System.FilePath
+import System.IO
+import System.Process     ( system, sleep )
+import System.Environment
 
-import Analysis.Logging  ( debugMessage )
+import Analysis.Logging   ( debugMessage )
 import Analysis.ProgInfo
-import Analysis.Types    ( Analysis, AOutFormat(..) )
-import FlatCurry.Types   ( QName )
-import Network.Socket    ( Socket(..), listenOn, listenOnFresh
-                         , close, waitForSocketAccept )
+import Analysis.Types     ( Analysis, AOutFormat(..) )
+import FlatCurry.Types    ( QName )
+import Network.Socket     ( Socket(..), listenOn, listenOnFresh
+                          , close, waitForSocketAccept )
 
 import CASS.Configuration
 import CASS.Registry
@@ -35,7 +37,7 @@ import CASS.ServerFormats
 import CASS.ServerFunctions(WorkerMessage(..))
 
 -- Messages to communicate with the analysis server from external programs.
-data AnalysisServerMessage = 
+data AnalysisServerMessage =
     GetAnalysis
   | AnalyzeModule    String String String Bool
   | AnalyzeEntity  String String String String
@@ -56,7 +58,7 @@ mainServer mbport = do
                            mbport
   putStrLn ("Server Port: "++show port1)
   storeServerPortNumber port1
-  getDefaultPath >>= setEnviron "CURRYPATH" 
+  getDefaultPath >>= setEnv "CURRYPATH"
   numworkers <- numberOfWorkers
   if numworkers>0
    then do
@@ -111,8 +113,8 @@ analyzeFunctionForBrowser ananame qn@(mname,_) aoutformat = do
 analyzeModule :: String -> String -> Bool -> AOutFormat
               -> IO (Either (ProgInfo String) String)
 analyzeModule ananame moduleName enforce aoutformat = do
-  let (mdir,mname) = splitDirectoryBaseName moduleName
-  getDefaultPath >>= setEnviron "CURRYPATH"
+  let (mdir,mname) = splitFileName moduleName
+  getDefaultPath >>= setEnv "CURRYPATH"
   curdir <- getCurrentDirectory
   unless (mdir==".") $ setCurrentDirectory mdir
   numworkers <- numberOfWorkers
@@ -138,8 +140,8 @@ analyzeModule ananame moduleName enforce aoutformat = do
 analyzeGeneric :: Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric analysis moduleName = do
   initializeAnalysisSystem
-  let (mdir,mname) = splitDirectoryBaseName moduleName
-  getDefaultPath >>= setEnviron "CURRYPATH" 
+  let (mdir,mname) = splitFileName moduleName
+  getDefaultPath >>= setEnv "CURRYPATH"
   curdir <- getCurrentDirectory
   unless (mdir==".") $ setCurrentDirectory mdir
   numworkers <- numberOfWorkers
@@ -157,7 +159,7 @@ analyzeGeneric analysis moduleName = do
       analyzeMain analysis mname [] False True
   setCurrentDirectory curdir
   return aresult
- 
+
 --- Start the analysis system with a given analysis to compute properties
 --- of a module interface.
 --- The analysis must be a registered one if workers are used.
@@ -204,7 +206,7 @@ startWorkers number workersocket serveraddress workerport handles = do
 
 -- stop all workers at server stop
 stopWorkers :: [Handle] -> IO ()
-stopWorkers [] = done
+stopWorkers [] = return ()
 stopWorkers (handle:whandles) = do
   hPutStrLn handle (showQTerm StopWorker)
   hClose handle
@@ -216,7 +218,7 @@ serverLoop :: Socket -> [Handle] -> IO ()
 serverLoop socket1 whandles = do
   --debugMessage 3 "SERVER: serverLoop"
   connection <- waitForSocketAccept socket1 waitTime
-  case connection of 
+  case connection of
     Just (_,handle) -> serverLoopOnHandle socket1 whandles handle
     Nothing -> do
       putStrLn "serverLoop: connection error: time out in waitForSocketAccept"
@@ -263,7 +265,7 @@ serverLoopOnHandle socket1 whandles handle = do
                                       (Just functionName) False >>= sendResult)
                sendAnalysisError
        SetCurryPath path -> do
-         setEnviron "CURRYPATH" path
+         setEnv "CURRYPATH" path
          changeWorkerPath path whandles
          sendServerResult handle ""
          serverLoopOnHandle socket1 whandles handle
@@ -281,7 +283,7 @@ serverLoopOnHandle socket1 whandles handle = do
     serverLoopOnHandle socket1 whandles handle
 
   sendAnalysisError err = do
-    sendServerError handle ("ERROR in analysis server: "++showError err)
+    sendServerError handle ("ERROR in analysis server: "++ show err)
     serverLoopOnHandle socket1 whandles handle
 
 -- Send a server result in the format "ok <n>\n<result text>" where <n>
@@ -302,7 +304,7 @@ sendServerError handle errstring = do
 
 -- Inform the worker threads about a given changed library search path
 changeWorkerPath :: String -> [Handle] -> IO ()
-changeWorkerPath _ [] = done
+changeWorkerPath _ [] = return ()
 changeWorkerPath path (handle:whandles) = do
   hPutStrLn handle (showQTerm (ChangePath path))
   changeWorkerPath path whandles
@@ -311,12 +313,12 @@ changeWorkerPath path (handle:whandles) = do
 parseServerMessage :: String -> AnalysisServerMessage
 parseServerMessage message = case words message of
   [] -> ParseError
-  w:ws -> case w of 
+  w:ws -> case w of
     "GetAnalysis" -> GetAnalysis
-    "AnalyzeModule" -> case ws of 
+    "AnalyzeModule" -> case ws of
       s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 False
       _ -> ParseError
-    "AnalyzeInterface" -> case ws of 
+    "AnalyzeInterface" -> case ws of
       s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 True
       _ -> ParseError
     "AnalyzeFunction" -> case ws of
@@ -327,12 +329,12 @@ parseServerMessage message = case words message of
       _ -> ParseError
     "AnalyzeDataConstructor" -> case ws of
       s1:s2:s3:s4:[] -> checkFormat s2 $ AnalyzeEntity s1 s2 s3 s4
-      _ -> ParseError  
+      _ -> ParseError
     "SetCurryPath" -> case ws of
       s:[] -> SetCurryPath s
       _ -> ParseError
     "StopServer" -> StopServer
-    _ -> ParseError 
+    _ -> ParseError
  where
   checkFormat fmt msg = if fmt `elem` serverFormats then msg else ParseError
 
@@ -341,4 +343,3 @@ showAnalysisNamesAndFormats :: String
 showAnalysisNamesAndFormats =
   unlines (concatMap (\an -> map ((an++" ")++) serverFormats)
                      registeredAnalysisNames)
-

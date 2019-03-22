@@ -2,19 +2,19 @@
 <!DOCTYPE primitives SYSTEM "http://www.informatik.uni-kiel.de/~pakcs/primitives.dtd">
 <primitives>
  <primitive name="getProcessInfos" arity="0">
-  <library>prim_debug_profile</library>
+  <library>prim_profile</library>
   <entry>prim_getProcessInfos</entry>
  </primitive>
  <primitive name="garbageCollectorOn" arity="0">
-  <library>prim_debug_profile</library>
+  <library>prim_profile</library>
   <entry>prim_garbageCollectorOn</entry>
  </primitive>
  <primitive name="garbageCollectorOff" arity="0">
-  <library>prim_debug_profile</library>
+  <library>prim_profile</library>
   <entry>prim_garbageCollectorOff</entry>
  </primitive>
  <primitive name="garbageCollect" arity="0">
-  <library>prim_debug_profile</library>
+  <library>prim_profile</library>
   <entry>prim_garbageCollect</entry>
  </primitive>
 </primitives>

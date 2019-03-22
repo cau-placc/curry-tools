@@ -16,7 +16,7 @@ import Analysis.Types
 import Analysis.ProgInfo
 import FlatCurry.Types
 import FlatCurry.Goodies
-import Maybe
+import Data.Maybe
 
 --- Datatype to represent sensible type information.
 data Sensible = NotSensible | PSensible | Sensible

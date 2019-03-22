@@ -4,23 +4,24 @@
 
 module CPM.Main where
 
-import Char         ( toLower )
-import Directory    ( doesFileExist, getAbsolutePath, doesDirectoryExist
-                    , copyFile, createDirectory, createDirectoryIfMissing
-                    , getCurrentDirectory, getDirectoryContents
-                    , getModificationTime
-                    , renameFile, removeFile, setCurrentDirectory )
-import Distribution ( installDir )
-import Either
-import FilePath     ( (</>), splitSearchPath, replaceExtension, takeExtension
-                    , pathSeparator, isPathSeparator )
-import IO           ( hFlush, stdout )
-import IOExts       ( evalCmd )
-import List         ( groupBy, intercalate, isPrefixOf, isSuffixOf, nub, split
-                    , splitOn )
-import Sort         ( sortBy )
-import System       ( getArgs, getEnviron, setEnviron, unsetEnviron, exitWith
-                    , system )
+import Data.Char           ( toLower )
+import Data.List           ( groupBy, intercalate, isPrefixOf, isSuffixOf
+                           , nub, split, sortBy, splitOn )
+import Data.Either
+import System.Directory    ( doesFileExist, getAbsolutePath, doesDirectoryExist
+                           , copyFile, createDirectory, createDirectoryIfMissing
+                           , getCurrentDirectory, getDirectoryContents
+                           , getModificationTime
+                           , renameFile, removeFile, setCurrentDirectory )
+import System.Distribution ( installDir )
+import System.FilePath     ( (</>), splitSearchPath, replaceExtension
+                           , takeExtension, pathSeparator, isPathSeparator )
+import System.IO           ( hFlush, stdout )
+import System.Environment  ( getArgs, getEnv, setEnv, unsetEnv )
+import System.Process      ( exitWith, system )
+import Control.Monad       ( when, unless )
+import IOExts              ( evalCmd )
+import Prelude hiding (log, (<|>))
 
 import Boxes            ( table, render )
 import OptParse
@@ -102,7 +103,7 @@ runWithArgs opts = do
     PkgInfo   o -> infoCmd     o config
     Link o      -> linkCmd     o config
     Add  o      -> addCmd      o config
-    New o       -> newPackage  o 
+    New o       -> newPackage  o
     List      o -> listCmd     o config
     Search    o -> searchCmd   o config
     Upgrade   o -> upgradeCmd  o config
@@ -111,7 +112,7 @@ runWithArgs opts = do
     Install   o -> installCmd  o config
     Upload    o -> uploadCmd   o config
     Clean       -> cleanPackage config Info
-  mapIO showLogEntry msgs
+  mapM showLogEntry msgs
   let allOk =  all (levelGte Info) (map logLevelOf msgs) &&
                either (\le -> levelGte Info (logLevelOf le))
                       (const True)
@@ -128,7 +129,7 @@ data Options = Options
 defaultOptions :: Options
 defaultOptions = Options Info [] False NoCommand
 
-data Command 
+data Command
   = NoCommand
   | Config     ConfigOptions
   | Deps       DepsOptions
@@ -372,12 +373,12 @@ applyParse :: [Options -> Either String Options] -> Either String Options
 applyParse fs = applyEither fs defaultOptions
 
 (>.>) :: Either String a -> (a -> b) -> Either String b
-a >.> f = case a of 
+a >.> f = case a of
   Left err -> Left err
   Right  v -> Right $ f v
 
 optionParser :: [String] -> ParseSpec (Options -> Either String Options)
-optionParser allargs = optParser 
+optionParser allargs = optParser
   (   option (\s a -> readLogLevel s >.> \ll -> a { optLogLevel = ll })
        (  long "verbosity"
        <> short "v"
@@ -587,7 +588,7 @@ optionParser allargs = optParser
           (  metavar "PACKAGE"
           <> help ("The package name. If no name is specified, CPM tries " ++
                    "to read a package specification in the current directory.")
-          <> optional) 
+          <> optional)
     <.> arg (\s a -> readVersion' s >.> \v -> a
                                  { optCommand = PkgInfo (infoOpts a)
                                                   { infoVersion = Just v } })
@@ -696,7 +697,7 @@ optionParser allargs = optParser
                                   List (listOpts a) { listVers = True } })
           (  short "v"
           <> long "versions"
-          <> help "Show all versions" ) 
+          <> help "Show all versions" )
     <.> flag (\a -> Right $ a { optCommand =
                                   List (listOpts a) { listCSV = True } })
           (  short "t"
@@ -720,7 +721,7 @@ optionParser allargs = optParser
              <> long "exec"
              <> help "Search for the name of an executable" )
     <.> arg (\s a -> Right $ a { optCommand = Search (searchOpts a)
-                                                { searchQuery = s } }) 
+                                                { searchQuery = s } })
             (  metavar "QUERY"
             <> help "The search term" )
 
@@ -728,7 +729,7 @@ optionParser allargs = optParser
     arg (\s a -> Right $ a { optCommand = Upgrade (upgradeOpts a)
                                             { upgrTarget = Just s } })
         (  metavar "PACKAGE"
-        <> help "The package to upgrade" 
+        <> help "The package to upgrade"
         <> optional )
 
   linkArgs =
@@ -771,10 +772,10 @@ checkRequiredExecutables = do
     exitWith 1
   debugMessage "All required executables found."
  where
-  listOfExecutables = 
-    [ "curl"  
-    , "git"   
-    , "unzip" 
+  listOfExecutables =
+    [ "curl"
+    , "git"
+    , "unzip"
     , "tar"
     , "cp"
     , "rm"
@@ -783,7 +784,7 @@ checkRequiredExecutables = do
 
 checkExecutables :: [String] -> IO [String]
 checkExecutables executables = do
-  present <- mapIO fileInPath executables
+  present <- mapM fileInPath executables
   return $ map fst $ filter (not . snd) (zip executables present)
 
 ------------------------------------------------------------------------------
@@ -831,7 +832,7 @@ infoCmd (InfoOptions Nothing (Just _) _ _) _ =
   failIO "Must specify package name"
 infoCmd (InfoOptions Nothing Nothing allinfos plain) cfg =
   getLocalPackageSpec cfg "." |>= \specDir ->
-  loadPackageSpec specDir |>= \p -> 
+  loadPackageSpec specDir |>= \p ->
   printInfo cfg allinfos plain p
 infoCmd (InfoOptions (Just pkgname) Nothing allinfos plain) cfg =
   getAllPackageVersions cfg pkgname False >>= \pkgs ->
@@ -944,7 +945,7 @@ installExecutable cfg pkg =
   maybe (succeedIO ())
         (\ (PackageExecutable name mainmod eopts) ->
            getLogLevel >>= \lvl ->
-           getEnviron "PATH" >>= \path ->
+           getEnv "PATH" >>= \path ->
            log Info ("Compiling main module: " ++ mainmod) |>
            let (cmpname,_,_,_) = compilerVersion cfg
                cmd = unwords $
@@ -1039,7 +1040,7 @@ listCmd (ListOptions lv csv cat) cfg = do
                  , ["--------", "--------"]]
         rows   = header ++ map (\ (c,ns) -> [c, unwords ns]) catgrps
     in renderTable [namelen + 2, 78 - namelen] rows
-  
+
   renderTable colsizes rows =
     if csv then showCSV (head rows : drop 2 rows)
            else unlines [render (table rows colsizes), cpmInfo, useUpdateHelp]
@@ -1305,7 +1306,7 @@ testCmd opts cfg =
       else foldEL (\_ -> execTest aspecDir) () tests
  where
   currycheck = curryExec cfg ++ " check"
-  
+
   execTest apkgdir (PackageTest dir mods ccopts script) = do
     let scriptcmd = "CURRYBIN=" ++ curryExec cfg ++ " && export CURRYBIN && " ++
                     "." </> script ++ if null ccopts then "" else ' ' : ccopts
@@ -1346,10 +1347,10 @@ curryModulesInDir dir = getModules "" dir
     entries <- getDirectoryContents d
     let realentries = filter (\f -> length f >= 1 && head f /= '.') entries
         newprogs    = filter (\f -> takeExtension f == ".curry") realentries
-    subdirs <- mapIO (\e -> doesDirectoryExist (d </> e) >>=
+    subdirs <- mapM (\e -> doesDirectoryExist (d </> e) >>=
                             \b -> return $ if b then [e] else []) realentries
                >>= return . concat
-    subdirentries <- mapIO (\s -> getModules (p ++ s ++ ".") (d </> s)) subdirs
+    subdirentries <- mapM (\s -> getModules (p ++ s ++ ".") (d </> s)) subdirs
     return $ map ((p ++) . stripCurrySuffix) newprogs ++ concat subdirentries
 
 
@@ -1370,7 +1371,7 @@ diffCmd opts cfg =
                    " and repository version " ++ showVersion diffv ++ ":\n") >>
          installIfNecessary repo localname diffv |> putStrLn "" >>
          readGlobalCache cfg repo |>= \gc ->
-         diffAPIIfEnabled      repo gc specDir localSpec diffv |> 
+         diffAPIIfEnabled      repo gc specDir localSpec diffv |>
          diffBehaviorIfEnabled repo gc specDir localSpec diffv
  where
   getDiffVersion repo localname = case diffVersion opts of
@@ -1397,7 +1398,7 @@ diffCmd opts cfg =
                                              (version localSpec) diffversion
          in unless (null diffOut) (putStrLn diffOut >> putStrLn "") >>
             succeedIO ()
-    else succeedIO () 
+    else succeedIO ()
 
   diffBehaviorIfEnabled repo gc specDir localSpec diffversion =
     if diffBehavior opts
@@ -1430,9 +1431,9 @@ execWithPkgDir o cfg specDir =
 execWithCurryPath :: ExecOptions -> Config -> String -> IO (ErrorLogger ())
 execWithCurryPath o _ currypath =
   log Debug ("Setting CURRYPATH to " ++ currypath) |>
-  do setEnviron "CURRYPATH" currypath
+  do setEnv "CURRYPATH" currypath
      ecode <- showExecCmd (exeCommand o)
-     unsetEnviron "CURRYPATH"
+     unsetEnv "CURRYPATH"
      unless (ecode==0) (exitWith ecode)
      succeedIO ()
 
@@ -1470,7 +1471,7 @@ newPackage (NewOptions pname) = do
                              , author          = [emptyAuthor]
                              , synopsis        = emptySynopsis
                              , category        = ["Programming"]
-                             , dependencies    = [] 
+                             , dependencies    = []
                              , exportedModules = []
                              , license         = Just "BSD-3-Clause"
                              , licenseFile     = Just "LICENSE"

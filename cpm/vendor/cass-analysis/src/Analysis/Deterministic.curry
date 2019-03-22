@@ -16,11 +16,10 @@ module Analysis.Deterministic
   ) where
 
 import Analysis.Types
-import Char(isDigit)
 import FlatCurry.Types
 import FlatCurry.Goodies
-import List
-import Sort(sort)
+import Data.List
+import Data.Char         (isDigit)
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual functions.

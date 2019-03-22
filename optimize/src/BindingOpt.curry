@@ -8,13 +8,16 @@
 
 module BindingOpt (main, transformFlatProg) where
 
-import Directory         ( renameFile )
-import Distribution      ( installDir, curryCompiler )
-import FileGoodies
-import FilePath          ( (</>), (<.>), normalise, pathSeparator )
-import List
-import Maybe             (fromJust)
-import System            ( getArgs,system,exitWith,getCPUTime )
+import System.Directory    ( renameFile )
+import System.Distribution ( installDir, curryCompiler )
+import System.FilePath     ( (</>), (<.>), normalise, pathSeparator
+                           , takeExtension, dropExtension )
+import System.Environment  ( getArgs )
+import System.Process      ( system, exitWith )
+import System.CPUTime      ( getCPUTime )
+import Data.List
+import Data.Maybe          ( fromJust )
+import Control.Monad       ( when, unless )
 import FlatCurry.Types hiding  (Cons)
 import FlatCurry.Files
 import FlatCurry.Goodies
@@ -75,7 +78,7 @@ checkArgs opts@(verbosity, withana, load) args = case args of
   "-?":_               -> putStr (systemBanner++'\n':usageComment)
   mods                 -> do
                           printVerbose verbosity 1 systemBanner
-                          mapIO_ (transformBoolEq opts) mods
+                          mapM_ (transformBoolEq opts) mods
 
 -- Verbosity level:
 -- 0 : show nothing
@@ -91,9 +94,9 @@ printVerbose verbosity printlevel message =
 
 transformBoolEq :: Options -> String -> IO ()
 transformBoolEq opts@(verb, _, _) name = do
-  let isfcyname = fileSuffix name == "fcy"
+  let isfcyname = takeExtension name == "fcy"
       modname   = if isfcyname
-                  then modNameOfFcyName (normalise (stripSuffix name))
+                  then modNameOfFcyName (normalise (dropExtension name))
                   else name
   printVerbose verb 1 $ "Reading and analyzing module '" ++ modname ++ "'..."
   flatprog <- if isfcyname then readFlatCurryFile name
@@ -108,7 +111,7 @@ dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
 -- Extracts the module name from a given FlatCurry file name:
 modNameOfFcyName :: String -> String
 modNameOfFcyName name =
-  let wosuffix = normalise (stripSuffix name)
+  let wosuffix = normalise (dropExtension name)
       [dir,wosubdir] = splitOn (currySubdir ++ [pathSeparator]) wosuffix
    in -- construct hierarchical module name:
       dir </> intercalate "." (split (==pathSeparator) wosubdir)
@@ -128,7 +131,7 @@ transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
     printVerbose verb 2 $ "Transformed program stored in " ++ newprogfile
     renameFile newprogfile oldprogfile
     printVerbose verb 2 $ " ...and moved to " ++ oldprogfile
-  when load $ system (curryComp ++ " :l " ++ modname) >> done
+  when load $ system (curryComp ++ " :l " ++ modname) >> return ()
  where curryComp = installDir </> "bin" </> curryCompiler
 
 -- Perform the binding optimization on a FlatCurry program.
@@ -163,7 +166,7 @@ loadAnalysisWithImports :: Analysis a -> String -> [String]
                         -> IO (ProgInfo a,ProgInfo a)
 loadAnalysisWithImports analysis modname imports = do
   maininfo <- analyzeGeneric analysis modname >>= return . either id error
-  impinfos <- mapIO (\m -> analyzePublic analysis m >>=
+  impinfos <- mapM (\m -> analyzePublic analysis m >>=
                                                      return . either id error)
                     imports
   return $ (maininfo, foldr1 combineProgInfo (maininfo:impinfos))

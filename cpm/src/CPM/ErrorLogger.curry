@@ -22,8 +22,8 @@ module CPM.ErrorLogger
   ) where
 
 import Global
-import IO      ( hPutStrLn, stderr )
-import System  ( exitWith, system )
+import System.IO      ( hPutStrLn, stderr )
+import System.Process ( exitWith, system )
 
 import Debug.Profile -- for show run-time
 import Text.Pretty
@@ -78,7 +78,7 @@ setWithShowTime wst = writeGlobal withShowTime wst
 (|>=) :: IO (ErrorLogger a) -> (a -> IO (ErrorLogger b)) -> IO (ErrorLogger b)
 a |>= f = do
   (msgs, err) <- a 
-  mapIO showLogEntry msgs
+  mapM showLogEntry msgs
   case err of
     Right v -> do
       (msgs', err') <- f v 
@@ -89,7 +89,7 @@ a |>= f = do
 (|>) :: IO (ErrorLogger a) -> IO (ErrorLogger b) -> IO (ErrorLogger b)
 a |> f = do
   (msgs, err) <- a
-  mapIO showLogEntry msgs
+  mapM showLogEntry msgs
   case err of
     Right _ -> do
       (msgs', err') <- f
@@ -100,7 +100,7 @@ a |> f = do
 (|->) :: IO (ErrorLogger a) -> IO (ErrorLogger b) -> IO (ErrorLogger a)
 a |-> b = do
   (msgs, err) <- a
-  mapIO showLogEntry msgs
+  mapM showLogEntry msgs
   case err of
     Right _ -> do
       (msgs', _) <- b
@@ -117,7 +117,7 @@ mapEL :: (a -> IO (ErrorLogger b)) -> [a] -> IO (ErrorLogger [b])
 mapEL _ [] = succeedIO []
 mapEL f (x:xs) = do
   (msgs, err) <- f x
-  mapIO showLogEntry msgs
+  mapM showLogEntry msgs
   case err of
     Right v -> do
       (msgs', xs') <- mapEL f xs
@@ -131,7 +131,7 @@ foldEL :: (a -> b -> IO (ErrorLogger a)) -> a -> [b] -> IO (ErrorLogger a)
 foldEL _ z [] = succeedIO z
 foldEL f z (x:xs) = do
   (msgs, err) <- f z x
-  mapIO showLogEntry msgs
+  mapM showLogEntry msgs
   case err of
     Right v -> foldEL f v xs
     Left m -> return $ ([], Left m)
@@ -211,15 +211,15 @@ log lvl msg = do
 
 --- Prints an info message in the standard IO monad.
 infoMessage :: String -> IO ()
-infoMessage msg = (log Info msg |> succeedIO ()) >> done
+infoMessage msg = (log Info msg |> succeedIO ()) >> return ()
 
 --- Prints a debug message in the standard IO monad.
 debugMessage :: String -> IO ()
-debugMessage msg = (log Debug msg |> succeedIO ()) >> done
+debugMessage msg = (log Debug msg |> succeedIO ()) >> return ()
 
 --- Prints an error message in the standard IO monad.
 errorMessage :: String -> IO ()
-errorMessage msg = (log Error msg |> succeedIO ()) >> done
+errorMessage msg = (log Error msg |> succeedIO ()) >> return ()
 
 --- Transforms an error logger actions into a standard IO action.
 --- It shows all messages and, if the result is not available,
@@ -227,7 +227,7 @@ errorMessage msg = (log Error msg |> succeedIO ()) >> done
 fromErrorLogger :: IO (ErrorLogger a) -> IO a
 fromErrorLogger a = do
   (msgs, err) <- a 
-  mapIO showLogEntry msgs
+  mapM showLogEntry msgs
   case err of
     Right v -> return v
     Left  m -> showLogEntry m >> exitWith 1

@@ -16,7 +16,8 @@ module AbstractCurry.Transform where
 
 import AbstractCurry.Types
 import AbstractCurry.Select
-import List (nub, union)
+
+import Data.List (nub, union)
 
 --- This type synonym is useful to denote the type of an update,
 --- where the first argument is the type of values which are updated

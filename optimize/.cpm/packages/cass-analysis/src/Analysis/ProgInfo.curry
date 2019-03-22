@@ -13,8 +13,8 @@ module Analysis.ProgInfo
   , readAnalysisFiles, readAnalysisPublicFile, writeAnalysisFiles
   ) where
 
-import Directory     (removeFile)
-import FilePath      ((<.>))
+import System.Directory     (removeFile)
+import System.FilePath      ((<.>))
 
 import Data.FiniteMap
 import FlatCurry.Types
@@ -104,7 +104,7 @@ readAnalysisFiles basefname = do
         (\err -> do
            putStrLn ("Buggy analysis files detected and removed:\n"++
                      basefname)
-           mapIO_ removeFile [pubcontfile,privcontfile]
+           mapM_ removeFile [pubcontfile,privcontfile]
            putStrLn "Please try to re-run the analysis!"
            ioError err)
 

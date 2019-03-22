@@ -9,22 +9,23 @@
 
 module CASS.ServerFunctions where
 
-import FlatCurry.Types   (QName)
-import FlatCurry.Goodies (progImports)
-import IO(Handle(..),hClose,hFlush,hGetLine,hPutStrLn,hWaitForInput,hWaitForInputs)
-import ReadShowTerm(readQTerm,showQTerm)
-import System(system,sleep)
-import Directory(doesFileExist,getModificationTime)
-import Maybe(fromMaybe)
-import List(delete)
-import Time(ClockTime)
-import XML(showXmlDoc,xml)
+import System.IO          ( Handle(..), hClose, hFlush, hGetLine, hPutStrLn
+                          , hWaitForInput, hWaitForInputs )
+import System.Process     ( system, sleep )
+import System.Directory   ( doesFileExist, getModificationTime )
+import Data.Maybe         ( fromMaybe )
+import Data.List          ( delete )
+import Data.Time          ( ClockTime )
+import XML                ( showXmlDoc, xml )
+import ReadShowTerm       ( readQTerm, showQTerm )
 
-import Analysis.Logging(debugMessage)
+import FlatCurry.Types    ( QName )
+import FlatCurry.Goodies  ( progImports )
+import Analysis.Logging   ( debugMessage )
 import Analysis.Types
 import Analysis.ProgInfo
 import CASS.Dependencies
-import CASS.Configuration(waitTime)
+import CASS.Configuration ( waitTime )
 
 data WorkerMessage = Task String String | ChangePath String | StopWorker
 
@@ -46,7 +47,7 @@ masterLoop _ [] _ _ [] [] = do
 
 masterLoop _ (b:busyWorker) ananame mainModule [] [] = do
   debugMessage 2 "Master loop: waiting for worker result"
-  inputHandle <- hWaitForInputs (b:busyWorker) waitTime 
+  inputHandle <- hWaitForInputs (b:busyWorker) waitTime
   if inputHandle/=0
     then return (Just "No input from any worker received")
     else do
@@ -66,7 +67,7 @@ masterLoop idleWorker busyWorker ananame mainModule
   if null waitList
     then do
       debugMessage 2 "Master loop: waiting for workers to finish"
-      inputHandle <- hWaitForInputs busyWorker waitTime 
+      inputHandle <- hWaitForInputs busyWorker waitTime
       if inputHandle<0
         then return (Just "No input from any worker received")
         else do
@@ -77,9 +78,9 @@ masterLoop idleWorker busyWorker ananame mainModule
           if ananame==ananame2
             then do
               let modulesToDo3 = reduceDependencies modulesToDo2 [moduleName2]
-                  busyWorker2= deleteIndex inputHandle busyWorker 
+                  busyWorker2= deleteIndex inputHandle busyWorker
               masterLoop (handle:idleWorker) busyWorker2 ananame
-                         mainModule modulesToDo3 waitList  
+                         mainModule modulesToDo3 waitList
             else
              return
               (Just "Received analysis does not match requested analysis type")
@@ -99,7 +100,7 @@ masterLoop (handle:idleWorker) busyWorker ananame mainModule modulesToDo
 masterLoop [] busyWorker ananame mainModule modulesToDo
            waits@(modName:waitList) = do
   debugMessage 2 $ "Waiting for worker to analyze modules: "++show waits
-  inputHandle <- hWaitForInputs busyWorker waitTime 
+  inputHandle <- hWaitForInputs busyWorker waitTime
   if inputHandle<0
     then return (Just "No input from any worker received")
     else do

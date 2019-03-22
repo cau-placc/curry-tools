@@ -9,7 +9,7 @@ module Analysis.TypeUsage(showTypeNames,typesInValuesAnalysis) where
 
 import Analysis.Types
 import FlatCurry.Types
-import List(intercalate)
+import Data.List       (intercalate)
 
 ------------------------------------------------------------------------
 -- This analysis associates to each type the types which might occur

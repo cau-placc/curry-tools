@@ -1,7 +1,7 @@
 module CASS.PackageConfig where
 
-import Distribution(installDir)
-import FilePath((</>))
+import System.Distribution(installDir)
+import System.FilePath((</>))
 
 --- Package version as a string.
 packageVersion :: String

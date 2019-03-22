@@ -8,19 +8,20 @@
 
 module Analysis.Files where
 
-import Directory
-import Distribution      ( installDir )
-import FilePath
-import List              ( isPrefixOf, isSuffixOf )
-import ReadShowTerm      ( readQTerm, showQTerm )
-import Time              ( ClockTime )
+import System.Directory
+import System.Distribution ( installDir )
+import System.FilePath
+import Data.List           ( isPrefixOf, isSuffixOf )
+import Data.Time           ( ClockTime )
+import Control.Monad       ( when, unless )
+import ReadShowTerm        ( readQTerm, showQTerm )
 
 import FlatCurry.Files
-import FlatCurry.Goodies ( progImports )
-import FlatCurry.Types   ( Prog, QName )
-import System.CurryPath  ( lookupModuleSourceInLoadPath, stripCurrySuffix )
+import FlatCurry.Goodies   ( progImports )
+import FlatCurry.Types     ( Prog, QName )
+import System.CurryPath    ( lookupModuleSourceInLoadPath, stripCurrySuffix )
 
-import Analysis.Logging  ( debugMessage )
+import Analysis.Logging    ( debugMessage )
 import Analysis.ProgInfo
 
 
@@ -116,7 +117,7 @@ createDirectoryR maindir =
   let (drv,dir) = splitDrive maindir
    in createDirectories drv (splitDirectories dir)
  where
-  createDirectories _ [] = done  
+  createDirectories _ [] = return ()  
   createDirectories dirname (dir:dirs) = do
     let createdDir = dirname </> dir
     dirExists <- doesDirectoryExist createdDir
@@ -133,7 +134,7 @@ deleteAllAnalysisFiles ananame = do
  where
   deleteAllInDir dir = do
     dircont <- getDirectoryContents dir
-    mapIO_ processDirElem (filter (not . isPrefixOf ".") dircont)
+    mapM_ processDirElem (filter (not . isPrefixOf ".") dircont)
    where
      processDirElem f = do
        let fullname = dir </> f

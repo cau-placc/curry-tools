@@ -16,8 +16,8 @@ module Data.PropertyFile
   )
  where
 
-import Char
-import Directory
+import Data.Char
+import System.Directory
 import IOExts
 
 ------------------------------------------------------------------------------

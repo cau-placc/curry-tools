@@ -4,17 +4,17 @@
 --- its dependencies with all dependencies available to the Curry frontend.
 --------------------------------------------------------------------------------
 
-module CPM.AbstractCurry 
+module CPM.AbstractCurry
   ( loadPathForPackage
   , readAbstractCurryFromPackagePath
   , readAbstractCurryFromDeps
-  , transformAbstractCurryInDeps 
+  , transformAbstractCurryInDeps
   , applyModuleRenames
   ) where
 
-import List         ( intercalate, nub )
-import FilePath     ( (</>), (<.>), takeFileName, replaceExtension )
-import System
+import Data.List           ( intercalate, nub )
+import System.FilePath     ( (</>), (<.>), takeFileName, replaceExtension )
+import System.Process
 
 import AbstractCurry.Files  ( readAbstractCurryFile, writeAbstractCurryFile )
 import AbstractCurry.Pretty ( showCProg )
@@ -107,7 +107,7 @@ transformAbstractCurryInDeps pkgDir deps transform modname destFile = do
   writeFile destFile $ showCProg (transform acy)
 
 --- Renames all references to some modules in a Curry program.
---- 
+---
 --- @param mods - a map from old to new module names
 --- @param prog - the program to modify
 applyModuleRenames :: [(String, String)] -> CurryProg -> CurryProg
@@ -121,4 +121,3 @@ applyModuleRenames names prog =
   rnm mn@(mod, n) = case lookup mod names of
     Just mod' -> (mod', n)
     Nothing   -> mn
-

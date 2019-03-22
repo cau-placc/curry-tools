@@ -9,7 +9,7 @@
 module Analysis.UnsafeModule ( showUnsafe, unsafeModuleAnalysis )
  where
 
-import List              ( nub )
+import Data.List         ( nub )
 
 import Analysis.Types
 import FlatCurry.Goodies ( progImports, progName )

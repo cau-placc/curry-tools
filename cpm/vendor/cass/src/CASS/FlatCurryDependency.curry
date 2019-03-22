@@ -8,7 +8,8 @@
 module CASS.FlatCurryDependency(dependsDirectlyOnTypes,callsDirectly) where
 
 import FlatCurry.Types
-import List ( nub )
+import Data.List       ( nub )
+import Prelude hiding  (empty)
 
 import Data.Set.RBTree ( SetRBT, empty, insert, toList, union)
 

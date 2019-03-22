@@ -9,9 +9,10 @@
 module CASS.WorkerFunctions where
 
 import IOExts
-import List         ( partition )
-import Maybe        ( fromJust )
-import System       ( getCPUTime )
+import Prelude hiding    ( empty )
+import Data.List         ( partition )
+import Data.Maybe        ( fromJust )
+import System.CPUTime    ( getCPUTime )
 
 import Analysis.Files
 import Analysis.Logging  ( debugMessage, debugString )
@@ -45,7 +46,7 @@ analysisClient :: Eq a => Analysis a -> [String] -> IO ()
 analysisClient analysis modnames = do
   store <- newIORef []
   fpmethod <- getFPMethod
-  mapIO_ (analysisClientWithStore store analysis fpmethod) modnames
+  mapM_ (analysisClientWithStore store analysis fpmethod) modnames
 
 analysisClientWithStore :: Eq a => IORef (ProgInfoStore a) -> Analysis a -> String
                         -> String -> IO ()
@@ -101,18 +102,18 @@ getStartValues analysis prog =
   if isSimpleAnalysis analysis
   then return []
   else do
-    let startvals = case analysis of 
-          DependencyFuncAnalysis _ _ _ -> 
-            map (\func->(funcName func,startValue analysis)) 
-                (progFuncs prog)
-          CombinedDependencyFuncAnalysis _ _ _ _ _ -> 
+    let startvals = case analysis of
+          DependencyFuncAnalysis _ _ _ ->
             map (\func->(funcName func,startValue analysis))
                 (progFuncs prog)
-          DependencyTypeAnalysis _ _ _ -> 
+          CombinedDependencyFuncAnalysis _ _ _ _ _ ->
+            map (\func->(funcName func,startValue analysis))
+                (progFuncs prog)
+          DependencyTypeAnalysis _ _ _ ->
             map (\typeDecl->(typeName typeDecl,startValue analysis))
                 (progTypes prog)
-          CombinedDependencyTypeAnalysis _ _ _ _ _ -> 
-            map (\typeDecl->(typeName typeDecl,startValue analysis)) 
+          CombinedDependencyTypeAnalysis _ _ _ _ _ ->
+            map (\typeDecl->(typeName typeDecl,startValue analysis))
                 (progTypes prog)
           _ -> error "Internal error in WorkerFunctions.getStartValues"
     return startvals
@@ -145,7 +146,7 @@ updateList ((key,newValue):newList) oldList =
 
 updateValue :: Eq a => (a,b) -> [(a,b)] -> [(a,b)]
 updateValue _ [] = []
-updateValue (key1,newValue) ((key2,value2):list) = 
+updateValue (key1,newValue) ((key2,value2):list) =
   if key1==key2 then (key1,newValue):list
                 else (key2,value2):(updateValue (key1,newValue) list)
 
@@ -233,15 +234,15 @@ executeAnalysis (DependencyModuleAnalysis _ anaFunc) prog impproginfos _ _ =
                        (publicListFromProgInfo impproginfos)
  in lists2ProgInfo ([((pname,pname), anaFunc prog importinfos)], [])
 
-executeAnalysis (SimpleFuncAnalysis _ anaFunc) prog _ _ _ = 
+executeAnalysis (SimpleFuncAnalysis _ anaFunc) prog _ _ _ =
   (lists2ProgInfo . map2 (\func -> (funcName func, anaFunc func))
                   . partition isVisibleFunc . progFuncs) prog
 
-executeAnalysis (SimpleTypeAnalysis _ anaFunc) prog _ _ _ = 
+executeAnalysis (SimpleTypeAnalysis _ anaFunc) prog _ _ _ =
   (lists2ProgInfo . map2 (\typ -> (typeName typ,anaFunc typ))
                   . partition isVisibleType . progTypes) prog
 
-executeAnalysis (SimpleConstructorAnalysis _ anaFunc) prog _ _ _ = 
+executeAnalysis (SimpleConstructorAnalysis _ anaFunc) prog _ _ _ =
   (lists2ProgInfo
     . map2 (\ (cdecl,tdecl) -> (consName cdecl, anaFunc cdecl tdecl))
     . partition isVisibleCons
@@ -259,14 +260,14 @@ executeAnalysis (DependencyFuncAnalysis _ _ anaFunc) prog
      in simpleIteration anaFunc funcName declsWithDeps importInfos startinfo
   "wlist" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
-     in funcInfos2ProgInfo prog $ fmToList $ 
+     in funcInfos2ProgInfo prog $ fmToList $
           wlIteration anaFunc funcName declsWithDeps [] (empty (<))
                       importInfos (listToFM (<) startvals)
   "wlistscc" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
         -- compute strongly connected components w.r.t. func dependencies:
         sccDecls = scc ((:[]) . funcName . fst) snd declsWithDeps
-     in funcInfos2ProgInfo prog $ fmToList $ 
+     in funcInfos2ProgInfo prog $ fmToList $
           foldr (\scc sccstartvals ->
                    wlIteration anaFunc funcName scc [] (empty (<))
                                importInfos sccstartvals)
@@ -283,14 +284,14 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
      in simpleIteration anaType typeName declsWithDeps importInfos startinfo
   "wlist" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
-     in typeInfos2ProgInfo prog $ fmToList $ 
+     in typeInfos2ProgInfo prog $ fmToList $
           wlIteration anaType typeName declsWithDeps [] (empty (<))
                       importInfos (listToFM (<) startvals)
   "wlistscc" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
         -- compute strongly connected components w.r.t. type dependencies:
         sccDecls = scc ((:[]) . typeName . fst) snd declsWithDeps
-     in typeInfos2ProgInfo prog $ fmToList $ 
+     in typeInfos2ProgInfo prog $ fmToList $
           foldr (\scc sccstartvals ->
                    wlIteration anaType typeName scc [] (empty (<))
                                importInfos sccstartvals)

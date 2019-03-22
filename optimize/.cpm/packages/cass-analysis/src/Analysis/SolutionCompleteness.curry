@@ -11,7 +11,7 @@ module Analysis.SolutionCompleteness(solcompAnalysis,showSolComplete)  where
 
 import Analysis.Types
 import FlatCurry.Types
-import List
+import Data.List
 
 ------------------------------------------------------------------------------
 --- The completeness analysis is a global function dependency analysis.

@@ -20,12 +20,12 @@ module CPM.Repository.Select
   )
  where
 
-import Char         ( toLower )
-import Directory    ( doesFileExist )
-import List         ( isInfixOf )
+import Data.Char        ( toLower )
+import Data.List        ( isInfixOf )
+import System.Directory ( doesFileExist )
 import ReadShowTerm
 
-import Database.CDBI.ER 
+import Database.CDBI.ER
 import Database.CDBI.Connection
 
 import CPM.Config      ( Config )
@@ -88,7 +88,7 @@ searchExportedModules cfg pat =
 
   filterExpModules = filter (\p -> any (\m -> lpat `isInfixOf` (map toLower m))
                                        (exportedModules p))
-  
+
   toPackage (nm,vs,syn,cmp,exps) =
     emptyPackage { name = nm
                  , version = pkgRead vs
@@ -115,7 +115,7 @@ searchExecutable cfg pat =
   lpat    = map toLower pat
 
   filterExec = filter (\p -> lpat `isInfixOf` (map toLower $ execOfPackage p))
-  
+
   toPackage (nm,vs,syn,cmp,exec) =
     emptyPackage { name = nm
                  , version = pkgRead vs
@@ -279,7 +279,7 @@ updatePackageInRepositoryCache cfg pkg = do
 
 --- Removes a package from the repository cache DB.
 removePackageFromRepositoryDB :: Config -> Package -> IO ()
-removePackageFromRepositoryDB cfg pkg = runQuery cfg 
+removePackageFromRepositoryDB cfg pkg = runQuery cfg
   ``sql* Delete
          From   IndexEntry
          Where  Name = {name pkg} And Version = {showTerm (version pkg)};''
