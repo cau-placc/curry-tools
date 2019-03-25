@@ -94,7 +94,7 @@ printVerbose verbosity printlevel message =
 
 transformBoolEq :: Options -> String -> IO ()
 transformBoolEq opts@(verb, _, _) name = do
-  let isfcyname = takeExtension name == "fcy"
+  let isfcyname = takeExtension name == ".fcy"
       modname   = if isfcyname
                   then modNameOfFcyName (normalise (dropExtension name))
                   else name
@@ -115,7 +115,7 @@ modNameOfFcyName name =
       [dir,wosubdir] = splitOn (currySubdir ++ [pathSeparator]) wosuffix
    in -- construct hierarchical module name:
       dir </> intercalate "." (split (==pathSeparator) wosubdir)
-   
+
 transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
 transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
   let (dir, name) = splitModuleFileName (progName prog) modname

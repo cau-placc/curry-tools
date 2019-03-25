@@ -66,7 +66,7 @@ joinModuleIdentifiers = foldr1 combine
 --- Strips the suffix ".curry" or ".lcurry" from a file name.
 stripCurrySuffix :: String -> String
 stripCurrySuffix s =
-  if takeExtension s `elem` ["curry","lcurry"]
+  if takeExtension s `elem` [".curry",".lcurry"]
   then dropExtension s
   else s
 
