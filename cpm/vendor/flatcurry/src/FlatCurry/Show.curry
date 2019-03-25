@@ -4,7 +4,7 @@
 --- in a Curry-like syntax.
 ---
 --- This library contains
---- 
+---
 ---   * show functions for a string representation of FlatCurry programs
 ---     (`showFlatProg`, `showFlatType`, `showFlatFunc`)
 ---   * functions for showing FlatCurry (type) expressions in (almost)
@@ -20,8 +20,8 @@ module FlatCurry.Show(showFlatProg,showFlatType,showFlatFunc,
    where
 
 import FlatCurry.Types
-import List
-import Char
+import Data.List
+import Data.Char
 
 --- Shows a FlatCurry program term as a string (with some pretty printing).
 showFlatProg :: Prog -> String

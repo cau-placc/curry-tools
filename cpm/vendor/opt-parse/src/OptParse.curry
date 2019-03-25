@@ -26,8 +26,8 @@ module OptParse
   ) where
 
 import Debug.Trace
-import Data.Char   (isAscii)
-import Data.List   (intercalate)
+import Data.Char (isAscii)
+import Data.List (intercalate)
 import qualified DetParse as P
 import qualified Boxes as B
 

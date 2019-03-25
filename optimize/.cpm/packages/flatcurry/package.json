@@ -1,18 +1,18 @@
 {
     "name": "flatcurry",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Libraries to deal with FlatCurry programs",
     "category": [ "Metaprogramming" ],
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "base"          : ">= 1.0.0, < 2.0.0",
-        "currypath"     : ">= 0.0.1",
-        "frontend-exec" : ">= 0.0.1",
-        "redblacktree"  : ">= 0.0.1",
-        "wl-pprint"     : ">= 0.0.1",
-        "xml"           : ">= 2.0.0"
+        "base"          : ">= 2.0.0, < 3.0.0",
+        "currypath"     : ">= 2.0.0",
+        "frontend-exec" : ">= 2.0.0",
+        "redblacktree"  : ">= 2.0.0",
+        "wl-pprint"     : ">= 2.0.0",
+        "xml"           : ">= 3.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

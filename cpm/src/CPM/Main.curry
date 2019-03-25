@@ -66,7 +66,7 @@ cpmBanner = unlines [bannerLine,bannerText,bannerLine]
 main :: IO ()
 main = do
   args <- getArgs
-  parseResult <- return $ parse (unwords args) (optionParser args) "cypm"
+  let parseResult = parse (unwords args) (optionParser args) "cypm"
   case parseResult of
     Left err -> do putStrLn cpmBanner
                    putStrLn err

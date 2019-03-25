@@ -28,7 +28,7 @@ module XmlConv (
   -- attribute converter for primitive values and booleans
   aInt, aFloat, aChar, aString, aBool,
 
-  -- element converter 
+  -- element converter
   eInt, eFloat, eChar, eString, eBool, eEmpty, eOpt, eRep,
 
   -- converter for sequences
@@ -46,7 +46,6 @@ module XmlConv (
   ) where
 
 import XML
-import Read ( readInt )
 import ReadShowTerm ( readQTerm )
 
 infixr 0 !
@@ -139,7 +138,7 @@ xmlShow xa a = x
   ([],[x]) = xmlShows xa a ([],[])
 
 int_ :: ValConv Int
-int_ = (readInt,show)
+int_ = (read,show)
 
 float_ :: ValConv Float
 float_ = (readQTerm,show)
@@ -148,7 +147,7 @@ char_ :: ValConv Char
 char_ = (head,(:[]))
 
 string_ :: ValConv String
-string_ = (id,id)  
+string_ = (id,id)
 
 bool_ :: String -> String -> ValConv Bool
 bool_ true false = (readBool,showBool)
@@ -379,7 +378,7 @@ eFloat name = element name float
 ---
 --- @param name Tag name of the XML element containing the character value
 --- @return Char element converter
-eChar :: String -> XElemConv Char 
+eChar :: String -> XElemConv Char
 eChar name = element name char
 
 --- Creates an XML converter for string elements. String elements may be
@@ -440,7 +439,7 @@ seq1 cons xa = Conv rd sh
 --- Creates an XML converter that represents a repetition of a sequence
 --- of repeatable XML data. The repetition may be used in other
 --- repetitions but does not represent an XML element. This combinator is
---- provided because converters for repeatable sequences cannot be 
+--- provided because converters for repeatable sequences cannot be
 --- constructed by the seq combinators.
 ---
 --- @param f Invertable function (constructor) that combines the sequence
@@ -456,7 +455,7 @@ repSeq1 cons xa = rep (seq1 cons xa)
 --- @param name Tag name of the element
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
---- @return XML element converter for a compound value  
+--- @return XML element converter for a compound value
 eSeq1 :: String -> (a -> b) -> XmlConv _ _ a -> XElemConv b
 eSeq1 name cons xa = element name (seq1 cons xa)
 
@@ -479,7 +478,7 @@ seq2_ cons xa xb = Conv rd sh
        xmlReads xb />= \b ->
        ret (cons a b)
   sh arg | cons a b =:<= arg = xmlShows xa a . xmlShows xb b  where a,b free
-  
+
 
 --- Creates an XML converter representing a sequence of arbitrary XML data.
 --- The sequence must not be used in repetitions and does not represent an
@@ -496,13 +495,13 @@ seq2 = seq2_
 --- Creates an XML converter that represents a repetition of a sequence
 --- of repeatable XML data. The repetition may be used in other
 --- repetitions and does not represent an XML element. This combinator is
---- provided because converters for repeatable sequences cannot be 
+--- provided because converters for repeatable sequences cannot be
 --- constructed by the seq combinators.
 ---
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a repetition of a sequence
-repSeq2 :: (a -> b -> c) 
+repSeq2 :: (a -> b -> c)
         -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
         -> XRepConv [c]
 repSeq2 cons xa xb = rep (seq2_ cons xa xb)
@@ -514,7 +513,7 @@ repSeq2 cons xa xb = rep (seq2_ cons xa xb)
 --- @param name Tag name of the element
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
---- @return XML element converter for a compound value  
+--- @return XML element converter for a compound value
 eSeq2 :: String -> (a -> b -> c)
       -> XmlConv _ _ a -> XmlConv _ _ b
       -> XElemConv c
@@ -559,7 +558,7 @@ seq3 = seq3_
 --- Creates an XML converter that represents a repetition of a sequence
 --- of repeatable XML data. The repetition may be used in other
 --- repetitions and does not represent an XML element. This combinator is
---- provided because converters for repeatable sequences cannot be 
+--- provided because converters for repeatable sequences cannot be
 --- constructed by the seq combinators.
 ---
 --- @param f Invertable function (constructor) that combines the sequence
@@ -578,7 +577,7 @@ repSeq3 cons xa xb xc = rep (seq3_ cons xa xb xc)
 --- @param name Tag name of the element
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
---- @return XML element converter for a compound value  
+--- @return XML element converter for a compound value
 eSeq3 :: String -> (a -> b -> c -> d)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c
       -> XElemConv d
@@ -626,7 +625,7 @@ seq4 = seq4_
 --- Creates an XML converter that represents a repetition of a sequence
 --- of repeatable XML data. The repetition may be used in other
 --- repetitions and does not represent an XML element. This combinator is
---- provided because converters for repeatable sequences cannot be 
+--- provided because converters for repeatable sequences cannot be
 --- constructed by the seq combinators.
 ---
 --- @param f Invertable function (constructor) that combines the sequence
@@ -645,7 +644,7 @@ repSeq4 cons xa xb xc xd = rep (seq4_ cons xa xb xc xd)
 --- @param name Tag name of the element
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
---- @return XML element converter for a compound value  
+--- @return XML element converter for a compound value
 eSeq4 :: String -> (a -> b -> c -> d -> e)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XElemConv e
@@ -679,7 +678,7 @@ seq5_ cons xa xb xc xd xe = Conv rd sh
   sh arg | (cons a b c d e) =:<= arg
          = xmlShows xa a . xmlShows xb b . xmlShows xc c
                          . xmlShows xd d . xmlShows xe e  where a,b,c,d,e free
-  
+
 
 --- Creates an XML converter representing a sequence of arbitrary XML data.
 --- The sequence must not be used in repetitions and does not represent an
@@ -697,7 +696,7 @@ seq5 = seq5_
 --- Creates an XML converter that represents a repetition of a sequence
 --- of repeatable XML data. The repetition may be used in other
 --- repetitions and does not represent an XML element. This combinator is
---- provided because converters for repeatable sequences cannot be 
+--- provided because converters for repeatable sequences cannot be
 --- constructed by the seq combinators.
 ---
 --- @param f Invertable function (constructor) that combines the sequence
@@ -717,7 +716,7 @@ repSeq5 cons xa xb xc xd xe = rep (seq5_ cons xa xb xc xd xe)
 --- @param name Tag name of the element
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
---- @return XML element converter for a compound value  
+--- @return XML element converter for a compound value
 eSeq5 :: String -> (a -> b -> c -> d -> e -> f)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XmlConv _ _ e
@@ -772,7 +771,7 @@ seq6 = seq6_
 --- Creates an XML converter that represents a repetition of a sequence
 --- of repeatable XML data. The repetition may be used in other
 --- repetitions and does not represent an XML element. This combinator is
---- provided because converters for repeatable sequences cannot be 
+--- provided because converters for repeatable sequences cannot be
 --- constructed by the seq combinators.
 ---
 --- @param f Invertable function (constructor) that combines the sequence
@@ -792,7 +791,7 @@ repSeq6 cons xa xb xc xd xe xf = rep (seq6_ cons xa xb xc xd xe xf)
 --- @param name Tag name of the element
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
---- @return XML element converter for a compound value  
+--- @return XML element converter for a compound value
 eSeq6 :: String -> (a -> b -> c -> d -> e -> f -> g)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XmlConv _ _ e -> XmlConv _ _ f
@@ -811,6 +810,5 @@ eRepSeq6 :: String -> (a -> b -> c -> d -> e -> f -> g)
          -> XmlConv Repeatable _ c -> XmlConv Repeatable _ d
          -> XmlConv Repeatable _ e -> XmlConv Repeatable _ f
          -> XElemConv [g]
-eRepSeq6 name cons xa xb xc xd xe xf 
+eRepSeq6 name cons xa xb xc xd xe xf
   = element name (repSeq6 cons xa xb xc xd xe xf)
-

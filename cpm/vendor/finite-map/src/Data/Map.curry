@@ -52,7 +52,8 @@ module Data.Map (
 
     ) where
 
-import Maybe
+import Data.Maybe
+import Prelude hiding (empty)
 
 -----------------------------------------------
 --        BUILDING finite maps

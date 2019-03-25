@@ -1,6 +1,6 @@
 {
     "name": "scc",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "author": "Wolfgang Lux <wlux@uni-muenster.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Computing strongly connected components",
@@ -8,8 +8,8 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "base"         : ">= 1.0.0, < 2.0.0",
-        "redblacktree" : ">= 0.0.1"
+        "base"         : ">= 2.0.0, < 3.0.0",
+        "redblacktree" : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

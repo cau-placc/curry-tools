@@ -1,7 +1,7 @@
 --- Analyzing the residuation behavior of a module and returns
 --- some statistical information.
 
-import List ( intercalate, partition )
+import Data.List ( intercalate, partition )
 
 import FlatCurry.Types ( QName )
 import CASS.Server           ( analyzeGeneric )
@@ -27,10 +27,10 @@ printCountResOps mname = do
   stats <- mapIO countResOps mname
   putStrLn $ "Module | Residuating | Non-residuating"
   mapIO_ (\row -> putStrLn (intercalate "|" row)) stats
-  
+
 main :: IO ()
 main = printCountResOps baseModules
-  
+
 baseModules :: [String]
 baseModules = ["Prelude","List","Char"]
 

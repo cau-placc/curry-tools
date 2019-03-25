@@ -1,6 +1,6 @@
 {
     "name": "random",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "author": "Sergio Antoy <antoy@cs.pdx.edu>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Library for pseudo-random number generation",
@@ -8,7 +8,7 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "base"    : ">= 1.0.0, < 2.0.0"
+        "base"    : ">= 2.0.0, < 3.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

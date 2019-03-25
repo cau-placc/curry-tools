@@ -1,14 +1,14 @@
 {
     "name": "json",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "author": "Jonas Oberschweiber <jonas@oberschweiber.com>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A JSON library for Curry",
     "category": [ "Data", "Web" ],
     "dependencies": {
-        "base"     : ">= 1.0.0, < 2.0.0",
-        "det-parse": "= 0.0.1",
-        "wl-pprint": ">= 0.0.1"
+        "det-parse": ">= 2.0.0",
+        "wl-pprint": ">= 2.0.0",
+        "base"     : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

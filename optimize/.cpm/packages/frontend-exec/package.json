@@ -1,15 +1,15 @@
 {
     "name": "frontend-exec",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Operations to execute the front end of the Curry system",
     "category": [ "System" ],
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "base"         : ">= 1.0.0, < 2.0.0",
-        "currypath"    : ">= 0.0.1",
-        "propertyfile" : ">= 0.0.1"
+        "base"         : ">= 2.0.0, < 3.0.0",
+        "currypath"    : ">= 2.0.0",
+        "propertyfile" : ">= 2.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

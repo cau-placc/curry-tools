@@ -7,14 +7,14 @@
 
 module CASS.Main ( main ) where
 
-import Char           ( toLower )
-import FilePath       ( (</>), (<.>) )
-import GetOpt
-import List           ( isPrefixOf )
-import ReadNumeric    ( readNat )
-import ReadShowTerm   ( readQTerm )
-import Sort           ( sort )
-import System         ( exitWith, getArgs )
+import Data.Char             ( toLower )
+import Data.List             ( isPrefixOf, sort )
+import System.FilePath       ( (</>), (<.>) )
+import System.Process        ( exitWith )
+import System.Environment    ( getArgs )
+import System.Console.GetOpt
+import Numeric               ( readNat )
+import ReadShowTerm          ( readQTerm )
 
 import Analysis.Files     ( deleteAllAnalysisFiles )
 import Analysis.Logging   ( debugMessage )

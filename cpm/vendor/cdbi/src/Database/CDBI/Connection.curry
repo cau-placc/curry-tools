@@ -30,7 +30,8 @@ import System.IO      ( Handle, hPutStrLn, hGetLine, hFlush, hClose, stderr )
 import System.Process ( system )
 import Control.Monad  ( when, unless )
 import ReadShowTerm   ( readQTerm, readsQTerm, showQTerm )
-import Global         ( Global, GlobalSpec(..), global, readGlobal, writeGlobal )
+import Global         ( Global, GlobalSpec(..), global
+                      , readGlobal, writeGlobal )
 import IOExts         ( connectToCommand )
 
 import Text.CSV       ( readCSV )

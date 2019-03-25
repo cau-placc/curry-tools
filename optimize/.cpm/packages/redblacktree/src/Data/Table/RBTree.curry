@@ -13,6 +13,7 @@
 module Data.Table.RBTree where
 
 import qualified Data.RedBlackTree as RBT
+import           Prelude           hiding (empty)
 
 ----------------------------------------------------------------------------
 -- the main interface:

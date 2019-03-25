@@ -7,9 +7,10 @@
 
 module CASS.Worker(main, startWorker) where
 
-import IO(Handle,hClose,hFlush,hWaitForInput,hPutStrLn,hGetLine)
-import ReadShowTerm(readQTerm)
-import System(getArgs,setEnviron)
+import System.IO            ( Handle, hClose, hFlush, hWaitForInput
+                            , hPutStrLn, hGetLine )
+import System.Environment   ( getArgs, setEnv )
+import ReadShowTerm         ( readQTerm )
 
 import Analysis.Logging     ( debugMessage )
 import Network.Socket       ( connectToSocket )
@@ -28,7 +29,7 @@ main = do
 startWorker :: String -> Int -> IO ()
 startWorker host port = do
   debugMessage 2 ("start analysis worker on port " ++ show port)
-  getDefaultPath >>= setEnviron "CURRYPATH" 
+  getDefaultPath >>= setEnv "CURRYPATH"
   handle <- connectToSocket host port
   worker handle
 
@@ -51,7 +52,7 @@ worker handle = do
            hFlush handle
            worker handle
          ChangePath path -> do
-           setEnviron "CURRYPATH" path
+           setEnv "CURRYPATH" path
            worker handle
          StopWorker -> do
            debugMessage 2 "Stop worker"

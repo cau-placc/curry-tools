@@ -1,5 +1,7 @@
 module DetParse where
 
+import Prelude hiding ((<$>))
+
 --- A parser
 type Parser a = String -> [(a, String)]
 
@@ -38,7 +40,7 @@ check ok p = filter (ok . fst) . p
 char :: Char -> Parser ()
 char c = check (c==) anyChar *> yield ()
 
---- Builds a parser that consumes the given string and results in the unit 
+--- Builds a parser that consumes the given string and results in the unit
 --- value.
 word :: String -> Parser ()
 word []     = empty
@@ -46,7 +48,7 @@ word (c:cs) = char c *> word cs
 
 infixl 3 <|>, <!>
 
---- Builds a parser that tries both its argument parsers and results in the 
+--- Builds a parser that tries both its argument parsers and results in the
 --- result of the first one to succeed.
 (<|>) :: Parser a -> Parser a -> Parser a
 p <|> q = \s -> p s ++ q s
@@ -70,7 +72,7 @@ f <$> p = map (\(x, s) -> (f x, s)) . p
 
 infixl 4 <*>, <*, *>
 
---- Applies the function returned by the first parser to the result of the 
+--- Applies the function returned by the first parser to the result of the
 --- second parser. Applies the parsers in order.
 (<*>) :: Parser (a -> b) -> Parser a -> Parser b
 p <*> q = \s -> [ (f x, s2) | (f, s1) <- p s,

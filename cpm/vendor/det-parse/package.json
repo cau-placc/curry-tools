@@ -1,14 +1,15 @@
 {
     "name": "det-parse",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "synopsis": "Deterministic parser combinators",
     "category": [ "Parsing" ],
     "author": "Jonas Oberschweiber",
     "dependencies": {
+        "base" : ">= 2.0.0"
     },
     "compilerCompatibility": {
-        "pakcs": ">= 1.14.0",
-        "kics2": ">= 0.5.0"
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
     },
     "source": {
         "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/det-parse.git",
