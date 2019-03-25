@@ -1,0 +1,24 @@
+{
+  "name": "io-extra",
+  "version": "2.0.0",
+  "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+  "synopsis": "Library with some useful extensions to the IO monad.",
+  "category": [ "IO" ],
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+        "base":    ">= 2.0.0, < 3.0.0",
+        "process": ">= 2.0.0, < 3.0.0"
+  },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+  },
+    "exportedModules": [
+         "IOExts"
+  ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/io-extra.git",
+      "tag": "$version"
+    }
+}

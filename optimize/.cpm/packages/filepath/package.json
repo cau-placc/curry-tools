@@ -1,0 +1,23 @@
+{
+  "name": "filepath",
+  "version": "2.0.0",
+  "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+  "synopsis": "A library for FilePath manipulations, using Posix or Windows filepaths depending on the platform.",
+  "category": [ "System" ],
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+        "base" : ">= 2.0.0, < 3.0.0"
+  },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+  },
+    "exportedModules": [ 
+         "System.FilePath"
+  ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/filepath.git",
+      "tag": "$version"
+    }
+}

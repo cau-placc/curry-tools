@@ -1,0 +1,23 @@
+{
+  "name": "distribution",
+  "version": "2.0.0",
+  "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+  "synopsis": "This module contains definition of constants to obtain information concerning the current distribution of the Curry implementation.",
+  "category": [ "Meta" ],
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+        "base" : ">= 2.0.0, < 3.0.0"
+  },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+  },
+    "exportedModules": [ 
+         "System.Distribution"
+  ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/testing.git",
+      "tag": "$version"
+    }
+}

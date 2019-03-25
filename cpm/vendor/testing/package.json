@@ -1,0 +1,24 @@
+{
+  "name": "testing",
+  "version": "2.0.0",
+  "category": [ "Testing" ],
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+        "base" : ">= 2.0.0, < 3.0.0",
+  },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+  },
+    "exportedModules": [ 
+         "Test.Contract",
+         "Test.EasyCheck",
+         "Test.EasyCheckExec",
+         "Test.Prop"
+  ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/testing.git",
+      "tag": "$version"
+    }
+}

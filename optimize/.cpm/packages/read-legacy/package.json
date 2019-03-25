@@ -1,0 +1,23 @@
+{
+  "name": "read-legacy",
+  "version": "2.0.0",
+  "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+  "synopsis": "A library for reading and writing from or to strings.",
+  "category": [ "Data" ],
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+        "base" : ">= 2.0.0, < 3.0.0"
+  },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+  },
+    "exportedModules": [ 
+         "ReadShowTerm"
+  ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/read-legacy.git",
+      "tag": "$version"
+    }
+}
