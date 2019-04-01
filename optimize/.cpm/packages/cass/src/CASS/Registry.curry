@@ -16,8 +16,8 @@ module CASS.Registry
 import FlatCurry.Types
 import FlatCurry.Goodies(progImports)
 import System.IO
+import System.IOExts
 import Control.Monad
-import IOExts
 import XML
 
 import Analysis.Logging (debugMessage)
@@ -95,7 +95,8 @@ registeredAnalysis =
 --- by the server/client analysis tool from a given analysis and
 --- analysis show function. The first argument is a short title for the
 --- analysis.
-cassAnalysis :: Eq a => String -> Analysis a -> (AOutFormat -> a -> String)
+cassAnalysis :: (Read a, Show a, Eq a)
+             => String -> Analysis a -> (AOutFormat -> a -> String)
              -> RegisteredAnalysis
 cassAnalysis title analysis showres =
   RegAna (analysisName analysis)
@@ -190,7 +191,8 @@ runAnalysisWithWorkersNoLoad ananame handles moduleName =
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeAsString :: Analysis a -> (AOutFormat->a->String) -> String -> Bool
+analyzeAsString :: (Read a, Show a)
+                => Analysis a -> (AOutFormat->a->String) -> String -> Bool
                 -> [Handle] -> Maybe AOutFormat
                 -> IO (Either (ProgInfo String) String)
 analyzeAsString analysis showres modname enforce handles mbaoutformat = do
@@ -207,7 +209,8 @@ analyzeAsString analysis showres modname enforce handles mbaoutformat = do
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeMain :: Analysis a -> String -> [Handle] -> Bool -> Bool
+analyzeMain :: (Read a, Show a)
+            => Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
 analyzeMain analysis modname handles enforce load = do
   let ananame = analysisName analysis

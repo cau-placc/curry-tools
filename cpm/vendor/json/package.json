@@ -6,9 +6,9 @@
     "synopsis": "A JSON library for Curry",
     "category": [ "Data", "Web" ],
     "dependencies": {
-        "det-parse": ">= 2.0.0",
-        "wl-pprint": ">= 2.0.0",
-        "base"     : ">= 2.0.0"
+        "det-parse": ">= 3.0.0, < 4.0.0",
+        "wl-pprint": ">= 3.0.0, < 4.0.0",
+        "base"     : ">= 3.0.0, < 4.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

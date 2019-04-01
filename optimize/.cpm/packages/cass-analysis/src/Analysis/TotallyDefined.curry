@@ -48,7 +48,7 @@ data Completeness =
      Complete       -- completely defined
    | InComplete     -- incompletely defined
    | InCompleteOr   -- incompletely defined in each branch of an "Or"
- deriving Eq
+ deriving (Eq, Show, Read)
 
 --- A function is totally defined if it is pattern complete and depends
 --- only on totally defined functions.
@@ -136,4 +136,3 @@ combineAndResults Complete     InCompleteOr = InCompleteOr
 combineAndResults InCompleteOr Complete     = InCompleteOr
 combineAndResults InCompleteOr InComplete   = InComplete
 combineAndResults InCompleteOr InCompleteOr = InCompleteOr
-

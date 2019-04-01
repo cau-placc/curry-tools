@@ -38,7 +38,7 @@ terminationAnalysis = dependencyFuncAnalysis "Terminating" False isTerminating
 showTermination :: AOutFormat -> Bool -> String
 showTermination AText True  = "terminating"
 showTermination ANote True  = ""
-showTermination AText False = "possibly non-terminating" 
+showTermination AText False = "possibly non-terminating"
 showTermination ANote False = "maybe not term."
 
 -- An operation is functionally defined if its definition is not
@@ -50,7 +50,7 @@ isTerminating (Func qfunc _ _ _ rule) calledFuncs = hasTermRule rule
   hasTermRule (Rule args e) = hasTermExp (map (\a -> (a,[])) args) e
   -- we assume that all externally defined operations are terminating:
   hasTermRule (External _) = True
-  
+
   hasTermExp _ (Var _)    = True
   hasTermExp _ (Lit _)    = True
   hasTermExp _ (Free _ _) = False -- could be improved if the domain is finite
@@ -81,7 +81,7 @@ isTerminating (Func qfunc _ _ _ rule) calledFuncs = hasTermRule rule
   isSmallerArg ((_,sargs),exp) = case exp of
     Var v -> v `elem` sargs
     _     -> False
-    
+
 -- compute smaller args w.r.t. a given discriminating expression and
 -- branch pattern
 addSmallerArgs :: [(Int, [Int])] -> Expr -> Pattern -> [(Int, [Int])]
@@ -95,9 +95,9 @@ addSmallerArgs args de pat =
  where
    varsOf (LPattern _)      = []
    varsOf (Pattern _ pargs) = pargs
-   
+
    isInArg v (argv,svs) = v==argv || v `elem` svs
-   
+
 ------------------------------------------------------------------------------
 -- The productivity analysis is a global function dependency analysis
 -- which depends on the termination analysis.
@@ -114,7 +114,7 @@ data Productivity =
   | DCalls [QName] -- possible direct (top-level) calls to operations that may
                    -- not terminate, which corresponds to being productive
   | Looping        -- possibly looping
- deriving (Eq,Ord)
+ deriving (Eq, Ord, Show, Read)
 
 productivityAnalysis :: Analysis Productivity
 productivityAnalysis =
@@ -125,8 +125,8 @@ productivityAnalysis =
 
 -- Show productivity information as a string.
 showProductivity :: AOutFormat -> Productivity -> String
-showProductivity _ NoInfo      = "no info" 
-showProductivity _ Terminating = "terminating" 
+showProductivity _ NoInfo      = "no info"
+showProductivity _ Terminating = "terminating"
 showProductivity _ (DCalls qfs) =
   "productive / calls: " ++ "[" ++ intercalate ", " (map snd qfs) ++ "]"
 showProductivity _ Looping     = "possibly looping"

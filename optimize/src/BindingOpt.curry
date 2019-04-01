@@ -8,8 +8,8 @@
 
 module BindingOpt (main, transformFlatProg) where
 
+import Language.Curry.Distribution ( installDir, curryCompiler )
 import System.Directory    ( renameFile )
-import System.Distribution ( installDir, curryCompiler )
 import System.FilePath     ( (</>), (<.>), normalise, pathSeparator
                            , takeExtension, dropExtension )
 import System.Environment  ( getArgs )
@@ -162,7 +162,7 @@ transformFlatProg (verb, withanalysis, _) modname
     putStrLn ("Detailed statistics written to '" ++ csvfname ++"'")
   return (Prog mname imports tdecls newfdecls opdecls, numtrans > 0)
 
-loadAnalysisWithImports :: Analysis a -> String -> [String]
+loadAnalysisWithImports :: (Read a, Show a) => Analysis a -> String -> [String]
                         -> IO (ProgInfo a,ProgInfo a)
 loadAnalysisWithImports analysis modname imports = do
   maininfo <- analyzeGeneric analysis modname >>= return . either id error

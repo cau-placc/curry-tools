@@ -1,11 +1,11 @@
 {
     "name": "csv",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Library for reading/writing files in CSV format",
     "category": [ "Data", "Parsing" ],
     "dependencies": {
-        "base" : ">= 2.0.0"
+        "base" : ">= 3.0.0, < 4.0.0"
     },
     "exportedModules": [ "Text.CSV" ],
     "compilerCompatibility": {

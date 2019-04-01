@@ -1,14 +1,14 @@
 {
     "name": "queue",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Library with double-ended queues supporting access at both ends in constant amortized time",
     "category": [ "Data" ],
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "base"    : ">= 2.0.0, < 3.0.0",
-        "random"  : ">= 2.0.0"
+        "base"    : ">= 3.0.0, < 4.0.0",
+        "random"  : ">= 3.0.0, < 4.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

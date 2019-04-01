@@ -1,6 +1,6 @@
 {
   "name": "wl-pprint",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "author": "Sebastian Fischer <sebf@informatik.uni-kiel.de>, Bjoern Peemoeller <bjp@informatik.uni-kiel.de>, Jan Rasmus Tikovsky <jrt@informatik.uni-kiel.de>",
   "synopsis": "Pretty printing combinators for Curry (inspired by Leijen's library for Haskell)",
   "category": [ "Printing" ],
@@ -8,8 +8,8 @@
   "license": "BSD-3-Clause",
   "licenseFile": "LICENSE",
   "dependencies": {
-        "base" : ">= 2.0.0, < 3.0.0",
-        "queue": ">= 0.0.1"
+        "base" : ">= 3.0.0, < 4.0.0",
+        "queue": ">= 3.0.0, < 4.0.0"
   },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

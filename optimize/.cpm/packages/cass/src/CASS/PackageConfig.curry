@@ -1,6 +1,6 @@
 module CASS.PackageConfig where
 
-import System.Distribution(installDir)
+import Language.Curry.Distribution(installDir)
 import System.FilePath((</>))
 
 --- Package version as a string.

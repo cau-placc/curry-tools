@@ -18,8 +18,8 @@ module System.Directory
 
 import System.FilePath    ( FilePath, (</>), splitDirectories, isAbsolute
                           , normalise, pathSeparator, searchPathSeparator)
-import Data.List          (isPrefixOf, scanl1, last, intersperse)
 import System.Environment (getEnv, isWindows)
+import Data.List          (isPrefixOf, scanl1, last, intersperse)
 import Data.Time          (ClockTime)
 
 

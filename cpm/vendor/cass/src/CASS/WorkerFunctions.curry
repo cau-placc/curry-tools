@@ -8,11 +8,11 @@
 
 module CASS.WorkerFunctions where
 
-import IOExts
-import Prelude hiding    ( empty )
+import Prelude
 import Data.List         ( partition )
 import Data.Maybe        ( fromJust )
 import System.CPUTime    ( getCPUTime )
+import System.IOExts
 
 import Analysis.Files
 import Analysis.Logging  ( debugMessage, debugString )
@@ -21,7 +21,7 @@ import Analysis.Types    ( Analysis(..), isSimpleAnalysis, isCombinedAnalysis
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
                          , publicProgInfo, lookupProgInfo, lists2ProgInfo
                          , equalProgInfo, publicListFromProgInfo, showProgInfo )
-import Data.FiniteMap
+import Data.Map as Map
 import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.Goodies
@@ -42,13 +42,14 @@ newProgInfoStoreRef = newIORef []
 -----------------------------------------------------------------------
 --- Analyze a list of modules (in the given order) with a given analysis.
 --- The analysis results are stored in the corresponding analysis result files.
-analysisClient :: Eq a => Analysis a -> [String] -> IO ()
+analysisClient :: (Eq a, Show a, Read a) => Analysis a -> [String] -> IO ()
 analysisClient analysis modnames = do
   store <- newIORef []
   fpmethod <- getFPMethod
   mapM_ (analysisClientWithStore store analysis fpmethod) modnames
 
-analysisClientWithStore :: Eq a => IORef (ProgInfoStore a) -> Analysis a -> String
+analysisClientWithStore :: (Eq a, Show a, Read a)
+                        => IORef (ProgInfoStore a) -> Analysis a -> String
                         -> String -> IO ()
 analysisClientWithStore store analysis fpmethod moduleName = do
   prog        <- readNewestFlatCurry moduleName
@@ -78,13 +79,13 @@ analysisClientWithStore store analysis fpmethod moduleName = do
 
 -- Loads analysis results for a list of modules where already read results
 -- are stored in an IORef.
-getInterfaceInfosWS :: IORef (ProgInfoStore a) -> String -> [String]
+getInterfaceInfosWS :: Read a => IORef (ProgInfoStore a) -> String -> [String]
                     -> IO (ProgInfo a)
 getInterfaceInfosWS _ _ [] = return emptyProgInfo
 getInterfaceInfosWS store anaName (mod:mods) = do
   loadinfos <- readIORef store
   modInfo <- maybe (loadAndStoreAnalysis loadinfos) return
-                   (lookup mod loadinfos)
+                   (Prelude.lookup mod loadinfos)
   modsInfo <- getInterfaceInfosWS store anaName mods
   return (combineProgInfo modInfo modsInfo)
  where
@@ -123,7 +124,7 @@ getStartValues analysis prog =
 funcInfos2ProgInfo :: Prog -> [(QName,a)] -> ProgInfo a
 funcInfos2ProgInfo prog infos = lists2ProgInfo $
    map2 (\fdecl -> let fname = funcName fdecl
-                    in (fname, fromJust (lookup fname infos)))
+                    in (fname, fromJust (Prelude.lookup fname infos)))
         (partition isVisibleFunc (progFuncs prog))
 
 --- Compute a ProgInfo from a given list of infos for each type name w.r.t.
@@ -131,7 +132,7 @@ funcInfos2ProgInfo prog infos = lists2ProgInfo $
 typeInfos2ProgInfo :: Prog -> [(QName,a)] -> ProgInfo a
 typeInfos2ProgInfo prog infos = lists2ProgInfo $
    map2 (\tdecl -> let tname = typeName tdecl
-                    in (tname, fromJust (lookup tname infos)))
+                    in (tname, fromJust (Prelude.lookup tname infos)))
         (partition isVisibleType (progTypes prog))
 
 map2 :: (a -> b) -> ([a], [a]) -> ([b], [b])
@@ -260,18 +261,18 @@ executeAnalysis (DependencyFuncAnalysis _ _ anaFunc) prog
      in simpleIteration anaFunc funcName declsWithDeps importInfos startinfo
   "wlist" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
-     in funcInfos2ProgInfo prog $ fmToList $
-          wlIteration anaFunc funcName declsWithDeps [] (empty (<))
-                      importInfos (listToFM (<) startvals)
+     in funcInfos2ProgInfo prog $ toList $
+          wlIteration anaFunc funcName declsWithDeps [] (Set.empty (<))
+                      importInfos (fromList startvals)
   "wlistscc" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
         -- compute strongly connected components w.r.t. func dependencies:
         sccDecls = scc ((:[]) . funcName . fst) snd declsWithDeps
-     in funcInfos2ProgInfo prog $ fmToList $
+     in funcInfos2ProgInfo prog $ toList $
           foldr (\scc sccstartvals ->
-                   wlIteration anaFunc funcName scc [] (empty (<))
+                   wlIteration anaFunc funcName scc [] (Set.empty (<))
                                importInfos sccstartvals)
-                (listToFM (<) startvals)
+                (fromList startvals)
                 (reverse sccDecls)
   _ -> error unknownFixpointMessage
 
@@ -284,18 +285,18 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
      in simpleIteration anaType typeName declsWithDeps importInfos startinfo
   "wlist" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
-     in typeInfos2ProgInfo prog $ fmToList $
-          wlIteration anaType typeName declsWithDeps [] (empty (<))
-                      importInfos (listToFM (<) startvals)
+     in typeInfos2ProgInfo prog $ toList $
+          wlIteration anaType typeName declsWithDeps [] (Set.empty (<))
+                      importInfos (fromList startvals)
   "wlistscc" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
         -- compute strongly connected components w.r.t. type dependencies:
         sccDecls = scc ((:[]) . typeName . fst) snd declsWithDeps
-     in typeInfos2ProgInfo prog $ fmToList $
+     in typeInfos2ProgInfo prog $ toList $
           foldr (\scc sccstartvals ->
-                   wlIteration anaType typeName scc [] (empty (<))
+                   wlIteration anaType typeName scc [] (Set.empty (<))
                                importInfos sccstartvals)
-                (listToFM (<) startvals)
+                (fromList startvals)
                 (reverse sccDecls)
   _ -> error unknownFixpointMessage
 -- These cases are handled elsewhere:
@@ -353,9 +354,9 @@ simpleIteration analysis nameOf declsWithDeps importInfos currvals =
      then currvals
      else simpleIteration analysis nameOf declsWithDeps importInfos newproginfo
 
-wlIteration :: Eq a => (t -> [(QName,a)] -> a) -> (t -> QName)
-            -> [(t,[QName])] -> [(t,[QName])] -> SetRBT QName
-            -> ProgInfo a -> FM QName a -> FM QName a
+wlIteration :: (Eq a, Eq b) => (a -> [(QName,b)] -> b) -> (a -> QName)
+            -> [(a,[QName])] -> [(a,[QName])] -> SetRBT QName
+            -> ProgInfo b -> Map QName b -> Map QName b
 --wlIteration analysis nameOf declsToDo declsDone changedEntities
 --            importInfos currvals
 
@@ -364,16 +365,16 @@ wlIteration analysis nameOf [] alldecls changedEntities importInfos currvals =
   then currvals -- no todos, no changed values, so we are done:
   else -- all declarations processed, compute todos for next round:
        let (declsToDo,declsDone) =
-              partition (\ (_,calls) -> any (`member` changedEntities) calls)
+              partition (\ (_,calls) -> any (`Set.member` changedEntities) calls)
                         alldecls
-        in wlIteration analysis nameOf declsToDo declsDone (empty (<))
+        in wlIteration analysis nameOf declsToDo declsDone (Set.empty (<))
                        importInfos currvals
 -- process a single declaration:
 wlIteration analysis nameOf (decldeps@(decl,calls):decls) declsDone
             changedEntities importInfos currvals =
   let decname = nameOf decl
 
-      lookupVal qn = maybe (fromJust (lookupFM currvals qn)) id
+      lookupVal qn = maybe (fromJust (Map.lookup qn currvals)) id
                            (lookupProgInfo qn importInfos)
       oldval = lookupVal decname
       newval = analysis decl (map (\qn -> (qn, lookupVal qn)) calls)
@@ -381,8 +382,8 @@ wlIteration analysis nameOf (decldeps@(decl,calls):decls) declsDone
       then wlIteration analysis nameOf decls (decldeps:declsDone)
                        changedEntities importInfos currvals
       else wlIteration analysis nameOf decls (decldeps:declsDone)
-                       (insert decname changedEntities) importInfos
-                       (updFM currvals decname (const newval))
+                       (Set.insert decname changedEntities) importInfos
+                       (Map.adjust (const newval) decname currvals)
 
 
 ---------------------------------------------------------------------

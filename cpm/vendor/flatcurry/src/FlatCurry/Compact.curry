@@ -22,7 +22,8 @@ import Data.Maybe
 import Data.List           (nub, union)
 import System.FilePath     (takeFileName, (</>))
 import System.Directory
-import System.Distribution (lookupModuleSourceInLoadPath, stripCurrySuffix)
+import Language.Curry.Distribution ( lookupModuleSourceInLoadPath
+                                    , stripCurrySuffix)
 import XML
 
 infix 0 `requires`

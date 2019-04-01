@@ -17,4 +17,8 @@
   <library>prim_system</library>
   <entry>prim_sleep</entry>
  </primitive>
+ <primitive name="getEnvironment" arity="0">
+  <library>prim_system</library>
+  <entry>prim_getEnvironment</entry>
+ </primitive>
 </primitives>

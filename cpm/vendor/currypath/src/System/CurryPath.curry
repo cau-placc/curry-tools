@@ -26,7 +26,7 @@ import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , splitExtension, splitFileName, splitSearchPath
                            , takeFileName, takeExtension, dropExtension
                            )
-import System.Distribution ( curryCompiler, installDir, rcFileName )
+import Language.Curry.Distribution ( curryCompiler, installDir, rcFileName )
 
 import Data.PropertyFile   ( getPropertyFromFile )
 

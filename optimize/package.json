@@ -1,6 +1,6 @@
 {
     "name": "transbooleq",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A transformation tool to replace Boolean equalities by equational constraints",
     "category": [ "Analysis", "Optimization" ],

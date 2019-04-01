@@ -18,7 +18,7 @@ module Data.PropertyFile
 
 import Data.Char
 import System.Directory
-import IOExts
+import System.IOExts
 
 ------------------------------------------------------------------------------
 --- Reads a property file and returns the list of properties.

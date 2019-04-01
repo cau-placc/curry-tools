@@ -1,7 +1,8 @@
-module System.Process where
+module System.Process 
+  ( getPID, system, exitWith, sleep
+  ) where
 
 import System.Environment
-import Global
 
 --- Returns the process identifier of the current Curry process.
 
@@ -34,6 +35,9 @@ system cmd = do
 
 prim_system :: String -> IO Int
 prim_system external
+
+getEnvironment :: IO [(String, String)]
+getEnvironment external
 
 --- Terminates the execution of the current Curry program
 --- and returns the exit code given by the argument.

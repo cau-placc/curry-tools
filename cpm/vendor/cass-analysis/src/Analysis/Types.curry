@@ -36,7 +36,7 @@ import Analysis.Files    ( getImports, loadCompleteAnalysis, getInterfaceInfos )
 --- generic analysis system. The datatype is abstract so that
 --- one has to use one of the constructor operations to create
 --- an analysis.
-data Analysis a = 
+data Analysis a =
    SimpleFuncAnalysis String (FuncDecl -> a)
  | SimpleTypeAnalysis String (TypeDecl -> a)
  | SimpleConstructorAnalysis String (ConsDecl -> TypeDecl -> a)
@@ -58,20 +58,20 @@ data Analysis a =
 --- some information from a given function declaration.
 simpleFuncAnalysis :: String -> (FuncDecl -> a) -> Analysis a
 simpleFuncAnalysis anaName anaFunc =
-  SimpleFuncAnalysis anaName anaFunc 
+  SimpleFuncAnalysis anaName anaFunc
 
 --- A simple analysis for types takes an operation that computes
 --- some information from a given type declaration.
 simpleTypeAnalysis :: String -> (TypeDecl -> a) -> Analysis a
 simpleTypeAnalysis anaName anaFunc =
-  SimpleTypeAnalysis anaName anaFunc 
+  SimpleTypeAnalysis anaName anaFunc
 
 --- A simple analysis for data constructors takes an operation that computes
 --- some information for a constructor declaration and its type declaration
 --- to which it belongs.
 simpleConstructorAnalysis :: String -> (ConsDecl -> TypeDecl -> a) -> Analysis a
 simpleConstructorAnalysis anaName anaFunc =
-  SimpleConstructorAnalysis anaName anaFunc 
+  SimpleConstructorAnalysis anaName anaFunc
 
 --- Construct a function analysis with dependencies.
 --- The analysis has a name, a start value (representing "no initial
@@ -102,7 +102,7 @@ dependencyTypeAnalysis anaName startval anaType =
 --- some information from a given function declaration
 --- and information provided by some base analysis.
 --- The base analysis is provided as the second argument.
-combinedSimpleFuncAnalysis :: String -> Analysis b
+combinedSimpleFuncAnalysis :: Read b => String -> Analysis b
                            -> (ProgInfo  b -> FuncDecl -> a) -> Analysis a
 combinedSimpleFuncAnalysis ananame baseAnalysis anaFunc =
   CombinedSimpleFuncAnalysis [analysisName baseAnalysis] ananame True
@@ -113,7 +113,8 @@ combinedSimpleFuncAnalysis ananame baseAnalysis anaFunc =
 --- some information from a given function declaration
 --- and information provided by two base analyses.
 --- The base analyses are provided as the second and third argument.
-combined2SimpleFuncAnalysis :: String -> Analysis b -> Analysis c
+combined2SimpleFuncAnalysis :: (Read b, Read c)
+                  => String -> Analysis b -> Analysis c
                   -> (ProgInfo b -> ProgInfo c -> FuncDecl -> a) -> Analysis a
 combined2SimpleFuncAnalysis ananame baseAnalysisA baseAnalysisB anaFunc =
   CombinedSimpleFuncAnalysis
@@ -127,7 +128,7 @@ combined2SimpleFuncAnalysis ananame baseAnalysisA baseAnalysisB anaFunc =
 --- some information from a given type declaration
 --- and information provided by some base analysis.
 --- The base analysis is provided as the second argument.
-combinedSimpleTypeAnalysis :: String -> Analysis b
+combinedSimpleTypeAnalysis :: Read b => String -> Analysis b
                            -> (ProgInfo  b -> TypeDecl -> a) -> Analysis a
 combinedSimpleTypeAnalysis ananame baseAnalysis anaFunc =
   CombinedSimpleTypeAnalysis [analysisName baseAnalysis] ananame True
@@ -141,7 +142,7 @@ combinedSimpleTypeAnalysis ananame baseAnalysis anaFunc =
 --- The analysis will be performed by a fixpoint iteration
 --- starting with the given start value (fourth argument).
 --- The base analysis is provided as the second argument.
-combinedDependencyFuncAnalysis :: String -> Analysis b -> a
+combinedDependencyFuncAnalysis :: Read b => String -> Analysis b -> a
              -> (ProgInfo b -> FuncDecl -> [(QName,a)] -> a) -> Analysis a
 combinedDependencyFuncAnalysis ananame baseAnalysis startval anaFunc =
   CombinedDependencyFuncAnalysis
@@ -156,7 +157,7 @@ combinedDependencyFuncAnalysis ananame baseAnalysis startval anaFunc =
 --- The analysis will be performed by a fixpoint iteration
 --- starting with the given start value (fourth argument).
 --- The base analysis is provided as the second argument.
-combinedDependencyTypeAnalysis :: String -> Analysis b -> a
+combinedDependencyTypeAnalysis :: Read b => String -> Analysis b -> a
    -> (ProgInfo b -> TypeDecl -> [(QName,a)] -> a) -> Analysis a
 combinedDependencyTypeAnalysis ananame baseAnalysis startval anaType =
   CombinedDependencyTypeAnalysis
@@ -168,7 +169,7 @@ combinedDependencyTypeAnalysis ananame baseAnalysis startval anaType =
 --- some information from a given module.
 simpleModuleAnalysis :: String -> (Prog -> a) -> Analysis a
 simpleModuleAnalysis anaName anaFunc =
-  SimpleModuleAnalysis anaName anaFunc 
+  SimpleModuleAnalysis anaName anaFunc
 
 --- Construct a module analysis which uses analysis information on
 --- imported modules.
@@ -243,7 +244,7 @@ baseAnalysisNames ana = case ana of
 startValue :: Analysis a -> a
 startValue ana = case ana of
   DependencyFuncAnalysis _             startval _ -> startval
-  DependencyTypeAnalysis _             startval _ -> startval 
+  DependencyTypeAnalysis _             startval _ -> startval
   CombinedDependencyFuncAnalysis _ _ _ startval _ -> startval
   CombinedDependencyTypeAnalysis _ _ _ startval _ -> startval
   _ -> error "Internal error in Analysis.startValue"
@@ -261,7 +262,8 @@ data AOutFormat = AText | ANote
 -------------------------------------------------------------------------
 --- Loads the results of the base analysis and put it as the first
 --- argument of the main analysis operation which is returned.
-runWithBaseAnalysis :: Analysis a -> (ProgInfo a -> (input -> b)) -> String
+runWithBaseAnalysis :: Read a
+                    => Analysis a -> (ProgInfo a -> (input -> b)) -> String
                     -> IO (input -> b)
 runWithBaseAnalysis baseAnalysis analysisFunction moduleName = do
   importedModules <- getImports moduleName
@@ -273,7 +275,8 @@ runWithBaseAnalysis baseAnalysis analysisFunction moduleName = do
 
 --- Loads the results of the base analysis and put it as the first
 --- argument of the main analysis operation which is returned.
-runWith2BaseAnalyses :: Analysis a -> Analysis b
+runWith2BaseAnalyses :: (Read a, Read b)
+                     => Analysis a -> Analysis b
                      -> (ProgInfo a -> ProgInfo b -> (input -> c)) -> String
                      -> IO (input -> c)
 runWith2BaseAnalyses baseanaA baseanaB analysisFunction moduleName = do
@@ -287,4 +290,3 @@ runWith2BaseAnalyses baseanaA baseanaB analysisFunction moduleName = do
   let baseinfosA = combineProgInfo impbaseinfosA mainbaseinfosA
       baseinfosB = combineProgInfo impbaseinfosB mainbaseinfosB
   return (analysisFunction baseinfosA baseinfosB)
-

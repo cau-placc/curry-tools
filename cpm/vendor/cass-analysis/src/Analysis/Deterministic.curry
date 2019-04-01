@@ -48,7 +48,7 @@ orInExpr (Typed e _) = orInExpr e
 -- Show overlapping information as a string.
 showOverlap :: AOutFormat -> Bool -> String
 showOverlap _     True  = "overlapping"
-showOverlap AText False = "non-overlapping" 
+showOverlap AText False = "non-overlapping"
 showOverlap ANote False = ""
 
 ------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ functionalAnalysis = dependencyFuncAnalysis "Functional" True isFuncDefined
 -- Show functionally defined information as a string.
 showFunctional :: AOutFormat -> Bool -> String
 showFunctional _     True  = "functional"
-showFunctional AText False = "defined with logic features" 
+showFunctional AText False = "defined with logic features"
 showFunctional ANote False = ""
 
 -- An operation is functionally defined if its definition is not
@@ -107,12 +107,12 @@ extraVarInExpr (Typed e _) = extraVarInExpr e
 
 --- Data type to represent determinism information.
 data Deterministic = NDet | Det
-  deriving Eq
+  deriving (Eq, Ord, Show, Read)
 
 -- Show determinism information as a string.
 showDet :: AOutFormat -> Deterministic -> String
 showDet _     NDet = "non-deterministic"
-showDet AText Det  = "deterministic" 
+showDet AText Det  = "deterministic"
 showDet ANote Det  = ""
 
 nondetAnalysis :: Analysis Deterministic
@@ -129,7 +129,7 @@ nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
  where
   callsNDOpInRule (Rule _ e) = callsNDOp e
   callsNDOpInRule (External _) = False
-  
+
   callsNDOp (Var _)    = False
   callsNDOp (Lit _)    = False
   callsNDOp (Free _ e) = callsNDOp e
@@ -220,7 +220,7 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
  where
   calledNDFuncsInRule (Rule _ e) = calledNDFuncs e
   calledNDFuncsInRule (External _) = []
-  
+
   calledNDFuncs (Var _) = []
   calledNDFuncs (Lit _) = []
   calledNDFuncs (Free _ e) = calledNDFuncs e

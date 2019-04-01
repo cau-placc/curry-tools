@@ -20,10 +20,10 @@ module CASS.Configuration
 import Data.Char           ( isSpace )
 import Data.List           ( sort )
 import System.Directory
-import System.Distribution ( curryCompiler )
 import System.FilePath     ( FilePath, (</>), (<.>) )
 import System.Environment
 import System.Process
+import Language.Curry.Distribution ( curryCompiler )
 import Global
 import Numeric
 import ReadShowTerm

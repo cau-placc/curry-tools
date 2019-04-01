@@ -42,8 +42,8 @@ module System.Random
   , shuffle
   ) where
 
-import System ( getCPUTime )
-import Time   ( CalendarTime(..), getClockTime, toUTCTime )
+import System.CPUTime ( getCPUTime )
+import Data.Time      ( CalendarTime(..), getClockTime, toUTCTime )
 
 #ifdef __PAKCS__
 ------------------------------------------------------------------

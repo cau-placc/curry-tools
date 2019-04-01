@@ -23,7 +23,8 @@ import Data.PropertyFile   ( getPropertiesFromFile )
 import System.FilePath     ( FilePath, (</>), takeDirectory, takeFileName )
 import System.Process      ( system )
 import System.CurryPath    ( getLoadPathForModule )
-import System.Distribution ( curryCompiler, curryCompilerMajorVersion
+import Language.Curry.Distribution 
+                           ( curryCompiler, curryCompilerMajorVersion
                            , curryCompilerMinorVersion, installDir, rcFileName 
                            )
 

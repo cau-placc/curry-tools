@@ -1,0 +1,30 @@
+{
+    "name": "containers",
+    "version": "3.0.0",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Library implementing various datastructures",
+    "category": [ "Data" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base":   ">= 3.0.0, < 4.0.0",
+        "random": ">= 3.0.0, < 4.0.0"
+    },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
+    "exportedModules": [ "Data.Map" ],
+    "testsuite": [
+        { "src-dir": "src",
+          "modules": [ "Data.Map" ]
+        },
+        { "src-dir": "test",
+          "modules": [ "TestMap" ]
+        }
+    ],
+    "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/containers.git",
+      "tag": "$version"
+    }
+}

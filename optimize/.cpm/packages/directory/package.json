@@ -1,15 +1,15 @@
 {
   "name": "directory",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
   "synopsis": "Library for accessing the directory structure of the underlying operating system.",
   "category": [ "System" ],
   "license": "BSD-3-Clause",
   "licenseFile": "LICENSE",
   "dependencies": {
-        "base":     ">= 2.0.0, < 3.0.0",
-        "filepath": ">= 2.0.0, < 3.0.0",
-        "time":     ">= 2.0.0, < 3.0.0"
+        "base"    : ">= 3.0.0, < 4.0.0",
+        "filepath": ">= 3.0.0, < 4.0.0",
+        "time"    : ">= 3.0.0, < 4.0.0"
   },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

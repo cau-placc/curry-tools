@@ -27,7 +27,7 @@ import FlatCurry.Goodies
 data ResiduationInfo = MayResiduate
                      | NoResiduateIf [Int]
                      | NoResInfo
- deriving Eq
+  deriving (Show, Read, Eq)
 
 -- Least upper bound of residuation information
 lubNRI :: ResiduationInfo -> ResiduationInfo -> ResiduationInfo
@@ -113,13 +113,13 @@ nrFuncRule _ _ calledFuncs (Rule args rhs) =
   nrExp amap (Case _ e bs) = foldr lubNRI nrcexp (map nrBranch bs)
    where
     nrcexp = nrExp amap e -- non-res. condition of discriminating expression
-    
+
     nrBranch (Branch (LPattern _) be) = nrExp amap be
     nrBranch (Branch (Pattern _ xs) be) =
       nrExp (map (\x -> (x,nrcexp)) xs ++ amap) be
 
   nrExp amap (Free _ e)  = nrExp amap e
-  
+
   -- could be improved by sorting bindings by their variable dependencies
   -- (which seems already done by the front-end)
   nrExp amap (Let bindings e)  =
@@ -132,7 +132,7 @@ nrFuncRule _ _ calledFuncs (Rule args rhs) =
     addBindings amp ((v,be):bs) = addBindings ((v, nrExp amp be) : amp) bs
 
   nrExp amap (Or e1 e2)  = lubNRI (nrExp amap e1) (nrExp amap e2)
-  
+
   nrExp amap (Typed e _) = nrExp amap e
 
 prelude :: String

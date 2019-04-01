@@ -5,7 +5,7 @@
    "category": [ "Printing" ],
    "synopsis": "A pretty printer for boxes",
    "dependencies": {
-       "base" : ">= 2.0.0"
+       "base" : ">= 3.0.0, < 4.0.0"
    },
    "compilerCompatibility": {
        "pakcs": ">= 2.0.0",

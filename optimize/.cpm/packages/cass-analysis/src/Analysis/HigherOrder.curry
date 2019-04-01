@@ -13,7 +13,7 @@ import Data.Maybe
 
 -- datatype order: higher-order or first-order
 data Order = HO | FO
-  deriving Eq
+  deriving (Show, Read, Eq)
 
 -- Show higher-order information as a string.
 showOrder :: AOutFormat -> Order -> String
@@ -21,11 +21,11 @@ showOrder _ HO = "higher-order"
 showOrder _ FO = "first-order"
 
 hoOr :: Order -> Order -> Order
-hoOr HO _ = HO 
+hoOr HO _ = HO
 hoOr FO x = x
 
 ------------------------------------------------------------------------
--- higher-order data type analysis 
+-- higher-order data type analysis
 
 hiOrdType :: Analysis Order
 hiOrdType =  dependencyTypeAnalysis "HiOrderType" FO orderOfType
@@ -73,18 +73,18 @@ orderOfFunc orderMap func =
   orderOfFuncTypeArity orderMap (funcType func) (funcArity func)
 
 orderOfFuncTypeArity :: ProgInfo Order -> TypeExpr -> Int -> Order
-orderOfFuncTypeArity orderMap functype arity = 
+orderOfFuncTypeArity orderMap functype arity =
   if arity==0
   then
    case functype of
      FuncType _ _   -> HO
      TVar (-42)     -> HO
-     TCons x (y:ys) -> hoOr (orderOfFuncTypeArity orderMap y 0) 
+     TCons x (y:ys) -> hoOr (orderOfFuncTypeArity orderMap y 0)
                             (orderOfFuncTypeArity orderMap (TCons x ys) 0)
-     TCons tc [] -> fromMaybe FO (lookupProgInfo tc orderMap) 
+     TCons tc [] -> fromMaybe FO (lookupProgInfo tc orderMap)
      _ -> FO
-  else let (FuncType x y) = functype 
-        in hoOr (orderOfFuncTypeArity orderMap x 0) 
+  else let (FuncType x y) = functype
+        in hoOr (orderOfFuncTypeArity orderMap x 0)
                 (orderOfFuncTypeArity orderMap y (arity-1))
 
 -----------------------------------------------------------------------

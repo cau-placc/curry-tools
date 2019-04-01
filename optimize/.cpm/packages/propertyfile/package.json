@@ -1,15 +1,15 @@
 {
     "name": "propertyfile",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Read and update files containing properties in equational syntax",
     "category": [ "Data" ],
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
-        "base":      ">= 2.0.0, < 3.0.0",
-        "directory": ">= 2.0.0, < 3.0.0",
-        "io-extra":  ">= 2.0.0, < 3.0.0"
+        "base":      ">= 3.0.0, < 4.0.0",
+        "directory": ">= 3.0.0, < 4.0.0",
+        "io-extra":  ">= 3.0.0, < 4.0.0"
     },
     "compilerCompatibility": {
         "pakcs": ">= 2.0.0",

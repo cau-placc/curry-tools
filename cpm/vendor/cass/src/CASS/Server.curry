@@ -137,7 +137,8 @@ analyzeModule ananame moduleName enforce aoutformat = do
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
 --- Returns either the analysis information or an error message.
-analyzeGeneric :: Analysis a -> String -> IO (Either (ProgInfo a) String)
+analyzeGeneric :: (Read a, Show a)
+               => Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric analysis moduleName = do
   initializeAnalysisSystem
   let (mdir,mname) = splitFileName moduleName
@@ -166,7 +167,8 @@ analyzeGeneric analysis moduleName = do
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
 --- Returns either the analysis information or an error message.
-analyzePublic :: Analysis a -> String -> IO (Either (ProgInfo a) String)
+analyzePublic :: (Read a, Show a)
+              => Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzePublic analysis moduleName =
   analyzeGeneric analysis moduleName
   >>= return . either (Left . publicProgInfo) Right
@@ -176,7 +178,8 @@ analyzePublic analysis moduleName =
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
-analyzeInterface :: Analysis a -> String -> IO (Either [(QName,a)] String)
+analyzeInterface :: (Read a, Show a)
+                 => Analysis a -> String -> IO (Either [(QName,a)] String)
 analyzeInterface analysis moduleName =
   analyzeGeneric analysis moduleName
   >>= return . either (Left . publicListFromProgInfo) Right
