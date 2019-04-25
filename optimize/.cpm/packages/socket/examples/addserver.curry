@@ -2,32 +2,36 @@
 --- A simple "addition" server to test the Socket library.
 ---
 --- @author Michael Hanus
---- @version February 2006
+--- @version April 2019
 ------------------------------------------------------------------------------
 
 import IO
-import Read(readInt)
+import Read ( readInt )
 
 import Network.Socket
 
 -- Choose a free port number:
 portnr :: Int
-portnr = 32145
+portnr = 65502
 
+sendTo :: String -> String -> IO ()
 sendTo host msg = do
   h <- connectToSocket host portnr
   hPutStr h msg
   hClose h
 
+stopServer :: String -> IO ()
 stopServer host = sendTo host "TERMINATE\n"
 
 
 -- An "addition" server:
+addServer :: IO ()
 addServer = do
   socket <- listenOn portnr
   putStrLn $ "Serving port: " ++ show portnr
   addServeSocket socket
 
+addServeSocket :: Socket -> IO ()
 addServeSocket socket = do
   (chost,stream) <- accept socket
   putStrLn $ "Connection from "++chost

@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version August 2018
+--- @version April 2019
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -23,7 +23,8 @@ import Analysis.Types
 import Analysis.ProgInfo
 import Analysis.RequiredValues
 import CASS.Server       ( analyzeGeneric, analyzePublic, analyzeInterface )
-import System.CurryPath  ( currySubdir, addCurrySubdir, splitModuleFileName )
+import System.CurryPath  ( addCurrySubdir, currySubdir
+                         , lookupModuleSourceInLoadPath, splitModuleFileName )
 import Text.CSV
 
 
@@ -92,30 +93,34 @@ printVerbose verbosity printlevel message =
 transformBoolEq :: Options -> String -> IO ()
 transformBoolEq opts@(verb, _, _) name = do
   let isfcyname = fileSuffix name == "fcy"
-      modname   = if isfcyname
-                  then modNameOfFcyName (normalise (stripSuffix name))
-                  else name
+  (moddir,modname) <- 
+         if isfcyname
+           then return $ modNameOfFcyName (normalise (stripSuffix name))
+           else lookupModuleSourceInLoadPath name >>=
+                maybe (error $ "Source file of module '" ++ name ++
+                               "' not found!")
+                      (\ (dir,_) -> return (dir,name))
   printVerbose verb 1 $ "Reading and analyzing module '" ++ modname ++ "'..."
   flatprog <- if isfcyname then readFlatCurryFile name
                            else readFlatCurry     modname
-  transformAndStoreFlatProg opts modname flatprog
+  transformAndStoreFlatProg opts moddir modname flatprog
 
 -- Drop a suffix from a list if present or leave the list as is otherwise.
 dropSuffix :: Eq a => [a] -> [a] -> [a]
 dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
                  | otherwise          = s
 
--- Extracts the module name from a given FlatCurry file name:
-modNameOfFcyName :: String -> String
+-- Extracts the directory path and module name from a given FlatCurry file name:
+modNameOfFcyName :: String -> (String,String)
 modNameOfFcyName name =
   let wosuffix = normalise (stripSuffix name)
       [dir,wosubdir] = splitOn (currySubdir ++ [pathSeparator]) wosuffix
    in -- construct hierarchical module name:
-      dir </> intercalate "." (split (==pathSeparator) wosubdir)
+      (dir, intercalate "." (split (==pathSeparator) wosubdir))
    
-transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
-transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
-  let (dir, name) = splitModuleFileName (progName prog) modname
+transformAndStoreFlatProg :: Options -> String -> String -> Prog -> IO ()
+transformAndStoreFlatProg opts@(verb, _, load) dir modname prog = do
+  let name        = intercalate [pathSeparator] (split (== '.') modname)
       oldprogfile = normalise $ addCurrySubdir dir </>  name         <.> "fcy"
       newprogfile = normalise $ addCurrySubdir dir </>  name ++ "_O" <.> "fcy"
   starttime <- getCPUTime
