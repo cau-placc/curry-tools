@@ -3,7 +3,7 @@
 --- Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version December 2018
+--- @version October 2019
 ------------------------------------------------------------------------------
 
 module System.FrontendExec
@@ -14,7 +14,7 @@ module System.FrontendExec
   , specials, setQuiet, setExtended, setCpp, addDefinition, setDefinitions
   , setOverlapWarn, setFullPath, setHtmlDir, setLogfile, addTarget, setSpecials
 
-  , callFrontend, callFrontendWithParams
+  , callFrontend, callFrontendWithParams, showFrontendTarget
   ) where
 
 import Char         ( toUpper )
@@ -220,7 +220,8 @@ callFrontendWithParams target params modpath = do
   parsecurry <- callParseCurry
   let lf      = maybe "" id (logfile params)
       tgts    = nub (target : targets params)
-      syscall = unwords $ [parsecurry] ++ map showFrontendTarget tgts ++
+      syscall = unwords $ [parsecurry] ++
+                          map (\t -> "--" ++ showFrontendTarget t) tgts ++
                           [showFrontendParams, cppParams, takeFileName modpath]
   retcode <- if null lf
              then system syscall
@@ -238,19 +239,6 @@ callFrontendWithParams target params modpath = do
 
    quote s = '"' : s ++ "\""
 
-   showFrontendTarget FCY   = "--flat"
-   showFrontendTarget TFCY  = "--typed-flat"
-   showFrontendTarget TAFCY = "--type-annotated-flat"
-   showFrontendTarget FINT  = "--flat"
-   showFrontendTarget ACY   = "--acy"
-   showFrontendTarget UACY  = "--uacy"
-   showFrontendTarget HTML  = "--html"
-   showFrontendTarget CY    = "--parse-only"
-   showFrontendTarget TOKS  = "--tokens"
-   showFrontendTarget AST   = "--ast"
-   showFrontendTarget SAST  = "--short-ast"
-   showFrontendTarget COMMS = "--comments"
-
    showFrontendParams = unwords
     [ if quiet       params then runQuiet     else ""
     , if extended    params then "--extended" else ""
@@ -265,5 +253,20 @@ callFrontendWithParams target params modpath = do
    cppParams = intercalate " " $ map showDefinition (definitions params)
 
    showDefinition (s, v) = "-D" ++ s ++ "=" ++ show v
+
+--- Shows the FrontendTarget as the parameter passed to the front-end.
+showFrontendTarget :: FrontendTarget -> String
+showFrontendTarget FCY   = "flat"
+showFrontendTarget TFCY  = "typed-flat"
+showFrontendTarget TAFCY = "type-annotated-flat"
+showFrontendTarget FINT  = "flat"
+showFrontendTarget ACY   = "acy"
+showFrontendTarget UACY  = "uacy"
+showFrontendTarget HTML  = "html"
+showFrontendTarget CY    = "parse-only"
+showFrontendTarget TOKS  = "tokens"
+showFrontendTarget AST   = "ast"
+showFrontendTarget SAST  = "short-ast"
+showFrontendTarget COMMS = "comments"
 
 ------------------------------------------------------------------------------
