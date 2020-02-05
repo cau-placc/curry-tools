@@ -17,7 +17,7 @@ rev (x:xs) = append (rev xs) [x]
 nrev :: Int -> IO ()
 nrev n = do
   let xs = [1 .. n]
-  const done $!! xs
+  const (return ()) $!! xs
   profileSpaceNF (rev xs)
 -- LIPS = (n+1)*(n+2)/2/exec.time
 
@@ -25,11 +25,11 @@ nrev n = do
 nrevLIPS :: Int -> IO ()
 nrevLIPS n = do
   let xs = [1 .. n]
-  const done $!! xs
+  const (return ()) $!! xs
   garbageCollect
   garbageCollectorOff
   pi1 <- getProcessInfos
-  const done $!! (rev xs)
+  const (return ()) $!! (rev xs)
   pi2 <- getProcessInfos
   garbageCollectorOn
   let rtime = maybe 0 id (lookup RunTime pi2)
@@ -58,17 +58,20 @@ main = nrevLIPS 4000
 -- Result on a Linux-PC Intel Core i7-4790 / 3.6Ghz (belair, Sicstus 4.3/JIT):
 -- 13.45 MLIPS for (nrev 4000)
 
+-- Result on a Linux-PC Intel Core i7-7700 / 4.2Ghz (lascombes, Sicstus 4.4):
+-- 16.14 MLIPS for (nrev 4000)
+
 
 -- as nrev but double evaluation
 nrev2 :: Int -> IO ()
 nrev2 n = do
   let xs = [1 .. n]
-  const done $!! xs
+  const (return ()) $!! xs
   profileSpaceNF (rev xs, rev xs)
 
 -- as nrev2 but with test equality instead of unification:
 nrev3 :: Int -> IO ()
 nrev3 n = do
   let xs = [1 .. n]
-  const done $!! xs
+  const (return ()) $!! xs
   profileSpaceNF (rev xs == rev xs)
