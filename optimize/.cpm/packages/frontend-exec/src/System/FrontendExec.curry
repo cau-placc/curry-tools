@@ -75,7 +75,10 @@ data FrontendParams =
                  [FrontendTarget]
                  String
 
---- The default parameters of the front end.
+--- The default parameters of the front end which support extended
+--- Curry syntax, warns for overlapping rules and sets the
+--- definition for the currently used Curry system if conditional compiling
+--- will be used.
 defaultParams :: FrontendParams
 defaultParams =
   FrontendParams False True False defaultDefs True Nothing Nothing Nothing [] ""

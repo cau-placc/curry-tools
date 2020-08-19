@@ -13,13 +13,23 @@ ppJValue JTrue = text "true"
 ppJValue JFalse = text "false"
 ppJValue JNull = text "null"
 ppJValue (JNumber f) = float f
-ppJValue (JString s) = text $ show s
 ppJValue (JArray vs) = ppJArray vs
 ppJValue (JObject ps) = ppJObject ps
+ppJValue (JString s) = text $ '"' : concatMap ppJChar s ++ "\""
+ where
+  ppJChar c | c == '"'  = "\\\""
+            | c == '\\' = "\\\\"
+            | c == '\b' = "\\b"
+            | c == '\f' = "\\f"
+            | c == '\n' = "\\n"
+            | c == '\r' = "\\r"
+            | c == '\t' = "\\t"
+            | otherwise = [c]
 
 ppJArray :: [JValue] -> Doc
 ppJArray vs = listSpaced $ map ppJValue vs
 
 ppJObject :: [(String, JValue)] -> Doc
-ppJObject ps = (nest 2 $ lbrace $$ vsep (punctuate comma $ map ppKVP ps)) $$ rbrace
-  where ppKVP (k, v) = (text $ show k) <> colon <+> ppJValue v
+ppJObject ps =
+  (nest 2 $ lbrace $$ vsep (punctuate comma $ map ppKVP ps)) $$ rbrace
+ where ppKVP (k, v) = (text $ show k) <> colon <+> ppJValue v
