@@ -1,10 +1,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Definitions of builtins of module Debug.Profile:
+% PAKCS/Prolog implementations of builtins of module Debug.Profile:
 %
 
 % return statistics about the PAKCS process:
-prim_getProcessInfos(Infos) :-
+'Debug.Profile.getProcessInfos'(Infos) :-
 	(prologbasics:getCurrentGCs(GCs)
          -> I1=['Prelude.(,)'('Debug.Profile.GarbageCollections',GCs)] ; I1=[]),
 	(prologbasics:getCurrentChoiceSize(Choice)
@@ -24,11 +24,14 @@ prim_getProcessInfos(Infos) :-
 	Infos = I8.
 
 % turn on garbage collector:
-prim_garbageCollectorOn('Prelude.()') :- prologbasics:garbageCollectorOn.
+'Debug.Profile.garbageCollectorOn'('Prelude.()') :-
+        prologbasics:garbageCollectorOn.
 
 % turn off garbage collector:
-prim_garbageCollectorOff('Prelude.()') :- prologbasics:garbageCollectorOff.
+'Debug.Profile.garbageCollectorOff'('Prelude.()') :-
+        prologbasics:garbageCollectorOff.
 
 % turn off garbage collector:
-prim_garbageCollect('Prelude.()') :- prologbasics:garbageCollect.
+'Debug.Profile.garbageCollect'('Prelude.()') :-
+        prologbasics:garbageCollect.
 

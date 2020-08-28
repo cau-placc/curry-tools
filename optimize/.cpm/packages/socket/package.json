@@ -1,6 +1,6 @@
 {
     "name": "socket",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Library for programming with sockets",
     "category": [ "Network" ],
@@ -10,7 +10,7 @@
         "base"    : ">= 1.0.0, < 2.0.0"
     },
     "compilerCompatibility": {
-        "pakcs": ">= 2.0.0",
+        "pakcs": ">= 2.2.1, < 3.0.0",
         "kics2": ">= 2.0.0"
     },
     "exportedModules": [ "Network.Socket" ],
