@@ -5,6 +5,9 @@
 TOOL      = $(BINDIR)/cypm
 CURRYTOOL = $(BINDIR)/$(CURRYSYSTEM)-$(notdir $(TOOL))
 
+# Executable of CurryCheck:
+CURRYCHECK := $(shell which curry-check)
+
 # The default options for the REPL (options "rts -T" required for KiCS2
 # in order to get elapsed times):
 ifeq ($(CURRYSYSTEM),kics2)
@@ -57,7 +60,10 @@ runtest:
 	for i in `ls vendor`; do					\
 		export CURRYPATH="$$CURRYPATH:`pwd`/vendor/$$i/src";	\
 	done;								\
-	cd src; $(REPL) check CPM.Package CPM.Resolution CPM.LookupSet
+	if [ ! -x "$(CURRYCHECK)" ] ; then \
+	  echo "Executable 'curry-check' is not installed!" && echo "To run the tests, install it by > cypm install currycheck" ; \
+	else \
+	  cd src && $(CURRYCHECK) CPM.Package CPM.Resolution CPM.LookupSet ; fi
 
 .PHONY: doc
 doc:
