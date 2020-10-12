@@ -32,18 +32,18 @@ overlapAnalysis = simpleFuncAnalysis "Overlapping" isOverlappingFunction
 
 isOverlappingFunction :: FuncDecl -> Bool
 isOverlappingFunction (Func _ _ _ _ (Rule _ e))   = orInExpr e
-isOverlappingFunction (Func f _ _ _ (External _)) = f==("Prelude","?")
+isOverlappingFunction (Func f _ _ _ (External _)) = f == ("Prelude","?")
 
 -- Check an expression for occurrences of OR:
 orInExpr :: Expr -> Bool
-orInExpr (Var _) = False
-orInExpr (Lit _) = False
-orInExpr (Comb _ f es) = f==(pre "?") || any orInExpr es
-orInExpr (Free _ e) = orInExpr e
-orInExpr (Let bs e) = any orInExpr (map snd bs) || orInExpr e
-orInExpr (Or _ _) = True
+orInExpr (Var _)       = False
+orInExpr (Lit _)       = False
+orInExpr (Comb _ f es) = f == (pre "?") || any orInExpr es
+orInExpr (Free _ e)    = orInExpr e
+orInExpr (Let bs e)    = any orInExpr (map snd bs) || orInExpr e
+orInExpr (Or _ _)      = True
 orInExpr (Case _ e bs) = orInExpr e || any orInBranch bs
-                   where orInBranch (Branch _ be) = orInExpr be
+ where orInBranch (Branch _ be) = orInExpr be
 orInExpr (Typed e _) = orInExpr e
 
 -- Show overlapping information as a string.
