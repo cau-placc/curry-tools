@@ -193,7 +193,7 @@ transformFuncDecl lookupreqinfo fdecl@(Func qf@(_,fn) ar vis texp rule) =
 -------------------------------------------------------------------------
 -- State threaded through the program transformer:
 -- * name of current function
--- * number of occurrences of (==) that are replaced by 'constrEq'
+-- * number of occurrences of (==) that are replaced by (=:=)
 data TState = TState QName Int
 
 initTState :: QName -> TState
@@ -210,11 +210,11 @@ incOccNumber (TState qf on) = TState qf (on+1)
 --- values. If there is an occurrence of (e1==e2) where the value `True`
 --- is required, then this occurrence is replaced by
 ---
----     (constrEq e1 e2)
+---     (e1 =:= e2)
 ---
 --- Similarly, (e1/=e2) with required value `False` is replaced by
 ---
----     (not (constrEq e1 e2))
+---     (not (e1 =:= e2))
 
 transformRule :: (QName -> Maybe AFType) -> TState -> Rule -> (TState,Rule)
 transformRule _ tst (External s) = (tst, External s)
@@ -227,11 +227,11 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 exp@(Comb ct qf es) reqval
     | reqval == aTrue && isBoolEqualCall "==" exp
-    = (Comb FuncCall (pre "constrEq") (argsOfBoolEqualCall "==" (Comb ct qf tes))
+    = (Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "==" (Comb ct qf tes))
       , incOccNumber tst1)
     | reqval == aFalse && isBoolEqualCall "/=" exp
     = (Comb FuncCall (pre "not")
-         [Comb FuncCall (pre "constrEq") (argsOfBoolEqualCall "/=" (Comb ct qf tes))]
+         [Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "/=" (Comb ct qf tes))]
       , incOccNumber tst1)
     | qf == pre "$" && length es == 2 &&
       (isFuncPartCall (head es) || isConsPartCall (head es))
@@ -478,7 +478,7 @@ statSummary = concatMap showSum
       then ""
       else "Function "++fn++": "++
            (if teqs==1 then "one occurrence" else show teqs++" occurrences") ++
-           " of (==) transformed into 'constrEq'\n"
+           " of (==) transformed into '(=:=)'\n"
 
 --- Translate statistics into CSV format:
 stats2csv :: [TransStat] -> [[String]]
