@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version August 2018
+--- @version October 2020
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -478,7 +478,7 @@ statSummary = concatMap showSum
       then ""
       else "Function "++fn++": "++
            (if teqs==1 then "one occurrence" else show teqs++" occurrences") ++
-           " of (==) transformed into '(=:=)'\n"
+           " of (==) transformed into (=:=)\n"
 
 --- Translate statistics into CSV format:
 stats2csv :: [TransStat] -> [[String]]
