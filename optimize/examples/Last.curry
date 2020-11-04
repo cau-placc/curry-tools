@@ -2,7 +2,7 @@
 
 import Test.Prop
 
-last :: Eq a => [a] -> a
+last :: (Data a, Eq a) => [a] -> a
 last xs | _ ++ [x] == xs = x  where x free
 
 main :: Int

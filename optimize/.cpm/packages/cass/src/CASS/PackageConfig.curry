@@ -5,13 +5,17 @@ import System.FilePath((</>))
 
 --- Package version as a string.
 packageVersion :: String
-packageVersion = "2.0.0"
+packageVersion = "3.0.0"
 
 --- Package location.
 packagePath :: String
 packagePath =
-  installDir </> "currytools" </> "cpm" </> "vendor" </> "cass"
+ installDir </> "currytools" </> "optimize" </> ".cpm" </> "packages" </> "cass"
 
 --- Location of the executable installed by this package.
 packageExecutable :: String
 packageExecutable = ""
+
+--- Load path for the package (if it is the main package).
+packageLoadPath :: String
+packageLoadPath = ""

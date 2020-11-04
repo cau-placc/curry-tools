@@ -3,7 +3,6 @@
 ---
 --- @author Michael Hanus
 --- @version January 2017
---- @category general
 ------------------------------------------------------------------------------
 {-# LANGUAGE CPP #-}
 

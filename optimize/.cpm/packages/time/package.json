@@ -1,0 +1,25 @@
+{
+  "name": "time",
+  "version": "3.0.0",
+  "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+  "synopsis": "Library for handling date and time information.",
+  "category": [ "Data" ],
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+        "base" : ">= 3.0.0, < 4.0.0"
+  },
+  "compilerCompatibility": {
+        "pakcs": ">= 3.0.0, < 4.0.0",
+        "kics2": ">= 3.0.0, < 4.0.0"
+  },
+  "exportedModules": [ "Data.Time" ],
+  "testsuite": {
+      "src-dir": "test",
+      "modules": [ "TestTime" ]
+  },
+  "source": {
+        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/time.git",
+        "tag": "$version"
+  }
+}

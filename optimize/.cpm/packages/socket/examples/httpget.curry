@@ -1,7 +1,7 @@
 -- A simple example showing the direct connection to Unix sockets
 -- by using the `Network.Socket` library.
 
-import IO
+import System.IO
 
 import Network.Socket(connectToSocket)
 
@@ -18,7 +18,7 @@ httpGet host doc = do
 showStreamContents :: Handle -> IO ()
 showStreamContents str = do
  b <- hIsEOF str
- if b then done
+ if b then return ()
       else do l <- hGetLine str
               putStrLn l
               showStreamContents str

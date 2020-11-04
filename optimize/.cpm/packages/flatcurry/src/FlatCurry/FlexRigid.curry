@@ -32,6 +32,7 @@ getFlexRigid (Case ctype e bs) =
          (map getFlexRigid (e : map (\(Branch _ be)->be) bs))
 getFlexRigid (Typed e _) = getFlexRigid e
 
+joinCaseTypes :: FlexRigidResult -> FlexRigidResult -> FlexRigidResult
 joinCaseTypes ConflictFR ConflictFR = ConflictFR
 joinCaseTypes ConflictFR UnknownFR  = ConflictFR
 joinCaseTypes ConflictFR KnownFlex  = ConflictFR

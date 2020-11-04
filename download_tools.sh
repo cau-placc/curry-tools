@@ -49,21 +49,36 @@ cd .cpm/packages
  mv $CASSV cass
  ln -s cass-analysis $CANAV
  ln -s cass $CASSV
- PKGV=`ls -d flatcurry-*`
- mv $PKGV flatcurry
- ln -s flatcurry $PKGV
+ PKGV=`ls -d containers-*`
+ mv $PKGV containers
+ ln -s containers $PKGV
  PKGV=`ls -d csv-*`
  mv $PKGV csv
  ln -s csv $PKGV
- PKGV=`ls -d xml-*`
- mv $PKGV xml
- ln -s xml $PKGV
  PKGV=`ls -d currypath-*`
  mv $PKGV currypath
  ln -s currypath $PKGV
- PKGV=`ls -d finite-map-*`
- mv $PKGV finite-map
- ln -s finite-map $PKGV
+ PKGV=`ls -d directory-*`
+ mv $PKGV directory
+ ln -s directory $PKGV
+ PKGV=`ls -d distribution-*`
+ mv $PKGV distribution
+ ln -s distribution $PKGV
+ PKGV=`ls -d filepath-*`
+ mv $PKGV filepath
+ ln -s filepath $PKGV
+ PKGV=`ls -d flatcurry-*`
+ mv $PKGV flatcurry
+ ln -s flatcurry $PKGV
+ PKGV=`ls -d frontend-exec-*`
+ mv $PKGV frontend-exec
+ ln -s frontend-exec $PKGV
+ PKGV=`ls -d io-extra-*`
+ mv $PKGV io-extra
+ ln -s io-extra $PKGV
+ PKGV=`ls -d process-*`
+ mv $PKGV process
+ ln -s process $PKGV
  PKGV=`ls -d propertyfile-*`
  mv $PKGV propertyfile
  ln -s propertyfile $PKGV
@@ -73,6 +88,9 @@ cd .cpm/packages
  PKGV=`ls -d random-*`
  mv $PKGV random
  ln -s random $PKGV
+ PKGV=`ls -d read-legacy-*`
+ mv $PKGV read-legacy
+ ln -s read-legacy $PKGV
  PKGV=`ls -d redblacktree-*`
  mv $PKGV redblacktree
  ln -s redblacktree $PKGV
@@ -82,12 +100,15 @@ cd .cpm/packages
  PKGV=`ls -d socket-*`
  mv $PKGV socket
  ln -s socket $PKGV
+ PKGV=`ls -d time-*`
+ mv $PKGV time
+ ln -s time $PKGV
  PKGV=`ls -d wl-pprint-*`
  mv $PKGV wl-pprint
  ln -s wl-pprint $PKGV
- PKGV=`ls -d frontend-exec-*`
- mv $PKGV frontend-exec
- ln -s frontend-exec $PKGV
+ PKGV=`ls -d xml-*`
+ mv $PKGV xml
+ ln -s xml $PKGV
 cd ../..
 cd ..
 mv Makefile.optimize optimize/Makefile

@@ -1,17 +1,23 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses, CPP #-}
 import Control.Concurrent
 import Control.Monad (when)
+import System.IO
+#if __GLASGOW_HASKELL__ < 780
 import Network
+#endif
 import Network.Socket hiding (sClose)
 
 type C_Socket = PrimData Socket
 
+-------------------------------------------------
+#if __GLASGOW_HASKELL__ < 780
+
+acceptOld ::  Socket -> IO (Handle, HostName, PortNumber)
+acceptOld = Network.accept
+
 instance ConvertCurryHaskell Curry_Prelude.C_Int PortID where
   toCurry (PortNumber i) = toCurry (toInteger i)
   fromCurry i = PortNumber (fromInteger (fromCurry i))
-
-external_d_C_prim_listenOn :: Curry_Prelude.C_Int -> Cover -> ConstStore -> Curry_Prelude.C_IO C_Socket
-external_d_C_prim_listenOn i _ _ = toCurry listenOn i
 
 external_d_C_listenOnFresh :: Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.OP_Tuple2 Curry_Prelude.C_Int C_Socket)
 external_d_C_listenOnFresh _ _ = toCurry listenOnFreshPort
@@ -19,14 +25,71 @@ external_d_C_listenOnFresh _ _ = toCurry listenOnFreshPort
   listenOnFreshPort :: IO (PortID,Socket)
   listenOnFreshPort = do
     s <- listenOn (PortNumber aNY_PORT)
-    p <- Network.socketPort s
+    p <- socketPort s
     return (p,s)
+
+-------------------------------------------------
+#else
+-------------------------------------------------
+
+acceptOld ::  Socket -> IO (Handle, HostName, PortNumber)
+acceptOld sock = do (s, peer) <- Network.Socket.accept sock
+                    p <- socketPort s
+                    h <- socketToHandle s ReadWriteMode
+                    -- s is invalid after this point.
+                    return (h, show peer, p)
+
+listenOn :: PortNumber -> IO Socket
+listenOn pn = do  
+  -- AI_PASSIVE is needed when the address should be used for bind/listenOn
+  -- AF_INET forces IPv4. This is crucial, because some
+  -- systems crashed with the old Implementation that allowed IPv6
+  -- As soon as IPv6 is needed, someone has to look into this issue again.
+  let hints = defaultHints { addrFlags = [AI_PASSIVE], addrFamily = AF_INET }
+  addr:_ <- getAddrInfo (Just hints) Nothing (Just (show pn))
+  sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+  setSocketOption sock ReuseAddr 1
+  fd <- fdSocket sock
+  setCloseOnExecIfNeeded fd
+  Network.Socket.bind sock (addrAddress addr)
+  listen sock maxListenQueue
+  return sock
+
+sClose :: Socket -> IO ()
+sClose = close
+
+connectTo :: HostName -> PortNumber -> IO Handle
+connectTo s a = do 
+  -- for AF_INET see above
+  let hints = defaultHints { addrFamily = AF_INET }
+  addr:_ <- getAddrInfo (Just hints) (Just s) (Just (show a))
+  sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+  connect sock (addrAddress addr)
+  socketToHandle sock ReadWriteMode
+
+instance ConvertCurryHaskell Curry_Prelude.C_Int PortNumber where
+  toCurry i = toCurry (toInteger i)
+  fromCurry i = fromInteger (fromCurry i)
+
+external_d_C_listenOnFresh :: Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.OP_Tuple2 Curry_Prelude.C_Int C_Socket)
+external_d_C_listenOnFresh _ _ = toCurry listenOnFreshPort
+  where
+  listenOnFreshPort :: IO (PortNumber,Socket)
+  listenOnFreshPort = do
+    s <- listenOn defaultPort
+    p <- socketPort s
+    return (p,s)
+#endif
+-------------------------------------------------
+
+external_d_C_prim_listenOn :: Curry_Prelude.C_Int -> Cover -> ConstStore -> Curry_Prelude.C_IO C_Socket
+external_d_C_prim_listenOn i _ _ = toCurry listenOn i
+
 
 external_d_C_prim_socketAccept :: C_Socket
   -> Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.OP_Tuple2 Curry_Prelude.C_String Curry_IO.C_Handle)
 external_d_C_prim_socketAccept socket _ _ =
- toCurry (\s -> Network.accept s >>= \ (h,s,_) -> return (s,OneHandle h)) socket
-
+ toCurry (\s -> acceptOld s >>= \ (h,s,_) -> return (s,OneHandle h)) socket
 
 external_d_C_prim_waitForSocketAccept :: C_Socket -> Curry_Prelude.C_Int
  -> Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.C_Maybe (Curry_Prelude.OP_Tuple2 (Curry_Prelude.OP_List Curry_Prelude.C_Char) Curry_IO.C_Handle))
@@ -35,10 +98,10 @@ external_d_C_prim_waitForSocketAccept s i _ _ = toCurry wait s i
 wait :: Socket -> Int -> IO (Maybe (String, CurryHandle))
 wait s t =
   if t < 0
-  then Network.accept s >>= \ (h, s, _) -> return (Just (s, OneHandle h))
+  then acceptOld s >>= \ (h, s, _) -> return (Just (s, OneHandle h))
   else do
     mv <- newEmptyMVar
-    tacc <- forkIO (Network.accept s >>= \ (h, s, _) ->
+    tacc <- forkIO (acceptOld s >>= \ (h, s, _) ->
                     putMVar mv (Just (s, OneHandle h)))
     ttim <- forkIO (delay ((fromIntegral t :: Integer) * 1000)
                     >> putMVar mv Nothing)

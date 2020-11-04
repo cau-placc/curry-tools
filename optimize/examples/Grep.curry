@@ -30,7 +30,7 @@ sem (Alt  a b) = sem a ? sem b
 sem (Conc a b) = sem a ++ sem b
 sem (Star a)   = [] ? sem (Conc a (Star a))
 
-grep :: Eq a => RE a -> [a] -> Bool
+grep :: (Data a, Eq a) => RE a -> [a] -> Bool
 grep r s | _ ++ sem r ++ _ == s = True
 
 bigABABC :: Int -> [Chr]

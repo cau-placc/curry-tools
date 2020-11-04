@@ -40,6 +40,7 @@ listenOnFresh external
 --- the client (the format of this string is implementation-dependent)
 --- and a handle to a stream communication with the client.
 --- The handle is both readable and writable.
+--- Only IPv4 connections are currently possible.
 accept :: Socket -> IO (String,Handle)
 accept s = prim_socketAccept $## s
 
@@ -74,6 +75,7 @@ prim_sClose external
 -- Client side operations:
 
 --- Creates a new connection to a Unix socket.
+--- Only IPv4 connections are currently possible.
 --- @param host - the host name of the connection
 --- @param port - the port number of the connection
 --- @return the handle of the stream (connected to the port port@host)

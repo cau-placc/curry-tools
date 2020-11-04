@@ -9,6 +9,7 @@ module CASS.Main ( main ) where
 
 import Data.Char             ( toLower )
 import Data.List             ( isPrefixOf, sort )
+import Control.Monad         ( when, unless )
 import System.FilePath       ( (</>), (<.>) )
 import System.Process        ( exitWith )
 import System.Environment    ( getArgs )
@@ -43,7 +44,7 @@ main = do
        (error "Illegal arguments (try `-h' for help)" >> exitWith 1)
   when (optWorker opts && length args /= 2)
        (error "Illegal arguments (try `-h' for help)" >> exitWith 1)
-  mapIO_ (\ (k,v) -> updateCurrentProperty k v) (optProp opts)
+  mapM_ (\ (k,v) -> updateCurrentProperty k v) (optProp opts)
   let verb = optVerb opts
   when (verb >= 0) (updateCurrentProperty "debugLevel" (show verb))
   debugMessage 1 systemBanner
@@ -142,11 +143,9 @@ options =
            "set property (of ~/.curryanalysisrc)\n`name' as `v'"
   ]
  where
-  safeReadNat opttrans s opts =
-   let numError = error "Illegal number argument (try `-h' for help)" in
-    maybe numError
-          (\ (n,rs) -> if null rs then opttrans n opts else numError)
-          (readNat s)
+  safeReadNat opttrans s opts = case readNat s of
+     [(n,"")] -> opttrans n opts
+     _        -> error "Illegal number argument (try `-h' for help)"
 
   checkVerb n opts = if n>=0 && n<5
                      then opts { optVerb = n }

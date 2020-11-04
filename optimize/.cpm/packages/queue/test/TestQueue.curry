@@ -1,4 +1,4 @@
-import List
+import Data.List
 
 import Test.Prop
 import System.Random

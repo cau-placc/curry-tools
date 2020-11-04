@@ -57,5 +57,5 @@ worker handle = do
          StopWorker -> do
            debugMessage 2 "Stop worker"
            hClose handle
-           done
-    else done
+           return ()
+    else return ()

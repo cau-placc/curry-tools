@@ -2,13 +2,11 @@
 --- A simple "addition" server to test the Socket library.
 ---
 --- @author Michael Hanus
---- @version February 2006
+--- @version November 2020
 ------------------------------------------------------------------------------
 
-import IO
-import Read(readInt)
-
 import Network.Socket
+import System.IO
 
 -- Choose a free port number:
 portnr :: Int
@@ -39,7 +37,7 @@ addServeSocket socket = do
       then do hClose h
               close socket
       else do l2 <- hGetLine h
-              hPutStrLn h (show (readInt l1 + readInt l2))
+              hPutStrLn h (show ((read l1 :: Int) + (read l2 :: Int)))
               hClose h
               addServeSocket socket
 
