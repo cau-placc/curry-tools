@@ -5,7 +5,7 @@ import System.FilePath((</>))
 
 --- Package version as a string.
 packageVersion :: String
-packageVersion = "2.0.0"
+packageVersion = "3.0.0"
 
 --- Package location.
 packagePath :: String
