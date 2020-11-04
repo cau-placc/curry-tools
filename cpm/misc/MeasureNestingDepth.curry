@@ -1,10 +1,10 @@
 module MeasureNestingDepth where
 
 import System.Directory
-import System.Distribution
-import System.FilePath
 import Debug.Trace
 import Data.List
+import Language.Curry.Distribution
+import System.FilePath
 import AbstractCurry.Types
 import AbstractCurry.Select
 import AbstractCurry.Files

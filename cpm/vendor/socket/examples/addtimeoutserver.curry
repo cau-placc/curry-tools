@@ -3,12 +3,10 @@
 --- on socket connections.
 ---
 --- @author Michael Hanus
---- @version March 2006
+--- @version November 2020
 ------------------------------------------------------------------------------
 
-import IO
-import Read(readInt)
-
+import System.IO
 import Network.Socket
 
 -- Choose a free port number:
@@ -46,7 +44,7 @@ addServeSocketTest socket (Just (chost,stream)) = do
       then do hClose h
               close socket
       else do l2 <- hGetLine h
-              hPutStrLn h (show (readInt l1 + readInt l2))
+              hPutStrLn h (show ((read l1 :: Int) + (read l2 :: Int)))
               hClose h
               addServeSocket socket
 

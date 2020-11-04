@@ -8,14 +8,14 @@
 --- @version December 2018
 ------------------------------------------------------------------------------
 
-import List(nub)
+import Data.List (nub)
 import Test.Prop
 
 import System.Random
 
-import Data.RedBlackTree
+import Data.RedBlackTree as RBT
 
-intList2Tree = foldr update (empty (\ _ _ -> False) (==) (<))
+intList2Tree = foldr update (RBT.empty (\ _ _ -> False) (==) (<))
 
 rndTree n =
   getRandomSeed >>= return . nub . take n . (flip nextIntRange 100000) >>=

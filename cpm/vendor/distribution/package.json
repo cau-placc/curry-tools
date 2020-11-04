@@ -11,15 +11,15 @@
         "directory" : ">= 3.0.0, < 4.0.0",
         "filepath"  : ">= 3.0.0, < 4.0.0"
   },
-    "compilerCompatibility": {
-        "pakcs": ">= 2.0.0",
-        "kics2": ">= 2.0.0"
+  "compilerCompatibility": {
+        "pakcs": ">= 3.0.0, < 4.0.0",
+        "kics2": ">= 3.0.0, < 4.0.0"
   },
-    "exportedModules": [
-         "Language.Curry.Distribution"
+  "exportedModules": [
+        "Language.Curry.Distribution"
   ],
-    "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/testing.git",
-      "tag": "$version"
-    }
+  "source": {
+        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/distribution.git",
+        "tag": "$version"
+  }
 }

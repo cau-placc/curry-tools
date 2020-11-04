@@ -11,13 +11,15 @@
 ---     Curry syntax (`showCurryType`, `showCurryExpr`,...).
 ---
 --- @author Michael Hanus
---- @version September 2016
+--- @version February 2020
 ------------------------------------------------------------------------------
 
-module FlatCurry.Show(showFlatProg,showFlatType,showFlatFunc,
-                      showCurryType,isClassContext,
-                      showCurryExpr,showCurryId,showCurryVar)
-   where
+module FlatCurry.Show
+  (showFlatProg, showFlatType, showFlatFunc
+  , showCurryType, isClassContext
+  , showCurryExpr, showCurryId, showCurryVar
+  )
+ where
 
 import FlatCurry.Types
 import Data.List
@@ -178,7 +180,7 @@ showCurryType_ tf nested (TCons tc ts)
     (tf tc ++ concatMap (\t->' ':showCurryType_ tf True t) ts)
 showCurryType_ tf nested (ForallType tvs te) =
   showBracketsIf nested
-    (unwords ("forall" : map (showCurryType_ tf False . TVar) tvs) ++ " . " ++
+    (unwords ("forall" : map (showCurryType_ tf False . TVar . fst) tvs) ++ " . " ++
      showCurryType_ tf False te)
 
 isFuncType :: TypeExpr -> Bool
@@ -308,10 +310,12 @@ showCurryFiniteList tf b (Comb _ ("Prelude",":") [e1,e2]) =
   showCurryExpr tf False b e1 : showCurryFiniteList tf b e2
 
 -- show a string constant
+showCurryStringConstant :: Expr -> String
 showCurryStringConstant (Comb _ ("Prelude","[]") []) = []
 showCurryStringConstant (Comb _ ("Prelude",":") [e1,e2]) =
    showCharExpr e1 ++ showCurryStringConstant e2
 
+showCharExpr :: Expr -> String
 showCharExpr (Lit (Charc c))
   | c=='"'  = "\\\""
   | c=='\'' = "\\\'"
@@ -326,8 +330,10 @@ showCurryElems :: (a->String) -> [a] -> String
 showCurryElems format elems =
    concat (intersperse " " (map format elems))
 
+showBracketsIf :: Bool -> String -> String
 showBracketsIf nested s = if nested then '(' : s ++ ")" else s
 
+sceBlanks :: Int -> String
 sceBlanks b = take b (repeat ' ')
 
 -- Is the expression a finite list (with an empty list at the end)?
@@ -342,6 +348,7 @@ isFiniteList (Let _ _) = False
 isFiniteList (Free _ _) = False
 isFiniteList (Or _ _) = False
 isFiniteList (Case _ _ _) = False
+isFiniteList (Typed e _) = isFiniteList e
 
 -- Is the expression a string constant?
 isStringConstant :: Expr -> Bool

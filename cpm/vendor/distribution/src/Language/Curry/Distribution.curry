@@ -5,7 +5,6 @@
 ---
 --- @author Michael Hanus
 --- @version December 2018
---- @category general
 --------------------------------------------------------------------------------
 
 module Language.Curry.Distribution
