@@ -73,6 +73,9 @@ cd .cpm/packages
  PKGV=`ls -d frontend-exec-*`
  mv $PKGV frontend-exec
  ln -s frontend-exec $PKGV
+ PKGV=`ls -d global-*`
+ mv $PKGV global
+ ln -s global $PKGV
  PKGV=`ls -d io-extra-*`
  mv $PKGV io-extra
  ln -s io-extra $PKGV
