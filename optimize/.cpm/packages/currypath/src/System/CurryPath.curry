@@ -3,7 +3,7 @@
 --- used in Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version December 2018
+--- @version November 2020
 ------------------------------------------------------------------------------
 
 module System.CurryPath
@@ -17,7 +17,7 @@ module System.CurryPath
   ) where
 
 import Data.Char           ( toLower )
-import Data.List           ( split )
+import Data.List           ( intercalate, split )
 import System.Directory    ( doesFileExist )
 import System.Environment  ( getEnv )
 import System.Process      ( system )
@@ -26,7 +26,11 @@ import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , splitExtension, splitFileName, splitSearchPath
                            , takeFileName, takeExtension, dropExtension
                            )
-import Language.Curry.Distribution ( curryCompiler, installDir, rcFileName )
+import Language.Curry.Distribution
+                           ( curryCompiler, curryCompilerMajorVersion
+                           , curryCompilerMinorVersion
+                           , curryCompilerRevisionVersion
+                           , installDir, rcFileName )
 
 import Data.PropertyFile   ( getPropertyFromFile )
 
@@ -87,7 +91,11 @@ modNameToPath = foldr1 (</>) . split (=='.')
 --- Name of the sub directory where auxiliary files (.fint, .fcy, etc)
 --- are stored.
 currySubdir :: FilePath
-currySubdir = ".curry"
+currySubdir =
+  ".curry" </> curryCompiler ++ "-" ++
+  intercalate "."
+    (map show [curryCompilerMajorVersion, curryCompilerMinorVersion,
+               curryCompilerRevisionVersion])
 
 --- Transforms a path to a module name into a file name
 --- by adding the `currySubDir` to the path and transforming

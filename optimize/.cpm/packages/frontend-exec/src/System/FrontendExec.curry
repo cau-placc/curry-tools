@@ -3,7 +3,7 @@
 --- Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version December 2018
+--- @version November 2020
 ------------------------------------------------------------------------------
 
 module System.FrontendExec
@@ -22,7 +22,7 @@ import Data.List           ( intercalate, nub )
 import Data.PropertyFile   ( getPropertiesFromFile )
 import System.FilePath     ( FilePath, (</>), takeDirectory, takeFileName )
 import System.Process      ( system )
-import System.CurryPath    ( getLoadPathForModule )
+import System.CurryPath    ( currySubdir, getLoadPathForModule )
 import Language.Curry.Distribution 
                            ( curryCompiler, curryCompilerMajorVersion
                            , curryCompilerMinorVersion, installDir, rcFileName 
@@ -253,7 +253,8 @@ callFrontendWithParams target params modpath = do
    showFrontendTarget COMMS = "--comments"
 
    showFrontendParams = unwords
-    [ if quiet       params then runQuiet     else ""
+    [ "-o ", currySubdir
+    , if quiet       params then runQuiet     else ""
     , if extended    params then "--extended" else ""
     , if cpp         params then "--cpp"      else ""
     , if overlapWarn params then ""           else "--no-overlap-warn"
