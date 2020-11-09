@@ -9,7 +9,6 @@
 
 module CPM.Diff.Behavior
   ( ComparisonInfo (..)
-  , createBaseTemp
   , getBaseTemp
   , genCurryCheckProgram
   , diffBehavior
@@ -27,7 +26,6 @@ import Data.List          ( intercalate, intersect, nub, splitOn, isPrefixOf
                           , isInfixOf, find, delete, (\\), nubBy )
 import Data.Maybe         ( isJust, fromJust, fromMaybe, listToMaybe )
 import Control.Monad
-import Prelude hiding (log)
 
 import AbstractCurry.Build
 import AbstractCurry.Pretty ( defaultOptions, ppCTypeExpr, showCProg )
@@ -56,7 +54,7 @@ import CPM.Diff.CurryComments (readComments, getFuncComment)
 import CPM.Diff.Rename (prefixPackageAndDeps)
 import CPM.ErrorLogger
 import CPM.FileUtil ( copyDirectory, recreateDirectory, inDirectory
-                    , joinSearchPath)
+                    , joinSearchPath, tempDir )
 import CPM.Package ( Package, Version, name, version, showVersion, packageId
                    , exportedModules, loadPackageSpec)
 import CPM.PackageCache.Global as GC
@@ -132,7 +130,7 @@ data ComparisonInfo = ComparisonInfo
   }
 
 --- Create temporary directory for the behavior diff.
-createBaseTemp :: IO  String
+createBaseTemp :: IO String
 createBaseTemp = do
   tmpDir <- getTemporaryDirectory
   let tmp = tmpDir </> "CPM" </> "bdiff"
@@ -170,21 +168,21 @@ diffBehavior :: Config
              -> Maybe [String]
              -> ErrorLogger ()
 diffBehavior cfg repo gc info groundequiv useanalysis cmods = do
-  baseTmp <- liftIOErrorLogger $ getBaseTemp
+  baseTmp <- liftIOEL getBaseTemp
   (acyCache, loadpath, funcs, removed) <-
     findFunctionsToCompare cfg repo gc (infSourceDirA info) (infSourceDirB info)
-                         useanalysis cmods
+                          useanalysis cmods
   let filteredFuncs =
         maybe funcs
               (\mods -> filter ((`elem` mods) . fst . funcName . snd) funcs)
               cmods
       filteredNames = map snd filteredFuncs
-  log Debug ("Filtered operations to be checked: " ++
+  logDebug ("Filtered operations to be checked: " ++
                   showFuncNames filteredNames)
   case funcs of
-    [] -> liftIOErrorLogger (printRemoved removed >> return ())
+    [] -> liftIOEL (printRemoved removed >> return ())
     _  -> do
-      liftIOErrorLogger $ do
+      liftIOEL $ do
          putStrLn infoText
          printRemoved removed
          putStrLn $
@@ -218,18 +216,18 @@ renderRemoved rs =
 --- Runs CurryCheck on the generated program.
 callCurryCheck :: Config -> ComparisonInfo -> String -> ErrorLogger ()
 callCurryCheck cfg info baseTmp = do
-  oldPath <- liftIOErrorLogger $ getEnv "CURRYPATH"
+  oldPath <- liftIOEL $ getEnv "CURRYPATH"
   let currybin  = curryExec cfg
   let currypath = infDirA info ++ ":" ++ infDirB info
-  liftIOErrorLogger $ setEnv "CURRYPATH" currypath
-  log Debug ("Run `curry check Compare' in `" ++ baseTmp ++ "' with")
-  log Debug ("CURRYPATH=" ++ currypath) >> return ()
+  liftIOEL $ setEnv "CURRYPATH" currypath
+  logDebug $ "Run `curry check Compare' in `" ++ baseTmp ++ "' with"
+  logDebug $ "CURRYPATH=" ++ currypath
   ecode <- inDirectoryEL baseTmp $ showExecCmd (currybin ++ " check Compare")
-  liftIOErrorLogger $ setEnv "CURRYPATH" oldPath
-  log Debug "CurryCheck finished" >> return ()
+  liftIOEL $ setEnv "CURRYPATH" oldPath
+  logDebug "CurryCheck finished"
   if ecode==0
     then return ()
-    else log Error "CurryCheck detected behavior error!"
+    else logError "CurryCheck detected behavior error!"
 
 --- Generates a program containing CurryCheck tests that will compare the
 --- behavior of the given functions. The program will be written to the
@@ -243,7 +241,7 @@ genCurryCheckProgram :: Config
                      -> ACYCache -> [String]
                      -> ErrorLogger ()
 genCurryCheckProgram cfg repo gc prodfuncs info groundequiv acyCache loadpath = do
-  baseTmp <- liftIOErrorLogger $ getBaseTemp
+  baseTmp <- liftIOEL $ getBaseTemp
   let translatorGenerator = uncurry $ genTranslatorFunction cfg repo gc info
   (_, transMap) <- foldM translatorGenerator (acyCache, emptyTrans)
                      translateTypes
@@ -257,15 +255,15 @@ genCurryCheckProgram cfg repo gc prodfuncs info groundequiv acyCache loadpath = 
   typeinfos <- analyzeModules "recursive type" typesInValuesAnalysis loadpath
                               limittcmods
   let limitFunctions = concatMap (genLimitFunction typeinfos) limittdecls
-  let prog = simpleCurryProg "Compare" imports []
+      prog = simpleCurryProg "Compare" imports []
                (concat testFunctions ++ transFunctions ++
                 (if groundequiv then limitFunctions else []))
                []
   let prodops = map snd (filter fst prodfuncs)
-  liftIOErrorLogger $ unless (null prodops) $ putStrLn $
+  liftIOEL $ unless (null prodops) $ putStrLn $
     "Productive operations (currently not fully supported for all types):\n" ++
     showFuncNames prodops ++ "\n"
-  liftIOErrorLogger $ writeFile (baseTmp </> "Compare.curry")
+  liftIOEL $ writeFile (baseTmp </> "Compare.curry")
             (progcmts ++ "\n" ++ showCProg prog ++ "\n")
   return ()
  where
@@ -843,13 +841,13 @@ findFunctionsToCompare cfg repo gc dirA dirB useanalysis onlymods = do
   let cmods = intersect (exportedModules pkgA) (exportedModules pkgB)
   let mods = maybe cmods (intersect cmods) onlymods
   if null mods
-   then log Info "No exported modules to compare" >>
+   then logInfo "No exported modules to compare" >>
         return (emptyACYCache,[],[],[])
    else do
-    log Info ("Comparing modules: "++ intercalate " " mods)
+    logInfo ("Comparing modules: "++ intercalate " " mods)
     diffs <- APIDiff.compareModulesInDirs cfg repo gc dirA dirB (Just mods)
     (acy, allFuncs) <- findAllFunctions dirA dirB pkgA depsA emptyACYCache mods
-    log Debug ("All public functions: " ++ showFuncNames allFuncs)
+    logDebug ("All public functions: " ++ showFuncNames allFuncs)
     let areDiffThenFilter        = thenFilter allFuncs Diffing
     let areHighArityThenFilter   = thenFilter allFuncs HighArity
     let areIOActionThenFilter    = thenFilter allFuncs IOAction
@@ -880,12 +878,12 @@ terminationFilter pkgA dirA depsA True (acy, funcs, rm) = do
   ainfo <- analyzeModules "productivity" productivityAnalysis currypath mods
   -- compute functions which should be definitely compared (due to TERMINATE
   -- or PRODUCTIVE pragmas):
-  modscmts <- liftIOErrorLogger $ mapM (getCompare currypath) mods
+  modscmts <- liftIOEL $ mapM (getCompare currypath) mods
   let termfuns = concatMap (\md -> md ("TERMINATE"  `isInfixOf`)) modscmts
       prodfuns = concatMap (\md -> md ("PRODUCTIVE" `isInfixOf`)) modscmts
-  log Debug ("Functions marked with TERMINATE: " ++ showFuncNames termfuns)
+  logDebug ("Functions marked with TERMINATE: " ++ showFuncNames termfuns)
     >> return ()
-  log Debug ("Functions marked with PRODUCTIVE: " ++ showFuncNames prodfuns)
+  logDebug ("Functions marked with PRODUCTIVE: " ++ showFuncNames prodfuns)
     >> return ()
   let infoOf f = fromMaybe Looping (lookupProgInfo (funcName f) ainfo)
       ntfuncs  = filter (\f -> infoOf f == Looping  &&
@@ -914,11 +912,11 @@ analyzeModules :: (Read a, Show a)
                => String -> Analysis a -> [String] -> [String]
                -> ErrorLogger (ProgInfo a)
 analyzeModules ananame analysis currypath mods = do
-  log Debug ("Running " ++ ananame ++ " analysis on modules: " ++
+  logDebug ("Running " ++ ananame ++ " analysis on modules: " ++
              intercalate ", " mods)
-  log Debug ("CURRYPATH=" ++ joinSearchPath currypath)
-  anainfos <- liftIOErrorLogger $ mapM (analyzeModule analysis currypath) mods
-  log Debug "Analysis finished"
+  logDebug ("CURRYPATH=" ++ joinSearchPath currypath)
+  anainfos <- liftIOEL $ mapM (analyzeModule analysis currypath) mods
+  logDebug "Analysis finished"
   return $ foldr combineProgInfo emptyProgInfo anainfos
 
 -- Analyze a module with some static program analysis in a given
@@ -1042,7 +1040,7 @@ filterFuncsDeep tpred dirA _ deps acy allFuncs =
 --- Filters out functions marked with the NOCOMPARE pragma.
 filterNoCompare :: String -> String -> [Package] -> ACYCache -> [CFuncDecl]
                 -> ErrorLogger (ACYCache, [CFuncDecl])
-filterNoCompare dirA dirB _ a fs = liftIOErrorLogger $ do
+filterNoCompare dirA dirB _ a fs = liftIOEL $ do
   allCommentsA <- mapM (readComments . modPath dirA) modules
   allCommentsB <- mapM (readComments . modPath dirB) modules
   let commentsA = funcsWithComments $ zip modules allCommentsA
@@ -1225,8 +1223,8 @@ readCached dir deps acyCache mod = case findModuleDir dir mod acyCache of
 findAllFunctions :: String -> String -> Package -> [Package] -> ACYCache
                  -> [String] -> ErrorLogger (ACYCache, [CFuncDecl])
 findAllFunctions dirA dirB _ deps acyCache mods =
-  log Debug ("Finding public functions of modules: " ++ intercalate "," mods) >>
-  log Debug ("in package directories " ++ dirA ++ " and " ++ dirB) >>
+  logDebug ("Finding public functions of modules: " ++ intercalate "," mods) >>
+  logDebug ("in package directories " ++ dirA ++ " and " ++ dirB) >>
   foldM findForMod (acyCache, []) mods >>=
   \(a, fs) -> return (a, nub fs)
  where
@@ -1281,19 +1279,19 @@ preparePackages cfg repo gc nameA verA nameB verB =
 --- @param dirA the directory for the first package
 --- @param nameB the name of the second package
 --- @param verB the version of the second package
-preparePackageAndDir :: Config
-                     -> Repository
-                     -> GC.GlobalCache
-                     -> String
-                     -> String
-                     -> Version
+preparePackageAndDir :: Config 
+                     -> Repository 
+                     -> GC.GlobalCache 
+                     -> String 
+                     -> String 
+                     -> Version 
                      -> ErrorLogger ComparisonInfo
 preparePackageAndDir cfg repo gc dirA nameB verB =
   GC.tryFindPackage gc nameB verB >>= \pkgB ->
   findPackageDir cfg pkgB >>= \dirB ->
   preparePackageDirs cfg repo gc dirA dirB
 
---- Prepares two packages from two directories for comparison. Copies the
+--- Prepares two packages from two directories for comparison. Copies the 
 --- package files to a temporary directory and creates renamed version of the
 --- packages and their dependencies.
 ---
@@ -1309,7 +1307,7 @@ preparePackageDirs :: Config
                    -> String
                    -> ErrorLogger ComparisonInfo
 preparePackageDirs cfg repo gc dirA dirB = do
-  baseTmp <- liftIOErrorLogger $ createBaseTemp
+  baseTmp <- liftIOEL $ createBaseTemp
   specA <- loadPackageSpec dirA
   specB <- loadPackageSpec dirB
   let versionPrefixA = versionPrefix specA
@@ -1318,12 +1316,12 @@ preparePackageDirs cfg repo gc dirA dirB = do
   let copyDirB       = baseTmp </> ("src_" ++ versionPrefixB)
   let destDirA       = baseTmp </> ("dest_" ++ versionPrefixA)
   let destDirB       = baseTmp </> ("dest_" ++ versionPrefixB)
-  log Debug ("Copying " ++ packageId specA ++
+  logDebug ("Copying " ++ packageId specA ++
              " from " ++ dirA ++ " into " ++ copyDirA)
-  log Debug ("and transforming it into " ++ destDirA)
-  log Debug ("Copying " ++ packageId specB ++
+  logDebug ("and transforming it into " ++ destDirA)
+  logDebug ("Copying " ++ packageId specB ++
              " from " ++ dirB ++ " into " ++ copyDirB)
-  log Debug ("and transforming it into " ++ destDirB)
+  logDebug ("and transforming it into " ++ destDirB)
   modMapA <- copyAndPrefixPackage cfg repo gc dirA versionPrefixA
                                         copyDirA destDirA
   modMapB <- copyAndPrefixPackage cfg repo gc dirB versionPrefixB
@@ -1364,8 +1362,8 @@ copyAndPrefixPackage :: Config
                      -> String
                      -> ErrorLogger [(String, String)]
 copyAndPrefixPackage cfg repo gc pkgDir prefix srcDir destDir = do
-  liftIOErrorLogger $ copyDirectory pkgDir srcDir
-  liftIOErrorLogger $ createDirectory destDir
+  liftIOEL $ copyDirectory pkgDir srcDir
+  liftIOEL $ createDirectory destDir
   prefixPackageAndDeps cfg repo gc srcDir (prefix ++ "_") destDir
 
 showVersion' :: Version -> String
@@ -1377,7 +1375,7 @@ showVersion' (maj, min, pat, Just pre) =
 --- Tries to find the package directory in the global package cache.
 findPackageDir :: Config -> Package -> ErrorLogger String
 findPackageDir cfg pkg = do
-  exists <- liftIOErrorLogger $ doesDirectoryExist srcDir
+  exists <- liftIOEL $ doesDirectoryExist srcDir
   if not exists
     then fail $ "Package " ++ (packageId pkg) ++ " not installed"
     else return srcDir

@@ -6,7 +6,8 @@
 
 module CPM.Config
   ( Config ( Config, packageInstallDir, binInstallDir, repositoryDir
-           , appPackageDir, packageIndexURL, homePackageDir, curryExec
+           , appPackageDir, packageIndexURLs, packageTarFilesURLs
+           , homePackageDir, curryExec
            , compilerVersion, compilerBaseVersion, baseVersion )
   , readConfigurationWith, defaultConfig
   , showConfiguration, showCompilerVersion ) where
@@ -17,9 +18,12 @@ import System.Directory  ( doesDirectoryExist, createDirectoryIfMissing
 import qualified Language.Curry.Distribution as Dist
 import System.FilePath   ( (</>), isAbsolute )
 import Data.Maybe        ( mapMaybe )
-import Data.List         ( split, splitOn, intersperse )
+import Data.List         ( split, splitOn, intercalate, intersperse )
 import Control.Monad     ( when )
 import System.IOExts     ( evalCmd )
+
+import Data.PropertyFile ( readPropertyFile )
+import System.Path       ( getFileInPath )
 
 import Data.PropertyFile ( readPropertyFile )
 import System.Path       ( getFileInPath )
@@ -28,12 +32,18 @@ import CPM.ErrorLogger
 import CPM.FileUtil ( ifFileExists )
 import CPM.Helpers  ( strip )
 
+--- The default URL prefix to the directory containing tar files of all packages
+packageTarFilesDefaultURLs :: [String]
+packageTarFilesDefaultURLs =
+  ["https://www-ps.informatik.uni-kiel.de/~cpm/PACKAGES"]
+
 --- The default location of the central package index.
-packageIndexDefaultURL :: String
-packageIndexDefaultURL =
-  "https://git.ps.informatik.uni-kiel.de/curry-packages/cpm-index.git"
+packageIndexDefaultURLs :: [String]
+packageIndexDefaultURLs =
+  map  (++"/INDEX.tar.gz") packageTarFilesDefaultURLs ++
+  ["https://git.ps.informatik.uni-kiel.de/curry-packages/cpm-index.git"]
 -- If you have an ssh access to git.ps.informatik.uni-kiel.de:
--- "ssh://git@git.ps.informatik.uni-kiel.de:55055/curry-packages/cpm-index.git"
+--["ssh://git@git.ps.informatik.uni-kiel.de:55055/curry-packages/cpm-index.git"]
 
 --- Data type containing the main configuration of CPM.
 data Config = Config {
@@ -45,8 +55,10 @@ data Config = Config {
   , repositoryDir :: String
     --- Directory where the application packages are stored (cmd 'install')
   , appPackageDir :: String
-    --- URL to the package index repository
-  , packageIndexURL :: String
+    --- URLs tried for downloading the package index
+  , packageIndexURLs :: [String]
+    --- URL prefixes to the directory containing tar files of all packages
+  , packageTarFilesURLs :: [String]
     --- The directory where the default home package is stored
   , homePackageDir :: String
     --- The executable of the Curry system used to compile and check packages
@@ -65,9 +77,10 @@ defaultConfig :: Config
 defaultConfig = Config
   { packageInstallDir      = "$HOME/.cpm/packages"
   , binInstallDir          = "$HOME/.cpm/bin"
-  , repositoryDir          = "$HOME/.cpm/index"
+  , repositoryDir          = "$HOME/.cpm/index" 
   , appPackageDir          = ""
-  , packageIndexURL        = packageIndexDefaultURL
+  , packageIndexURLs       = packageIndexDefaultURLs
+  , packageTarFilesURLs    = packageTarFilesDefaultURLs
   , homePackageDir         = ""
   , curryExec              = Dist.installDir </> "bin" </> Dist.curryCompiler
   , compilerVersion        = ( Dist.curryCompiler
@@ -90,7 +103,8 @@ showConfiguration cfg = unlines
   , "BIN_INSTALL_PATH       : " ++ binInstallDir       cfg
   , "APP_PACKAGE_PATH       : " ++ appPackageDir       cfg
   , "HOME_PACKAGE_PATH      : " ++ homePackageDir      cfg
-  , "PACKAGE_INDEX_URL      : " ++ packageIndexURL     cfg
+  , "PACKAGE_INDEX_URL      : " ++ intercalate "|" (packageIndexURLs cfg)
+  , "PACKAGE_TARFILES_URL   : " ++ intercalate "|" (packageTarFilesURLs cfg)
   ]
 
 --- Shows the compiler version in the configuration.
@@ -146,7 +160,7 @@ setHomePackageDir cfg
 --- Sets the correct compiler version in the configuration.
 setCompilerVersion :: Config -> ErrorLogger Config
 setCompilerVersion cfg0 = do
-  cfg <- liftIOErrorLogger $ setCompilerExecutable cfg0
+  cfg <- liftIOEL $ setCompilerExecutable cfg0
   let initbase = baseVersion cfg
   if curryExec cfg == Dist.installDir </> "bin" </> Dist.curryCompiler
     then return cfg { compilerVersion = currVersion
@@ -159,8 +173,8 @@ setCompilerVersion cfg0 = do
                 cvers = strip svers
                 bvers = strip sbver
                 (majs:mins:revs:_) = split (=='.') cvers
-            debugMessage $ unwords ["Compiler version:",cname,cvers]
-            debugMessage $ "Base lib version: " ++ bvers
+            logDebug $ unwords ["Compiler version:",cname,cvers]
+            logDebug $ "Base lib version: " ++ bvers
             return cfg { compilerVersion = (cname, read majs,
                                             read mins, read revs)
                        , compilerBaseVersion = bvers
@@ -169,17 +183,17 @@ setCompilerVersion cfg0 = do
                                                  else initbase }
  where
   getCompilerVersion currybin = do
-    debugMessage $ "Getting version information from " ++ currybin
-    (r,s,e) <-  liftIOErrorLogger $ evalCmd currybin
+    logDebug $ "Getting version information from " ++ currybin
+    (r,s,e) <-  liftIOEL $ evalCmd currybin
                  ["--compiler-name","--numeric-version","--base-version"] ""
     if r>0
       then error $ "Cannot determine compiler version:\n" ++ e
       else case lines s of
         [sname,svers,sbver] -> return (sname,svers,sbver)
-        _ -> do debugMessage $ "Query version information again..."
-                (c1,sname,e1) <- liftIOErrorLogger $ evalCmd currybin ["--compiler-name"] ""
-                (c2,svers,e2) <- liftIOErrorLogger $ evalCmd currybin ["--numeric-version"] ""
-                (c3,sbver,e3) <- liftIOErrorLogger $ evalCmd currybin ["--base-version"] ""
+        _ -> do logDebug $ "Query version information again..."
+                (c1,sname,e1) <- liftIOEL $ evalCmd currybin ["--compiler-name"] ""
+                (c2,svers,e2) <- liftIOEL $ evalCmd currybin ["--numeric-version"] ""
+                (c3,sbver,e3) <- liftIOEL $ evalCmd currybin ["--base-version"] ""
                 when (c1 > 0 || c2 > 0 || c3 > 0) $
                   error $ "Cannot determine compiler version:\n" ++
                           unlines (filter (not . null) [e1,e2,e3])
@@ -196,10 +210,10 @@ setCompilerVersion cfg0 = do
 --- any missing directories. May return an error using `Left`.
 readConfigurationWith :: [(String,String)] -> ErrorLogger (Either String Config)
 readConfigurationWith defsettings = do
-  home <- liftIOErrorLogger $ getHomeDirectory
+  home <- liftIOEL $ getHomeDirectory
   let configFile = home </> ".cpmrc"
-  exfile <- liftIOErrorLogger $ doesFileExist configFile
-  settingsFromFile <- liftIOErrorLogger $
+  exfile <- liftIOEL $ doesFileExist configFile
+  settingsFromFile <- liftIOEL $
     if exfile
       then readPropertyFile configFile >>= return . stripProps
       else return []
@@ -207,11 +221,11 @@ readConfigurationWith defsettings = do
                          (settingsFromFile ++ stripProps defsettings)
   case mergedSettings of
     Left e   -> return $ Left e
-    Right s0 -> do s1 <- liftIOErrorLogger $ replaceHome s0
+    Right s0 -> do s1 <- liftIOEL $ replaceHome s0
                    s2 <- setCompilerVersion s1
-                   s3 <- liftIOErrorLogger $ setAppPackageDir   s2
-                   s4 <- liftIOErrorLogger $ setHomePackageDir  s3
-                   liftIOErrorLogger $ createDirectories s4
+                   s3 <- liftIOEL $ setAppPackageDir   s2
+                   s4 <- liftIOEL $ setHomePackageDir  s3
+                   liftIOEL $ createDirectories s4
                    return $ Right s4
 
 replaceHome :: Config -> IO Config
@@ -259,15 +273,18 @@ stripProps = map (\(a,b) -> ((map toUpper $ filter (/='_') $ strip a), strip b))
 --- record with a value for that option.
 keySetters :: [(String, String -> Config -> Config)]
 keySetters =
-  [ ("APPPACKAGEPATH"     , \v c -> c { appPackageDir     = v })
-  , ("BASEVERSION"        , \v c -> c { baseVersion       = v })
-  , ("BININSTALLPATH"     , \v c -> c { binInstallDir     = v })
-  , ("CURRYBIN"           , \v c -> c { curryExec         = v })
-  , ("HOMEPACKAGEPATH"    , \v c -> c { homePackageDir    = v })
-  , ("PACKAGEINDEXURL"    , \v c -> c { packageIndexURL   = v })
-  , ("PACKAGEINSTALLPATH" , \v c -> c { packageInstallDir = v })
-  , ("REPOSITORYPATH"     , \v c -> c { repositoryDir     = v })
+  [ ("APPPACKAGEPATH"     , \v c -> c { appPackageDir       = v })
+  , ("BASEVERSION"        , \v c -> c { baseVersion         = v })
+  , ("BININSTALLPATH"     , \v c -> c { binInstallDir       = v })
+  , ("CURRYBIN"           , \v c -> c { curryExec           = v })
+  , ("HOMEPACKAGEPATH"    , \v c -> c { homePackageDir      = v })
+  , ("PACKAGEINDEXURL"    , \v c -> c { packageIndexURLs    = breakURLs v })
+  , ("PACKAGETARFILESURL" , \v c -> c { packageTarFilesURLs = breakURLs v })
+  , ("PACKAGEINSTALLPATH" , \v c -> c { packageInstallDir   = v })
+  , ("REPOSITORYPATH"     , \v c -> c { repositoryDir       = v })
   ]
+ where
+  breakURLs = splitOn "|"
 
 --- Sequentially applies a list of functions that transform a value to a value
 --- of that type (i.e. a fold). Each function can error out with a Left, in

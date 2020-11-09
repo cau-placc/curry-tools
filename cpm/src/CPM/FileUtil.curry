@@ -13,6 +13,7 @@ module CPM.FileUtil
   , copyDirectoryFollowingSymlinks
   , quote
   , tempDir
+  , cleanTempDir
   , inTempDir
   , inDirectory
   , recreateDirectory
@@ -26,7 +27,7 @@ import System.Directory   ( doesFileExist, doesDirectoryExist
                           , getTemporaryDirectory, doesDirectoryExist
                           , createDirectory, createDirectoryIfMissing
                           , getAbsolutePath, getCurrentDirectory )
-import System.Process     ( system, exitWith )
+import System.Process     ( system, exitWith, getPID )
 import System.Environment ( getEnv )
 import System.FilePath    ( FilePath, replaceFileName, (</>)
                           , searchPathSeparator )
@@ -84,11 +85,16 @@ linkTarget link = do
 quote :: String -> String
 quote s = "\"" ++ s ++ "\""
 
---- Gets CPM's temporary directory.
+--- Gets a temporary directory for some CPM command.
 tempDir :: IO String
 tempDir = do
-  t <- getTemporaryDirectory
-  return (t </> "cpm")
+  t   <- getTemporaryDirectory
+  pid <- getPID
+  return (t </> "cpm" ++ show pid)
+
+--- Removes the temporary directory for some CPM command.
+cleanTempDir :: IO ()
+cleanTempDir = tempDir >>= removeDirectoryComplete
 
 --- Executes an IO action with the current directory set to  CPM's temporary
 --- directory.

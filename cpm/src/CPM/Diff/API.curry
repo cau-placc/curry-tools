@@ -14,33 +14,35 @@ module CPM.Diff.API
   , showDifferences
   ) where
 
-import AbstractCurry.Types (CurryProg (..), CFuncDecl (..), CTypeDecl (..)
-                           , COpDecl (..), QName, CFixity (..)
-                           , CVisibility (..))
+import System.Directory     ( getTemporaryDirectory )
+import System.FilePath      ( (</>) )
+import Data.List            ( nub )
+import Data.Maybe           ( listToMaybe, catMaybes )
+import Prelude hiding       ( empty )
+
+import AbstractCurry.Types  ( CurryProg (..), CFuncDecl (..), CTypeDecl (..)
+                            , COpDecl (..), QName, CFixity (..)
+                            , CVisibility (..))
 import AbstractCurry.Pretty
-import AbstractCurry.Select (functions, funcName, types, typeName)
-import System.Directory     (getTemporaryDirectory)
-import System.FilePath      ((</>))
-import Data.List            (nub)
-import Data.Maybe           (listToMaybe, catMaybes)
-import Prelude hiding (empty, log)
+import AbstractCurry.Select ( functions, funcName, types, typeName )
+import Text.Pretty          ( pPrint, text, (<+>), vcat, empty, red, ($$) )
 
-import Text.Pretty (pPrint, text, (<+>), vcat, empty, red, ($$))
-
-import CPM.AbstractCurry (readAbstractCurryFromPackagePath)
-import CPM.Config (Config)
+import CPM.AbstractCurry    ( readAbstractCurryFromPackagePath )
+import CPM.Config           ( Config )
 import CPM.ErrorLogger
-import CPM.FileUtil (copyDirectory, recreateDirectory)
-import CPM.Package (Package, Version, packageId, loadPackageSpec
-                   , exportedModules)
+import CPM.FileUtil         ( copyDirectory, recreateDirectory, tempDir )
+import CPM.Package          ( Package, Version, packageId, loadPackageSpec
+                            , exportedModules)
 import CPM.PackageCache.Global as GC
-import CPM.PackageCopy (resolveAndCopyDependencies)
-import CPM.Repository (Repository)
+import CPM.PackageCopy      ( resolveAndCopyDependencies )
+import CPM.Repository       ( Repository )
 
 getBaseTemp :: IO String
-getBaseTemp = getTemporaryDirectory >>=
-  \tmpDir -> let tmp = tmpDir </> "cpm" </> "diff"
-              in recreateDirectory tmp >> return tmp
+getBaseTemp = do
+  tmpDir <- tempDir
+  let tmp = tmpDir </> "diff" 
+  recreateDirectory tmp
+  return tmp
 
 --- Compares two versions of a package from the global package cache.
 ---
@@ -56,7 +58,7 @@ compareModulesFromPackages :: Config -> Repository -> GC.GlobalCache -> String
                            -> Version -> String -> Version -> Maybe [String]
                            -> ErrorLogger [(String, Differences)]
 compareModulesFromPackages cfg repo gc nameA verA nameB verB onlyMods = do
-  baseTmp <- liftIOErrorLogger getBaseTemp
+  baseTmp <- liftIOEL getBaseTemp
   pkgA <- GC.tryFindPackage gc nameA verA
   pkgB <- GC.tryFindPackage gc nameB verB
   GC.copyPackage cfg pkgA baseTmp
@@ -78,11 +80,11 @@ compareModulesFromPackageAndDir :: Config -> Repository -> GC.GlobalCache
                                -> String -> String -> Version -> Maybe [String]
                                -> ErrorLogger [(String, Differences)]
 compareModulesFromPackageAndDir cfg repo gc dirA nameB verB onlyMods = do
-  baseTmp <- liftIOErrorLogger getBaseTemp
+  baseTmp <- liftIOEL getBaseTemp
   pkgB <- GC.tryFindPackage gc nameB verB
   pkgA <- loadPackageSpec dirA
   GC.copyPackage cfg pkgB baseTmp
-  liftIOErrorLogger $ copyDirectory dirA (baseTmp </> packageId pkgA)
+  liftIOEL $ copyDirectory dirA (baseTmp </> packageId pkgA)
   compareModulesInDirs cfg repo gc (baseTmp </> packageId pkgA)
                        (baseTmp </> packageId pkgB) onlyMods
 
@@ -104,8 +106,8 @@ compareModulesInDirs cfg repo gc dirA dirB onlyMods =
   resolveAndCopyDependencies cfg repo gc dirB >>= \depsB ->
   let cmpmods = nub (exportedModules pkgA ++ exportedModules pkgB) in
   if null cmpmods
-    then log Info "No exported modules to compare" >> return []
-    else do diffs <- liftIOErrorLogger $ mapM (compareApiModule
+    then logInfo "No exported modules to compare" >> return []
+    else do diffs <- liftIOEL $ mapM (compareApiModule
                        pkgA dirA depsA pkgB dirB depsB) cmpmods
             let modsWithDiffs = zip cmpmods diffs
             return $ case onlyMods of

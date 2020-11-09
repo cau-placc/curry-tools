@@ -6,10 +6,11 @@ module CPM.ErrorLogger
   ( ErrorLogger (runErrorLogger)
   , LogEntry
   , LogLevel (..), logLevelOf
-  , log, getLogLevel, setLogLevel, getWithShowTime, setWithShowTime
-  , infoMessage, debugMessage, errorMessage, showLogEntry, levelGte
+  , logAt, getLogLevel, setLogLevel, getWithShowTime, setWithShowTime
+  , logInfo, logDebug, logError, logCritical, showLogEntry, levelGte
+  , putStrELM, putStrLnELM
   , fromErrorLogger
-  , showExecCmd, execQuietCmd, liftIOErrorLogger
+  , showExecCmd, execQuietCmd, liftIOEL, tryEL
   , inDirectoryEL, inTempDirEL
   ) where
 
@@ -22,11 +23,14 @@ import CPM.FileUtil
 import Debug.Profile -- for show run-time
 import Text.Pretty hiding (empty)
 
---- An error logger.
+-- A value or an error, along with logs.
+type ErrorLog a = ([LogEntry], Either LogEntry a)
+
+--- An error logging IO monad.
 newtype ErrorLogger a = ErrorLogger
   {
     runErrorLogger :: LogLevel -> Bool
-                   -> IO ((LogLevel, Bool), ([LogEntry], Either LogEntry a))
+                   -> IO ((LogLevel, Bool), ErrorLog a)
   }
 
 --- A log entry.
@@ -93,7 +97,7 @@ showLogEntry minLevel (LogEntry lvl msg) = do
     else return ()
  where
   lvlText = case lvl of
-    Quiet    -> text "QUIET "  -- show not occur...
+    Quiet    -> text "QUIET "  -- should not occur...
     Info     -> text "INFO "
     Debug    -> green $ text "DEBUG "
     Critical -> red   $ text "CRITICAL "
@@ -127,8 +131,9 @@ levelGte Critical Quiet = True
 levelGte Critical Error = True
 levelGte Critical Critical = True
 
-log :: LogLevel -> String -> ErrorLogger ()
-log lvl msg = ErrorLogger $ \l wst ->
+--- Logs a message at a user-defined level.
+logAt :: LogLevel -> String -> ErrorLogger ()
+logAt lvl msg = ErrorLogger $ \l wst ->
   if wst
     then do
       runtime <- getProcessInfos >>= return . maybe 0 id . lookup ElapsedTime
@@ -138,16 +143,31 @@ log lvl msg = ErrorLogger $ \l wst ->
  where
   showTime t = show (t `div` 1000) ++ "." ++ show ((t `mod` 1000) `div` 10)
 
-infoMessage :: String -> ErrorLogger ()
-infoMessage msg = log Info msg
+--- Logs a message at the info level.
+logInfo :: String -> ErrorLogger ()
+logInfo = logAt Info
 
-debugMessage :: String -> ErrorLogger ()
-debugMessage msg = log Debug msg
+--- Logs a message at the debug level.
+logDebug :: String -> ErrorLogger ()
+logDebug = logAt Debug
 
-errorMessage :: String -> ErrorLogger ()
-errorMessage msg = log Error msg
+--- Logs a message at the error level.
+logError :: String -> ErrorLogger ()
+logError = logAt Error
 
---- Transforms an error logger actions into a standard IO action.
+--- Logs a message at the critical level.
+logCritical :: String -> ErrorLogger ()
+logCritical = logAt Critical
+
+--- Prints a string in the `ErrorLogger` monad.
+putStrELM :: String -> ErrorLogger ()
+putStrELM = liftIOEL . putStr
+
+--- Prints a line in the `ErrorLogger` monad.
+putStrLnELM :: String -> ErrorLogger ()
+putStrLnELM = liftIOEL . putStrLn
+
+--- Transforms an error logger action into a standard IO action.
 --- It shows all messages and, if the result is not available,
 --- exits with a non-zero code.
 fromErrorLogger :: LogLevel -> Bool -> ErrorLogger a -> IO a
@@ -160,13 +180,13 @@ fromErrorLogger l s a = do
 
 --- Executes a system command and show the command as debug message.
 showExecCmd :: String -> ErrorLogger Int
-showExecCmd cmd = debugMessage ("Executing: " ++ cmd) >>
-  liftIOErrorLogger (system cmd)
+showExecCmd cmd = logDebug ("Executing: " ++ cmd) >>
+  liftIOEL (system cmd)
 
 --- Executes a parameterized system command.
 --- The parameter is set to `-q` unless the LogLevel is Debug.
 execQuietCmd :: (String -> String) -> ErrorLogger Int
-execQuietCmd cmd = debugMessage ("Executing: " ++ cmd "") >>
+execQuietCmd cmd = logDebug ("Executing: " ++ cmd "") >>
   ErrorLogger (\l s -> do i <- system $ cmd (if l == Debug then "" else "-q")
                           return ((l, s), ([], Right i)))
 
@@ -182,18 +202,23 @@ setLogLevel l = ErrorLogger $ \ _ s -> return ((l, s), ([], Right ()))
 setWithShowTime :: Bool -> ErrorLogger ()
 setWithShowTime s = ErrorLogger $ \ l _ -> return ((l, s), ([], Right ()))
 
-liftIOErrorLogger :: IO a -> ErrorLogger a
-liftIOErrorLogger ma = ErrorLogger (\l s -> do a <- ma
-                                               return ((l, s), ([], Right a)))
+liftIOEL :: IO a -> ErrorLogger a
+liftIOEL ma = ErrorLogger (\l s -> do a <- ma
+                                      return ((l, s), ([], Right a)))
+
+--- Tries to execute an EL action and returns either an error that
+--- occurred or the value.
+tryEL :: ErrorLogger a -> ErrorLogger (Either LogEntry a)
+tryEL a = liftIOEL $ fmap (snd . snd) $ runErrorLogger a Quiet False
 
 --- Executes an EL action with the current directory set to a specific
 --- directory.
 inDirectoryEL :: String -> ErrorLogger b -> ErrorLogger b
 inDirectoryEL dir b = do
-  previous <- liftIOErrorLogger getCurrentDirectory
-  liftIOErrorLogger $ setCurrentDirectory dir
+  previous <- liftIOEL getCurrentDirectory
+  liftIOEL $ setCurrentDirectory dir
   b' <- b
-  liftIOErrorLogger $ setCurrentDirectory previous
+  liftIOEL $ setCurrentDirectory previous
   return b'
 
 
@@ -201,9 +226,9 @@ inDirectoryEL dir b = do
 --- directory.
 inTempDirEL :: ErrorLogger b -> ErrorLogger b
 inTempDirEL b = do
-  t <- liftIOErrorLogger tempDir
-  exists <- liftIOErrorLogger $ doesDirectoryExist t
+  t <- liftIOEL tempDir
+  exists <- liftIOEL $ doesDirectoryExist t
   if exists
     then return ()
-    else liftIOErrorLogger $ createDirectory t
+    else liftIOEL $ createDirectory t
   inDirectoryEL t b

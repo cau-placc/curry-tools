@@ -44,9 +44,9 @@ readRepository cfg large = do
   case mbrepo of
     Nothing -> do
       repo <- readRepositoryFrom (repositoryDir cfg)
-      infoMessage $ "Writing " ++ (if large then "large" else "base") ++
+      logInfo $ "Writing " ++ (if large then "large" else "base") ++
                     " repository cache..."
-      liftIOErrorLogger $ writeRepositoryCache cfg large repo
+      liftIOEL $ writeRepositoryCache cfg large repo
       return repo
     Just repo -> return repo
 
@@ -90,16 +90,16 @@ writeRepositoryCache cfg large repo =
 readRepositoryCache :: Config -> Bool -> ErrorLogger (Maybe Repository)
 readRepositoryCache cfg large = do
   let cf = repositoryCache cfg large
-  excache <- liftIOErrorLogger $ doesFileExist cf
+  excache <- liftIOEL $ doesFileExist cf
   if excache
-    then do debugMessage ("Reading repository cache from '" ++ cf ++ "'...")
+    then do logDebug ("Reading repository cache from '" ++ cf ++ "'...")
             ((if large
                   then readTermInCacheFile cfg (largetuple2package . uread) cf
                   else readTermInCacheFile cfg (smalltuple2package . uread) cf)
                   >>= \repo ->
-                debugMessage "Finished reading repository cache" >> return repo)
+                logDebug "Finished reading repository cache" >> return repo)
               <|>
-               (do infoMessage "Cleaning broken repository cache..."
+               (do logInfo "Cleaning broken repository cache..."
                    cleanRepositoryCache cfg
                    return Nothing )
     else return Nothing
@@ -125,12 +125,12 @@ readRepositoryCache cfg large = do
 readTermInCacheFile :: Config -> (String -> Package) -> String
                     -> ErrorLogger (Maybe Repository)
 readTermInCacheFile cfg trans cf = do
-  h <- liftIOErrorLogger $ openFile cf ReadMode
-  pv <- liftIOErrorLogger $ hGetLine h
+  h <- liftIOEL $ openFile cf ReadMode
+  pv <- liftIOEL $ hGetLine h
   if pv == repoCacheVersion
-    then liftIOErrorLogger (hGetContents h) >>= \t ->
+    then liftIOEL (hGetContents h) >>= \t ->
          return $!! Just (pkgsToRepository (map trans (lines  t)))
-    else do infoMessage "Cleaning repository cache (wrong version)..."
+    else do logInfo "Cleaning repository cache (wrong version)..."
             cleanRepositoryCache cfg
             return Nothing
 

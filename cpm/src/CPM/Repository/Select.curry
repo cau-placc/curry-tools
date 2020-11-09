@@ -41,9 +41,9 @@ runQuery :: Config -> DBAction a -> ErrorLogger a
 runQuery cfg dbact = do
   warnIfRepositoryOld cfg
   let dbfile = repositoryCacheDB cfg
-  debugMessage $ "Reading repository database '" ++ dbfile ++ "'..."
-  result <- liftIOErrorLogger $ runQueryOnDB dbfile dbact
-  debugMessage $ "Finished reading repository database"
+  logDebug $ "Reading repository database '" ++ dbfile ++ "'..."
+  result <- liftIOEL $ runQueryOnDB dbfile dbact
+  logDebug $ "Finished reading repository database"
   return result
 
 --- Returns the packages of the repository containing a given string
@@ -200,13 +200,13 @@ getRepoForPackageSpec cfg pkgspec =
 --- The information is read either from the cache DB or from the cache file.
 getRepoForPackages :: Config -> [String] -> ErrorLogger Repository
 getRepoForPackages cfg pkgnames = do
-  dbexists <- liftIOErrorLogger $ doesFileExist (repositoryCacheDB cfg)
+  dbexists <- liftIOEL $ doesFileExist (repositoryCacheDB cfg)
   if dbexists
     then do warnIfRepositoryOld cfg
             let dbfile = repositoryCacheDB cfg
-            debugMessage $ "Reading repository database '" ++ dbfile ++ "'..."
+            logDebug $ "Reading repository database '" ++ dbfile ++ "'..."
             repo <- queryPackagesFromDB pkgnames [] []
-            debugMessage $ "Finished reading repository database"
+            logDebug $ "Finished reading repository database"
             return repo
     else readRepository cfg False
  where
@@ -214,8 +214,8 @@ getRepoForPackages cfg pkgnames = do
   queryPackagesFromDB (pn:pns) lpns pkgs
    | pn `elem` lpns = queryPackagesFromDB pns lpns pkgs
    | otherwise      = do
-     debugMessage $ "Reading package versions of " ++ pn
-     pnpkgs <- liftIOErrorLogger $ queryPackage pn
+     logDebug $ "Reading package versions of " ++ pn
+     pnpkgs <- liftIOEL $ queryPackage pn
      let newdeps = concatMap dependencyNames pnpkgs
      queryPackagesFromDB (newdeps++pns) (pn:lpns) (pnpkgs++pkgs)
 
@@ -249,7 +249,7 @@ getPackageVersion cfg pkgname ver = do
 --- otherwise read the (small or large) repository cache file.
 queryDBorCache :: Config -> Bool -> DBAction Repository -> ErrorLogger Repository
 queryDBorCache cfg large dbaction = do
-  dbexists <- liftIOErrorLogger $ doesFileExist (repositoryCacheDB cfg)
+  dbexists <- liftIOEL $ doesFileExist (repositoryCacheDB cfg)
   if dbexists then runQuery cfg dbaction
               else readRepository cfg large
 
@@ -262,17 +262,17 @@ pkgRead = readUnqualifiedTerm ["CPM.Package","Prelude"]
 --- In the file-based implementation, we simply clean the cache files.
 addPackageToRepositoryCache :: Config -> Package -> ErrorLogger ()
 addPackageToRepositoryCache cfg pkg = do
-  dbexists <- liftIOErrorLogger $ doesFileExist (repositoryCacheDB cfg)
-  if dbexists then addPackagesToRepositoryDB cfg True [pkg]
+  dbexists <- liftIOEL $ doesFileExist (repositoryCacheDB cfg)
+  if dbexists then addPackagesToRepositoryDB cfg True [Left pkg]
               else cleanRepositoryCache cfg >> return ()
 
 --- Updates an existing package in the repository cache.
 --- In the file-based implementation, we simply clean the cache files.
 updatePackageInRepositoryCache :: Config -> Package -> ErrorLogger ()
 updatePackageInRepositoryCache cfg pkg = do
-  dbexists <- liftIOErrorLogger $ doesFileExist (repositoryCacheDB cfg)
+  dbexists <- liftIOEL $ doesFileExist (repositoryCacheDB cfg)
   if dbexists then removePackageFromRepositoryDB cfg pkg >>
-                   addPackagesToRepositoryDB cfg True [pkg]
+                   addPackagesToRepositoryDB cfg True [Left pkg]
               else cleanRepositoryCache cfg >> return ()
 
 --- Removes a package from the repository cache DB.

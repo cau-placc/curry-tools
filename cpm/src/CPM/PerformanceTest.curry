@@ -134,13 +134,13 @@ behaviorDiffPerformance o = do
   profileTime genTestProgram
   putStrLn "DONE"
 
-genTestProgram :: IO (ErrorLogger ())
+genTestProgram :: ErrorLogger ()
 genTestProgram = preparePackageDirs defaultConfig emptyRepository GC.emptyCache "/tmp/verA" "/tmp/verB" |>=
     \info -> findFunctionsToCompare defaultConfig emptyRepository GC.emptyCache (infSourceDirA info) (infSourceDirB info) False Nothing |>=
     \(acyCache, loadpath, funcs, _) ->
     genCurryCheckProgram defaultConfig emptyRepository GC.emptyCache funcs
                          info True acyCache loadpath |>
-    succeedIO ()
+    return ()
 
 apiDiffPerformance :: Options -> IO ()
 apiDiffPerformance o = do

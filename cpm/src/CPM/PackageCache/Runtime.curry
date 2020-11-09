@@ -10,12 +10,11 @@ module CPM.PackageCache.Runtime
   , writePackageConfig
   ) where
 
-import System.FilePath    ( (</>), (<.>), takeDirectory, takeBaseName )
+import System.FilePath    ( (</>), (<.>), takeDirectory )
 import System.Directory   ( createDirectoryIfMissing, copyFile, doesFileExist
                           , getDirectoryContents, doesDirectoryExist
                           , getAbsolutePath )
 import Data.List          ( intercalate, split )
-import Prelude hiding (log)
 
 import CPM.Config         ( Config, binInstallDir )
 import CPM.ErrorLogger
@@ -53,32 +52,33 @@ copyPackages :: Config -> [Package] -> String -> ErrorLogger [Package]
 copyPackages cfg pkgs dir = mapM copyPackage pkgs
   where
     copyPackage pkg = do
-      cdir <- liftIOErrorLogger $ ensureCacheDirectory dir
+      cdir <- ensureCacheDirectory dir
       let destDir = cdir </> packageId pkg
-      liftIOErrorLogger $ recreateDirectory destDir
-      pkgDirExists <- liftIOErrorLogger $ doesDirectoryExist pkgDir
+      liftIOEL $ recreateDirectory destDir
+      pkgDirExists <- liftIOEL $ doesDirectoryExist pkgDir
       if pkgDirExists
-        then -- in order to obtain complete package specification:
-             readPackageFromRepository cfg pkg >>= \reppkg ->
-             liftIOErrorLogger (copyDirectoryFollowingSymlinks pkgDir cdir) >>
-             writePackageConfig cfg destDir reppkg "" >> return reppkg
+        then do
+          -- in order to obtain complete package specification:
+          reppkg <- readPackageFromRepository cfg pkg
+          liftIOEL $ copyDirectoryFollowingSymlinks pkgDir cdir
+          writePackageConfig cfg destDir reppkg ""
+          return reppkg
         else error $ "Package " ++ packageId pkg ++
                      " could not be found in package cache."
      where
       pkgDir = LocalCache.packageDir dir pkg
 
 --- Ensures that the runtime package cache directory exists.
-ensureCacheDirectory :: String -> IO String
+ensureCacheDirectory :: String -> ErrorLogger String
 ensureCacheDirectory dir = do
-  createDirectoryIfMissing True packagesDir
+  let packagesDir = dir </> ".cpm" </> "packages"
+  liftIOEL $ createDirectoryIfMissing True packagesDir
   return packagesDir
- where packagesDir = dir </> ".cpm" </> "packages"
 
 
 --- Writes the package configuration module (if specified) into the
 --- the package sources.
-writePackageConfig :: Config -> String -> Package -> String
-                   -> ErrorLogger ()
+writePackageConfig :: Config -> String -> Package -> String -> ErrorLogger ()
 writePackageConfig cfg pkgdir pkg loadpath =
   maybe (return ())
         (\configmod ->
@@ -87,13 +87,14 @@ writePackageConfig cfg pkgdir pkg loadpath =
                                (executableSpec pkg)
            in if null configmod
                 then return ()
-                else writeConfigFile configmod binname)
+                else do writeConfigFile configmod binname
+                        return ())
         (configModule pkg)
  where
   writeConfigFile configmod binname = do
     let configfile = pkgdir </> "src" </> foldr1 (</>) (split (=='.') configmod)
                             <.> ".curry"
-    liftIOErrorLogger $ do
+    liftIOEL $ do
       createDirectoryIfMissing True (takeDirectory configfile)
       abspkgdir <- getAbsolutePath pkgdir
       writeFile configfile $ unlines $
@@ -114,8 +115,8 @@ writePackageConfig cfg pkgdir pkg loadpath =
         if null binname
         then []
         else [ ""
-             , "--- Location of the executable installed by this package."
-             , "packageExecutable :: String"
-             , "packageExecutable = \"" ++ binInstallDir cfg </> binname ++ "\""
-             ]
-    log Debug $ "Config module '" ++ configfile ++ "' written."
+            , "--- Location of the executable installed by this package."
+            , "packageExecutable :: String"
+            , "packageExecutable = \"" ++ binInstallDir cfg </> binname ++ "\""
+            ]
+    logDebug $ "Config module '" ++ configfile ++ "' written."

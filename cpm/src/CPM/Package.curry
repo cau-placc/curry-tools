@@ -15,7 +15,7 @@ module CPM.Package
   , replaceVersionInTag
   , readVersion
   , packageIdEq
-  , showPackageSource
+  , showSourceOfPackage
   , readVersionConstraint
   , readVersionConstraints
   , readPackageSpec
@@ -33,6 +33,7 @@ module CPM.Package
   , PackageExecutable (..), PackageTest (..), PackageDocumentation (..)
   , showDependency
   , showCompilerDependency
+  , showVersionConstraints
   , loadPackageSpec
   , writePackageSpec
   , Conjunction
@@ -89,14 +90,17 @@ data Dependency = Dependency String Disjunction
 --- @cons VLt - version must be strictly smaller than specified version
 --- @cons VGte - version must be larger or equal to specified version
 --- @cons VLte - version must be smaller or equal to specified version
---- @cons VCompatible - semver arrow, version must be larger or equal and
----                     within same minor version
-data VersionConstraint = VExact      Version
-                       | VGt         Version
-                       | VLt         Version
-                       | VGte        Version
-                       | VLte        Version
-                       | VCompatible Version
+--- @cons VMinCompatible - version must be larger or equal and
+---                        within same minor version
+--- @cons VMajCompatible - version must be larger or equal and
+---                        within same minor version
+data VersionConstraint = VExact         Version  
+                       | VGt            Version
+                       | VLt            Version
+                       | VGte           Version
+                       | VLte           Version
+                       | VMinCompatible Version
+                       | VMajCompatible Version
  deriving (Eq,Show)
 
 --- Compiler compatibility constraint, takes the name of the compiler (kics2 or
@@ -330,14 +334,14 @@ writePackageSpec pkg file = writeFile file $ ppJSON $ packageSpecToJSON pkg
 loadPackageSpec :: String -> ErrorLogger Package
 loadPackageSpec dir = do
   let packageFile = dir </> "package.json"
-  exfile <- liftIOErrorLogger $ doesFileExist packageFile
+  exfile <- liftIOEL $ doesFileExist packageFile
   if exfile
-    then do debugMessage $ "Reading package specification '" ++ packageFile ++ "'..."
-            contents <- liftIOErrorLogger $ readCompleteFile packageFile
+    then do logDebug $ "Reading package specification '" ++ packageFile ++ "'..."
+            contents <- liftIOEL $ readCompleteFile packageFile
             case readPackageSpec contents of
                Left err -> fail err
                Right v  -> return v
-    else fail "Illegal package: file `package.json' does not exist!"
+    else fail $ "Illegal package: file `" ++ packageFile ++ "' does not exist!"
 
 --- Checks whether two package ids are equal, i.e. if their names and versions
 --- match.
@@ -348,11 +352,12 @@ packageIdEq :: Package -> Package -> Bool
 packageIdEq p1 p2 = name p1 == name p2 && version p1 == version p2
 
 --- Shows the package source in human-readable format.
-showPackageSource :: Package -> String
-showPackageSource pkg = case source pkg of
+showSourceOfPackage :: Package -> String
+showSourceOfPackage pkg = case source pkg of
   Nothing -> "No source specified"
   Just  s -> showSource s
  where
+  showSource :: PackageSource -> String
   showSource (Git url rev)    = "Git " ++ url ++ showGitRev rev
   showSource (Http url)       = url
   showSource (FileSource url) = "File " ++ url
@@ -466,12 +471,13 @@ showVersionConstraints =
 
 --- Renders a single version constraint as a string.
 showVersionConstraint :: VersionConstraint -> String
-showVersionConstraint (VLt v)         = " < "  ++ showVersion v
-showVersionConstraint (VLte v)        = " <= " ++ showVersion v
-showVersionConstraint (VGt v)         = " > "  ++ showVersion v
-showVersionConstraint (VGte v)        = " >= " ++ showVersion v
-showVersionConstraint (VExact v)      = " = "  ++ showVersion v
-showVersionConstraint (VCompatible v) = " ~> " ++ showVersion v
+showVersionConstraint (VLt v)            = " < "  ++ showVersion v
+showVersionConstraint (VLte v)           = " <= " ++ showVersion v
+showVersionConstraint (VGt v)            = " > "  ++ showVersion v
+showVersionConstraint (VGte v)           = " >= " ++ showVersion v
+showVersionConstraint (VExact v)         = " = "  ++ showVersion v
+showVersionConstraint (VMinCompatible v) = " ~"   ++ showVersion v
+showVersionConstraint (VMajCompatible v) = " ^"   ++ showVersion v
 
 --- Renders the id of a package as a string. Package name and version separated
 --- by a dash.
@@ -913,16 +919,24 @@ test_readVersionConstraint_greaterThan :: Prop
 test_readVersionConstraint_greaterThan = readVersionConstraint "> 1.2.3" -=- (Just $ VGt (1, 2, 3, Nothing))
 
 test_readVersionConstraint_greaterThanEqual :: Prop
-test_readVersionConstraint_greaterThanEqual = readVersionConstraint ">= 1.2.3" -=- (Just $ VGte (1, 2, 3, Nothing))
+test_readVersionConstraint_greaterThanEqual =
+  readVersionConstraint ">= 1.2.3" -=- (Just $ VGte (1, 2, 3, Nothing))
 
 test_readVersionConstraint_lessThan :: Prop
-test_readVersionConstraint_lessThan = readVersionConstraint "<1.2.3" -=- (Just $ VLt (1, 2, 3, Nothing))
+test_readVersionConstraint_lessThan =
+  readVersionConstraint "<1.2.3" -=- (Just $ VLt (1, 2, 3, Nothing))
 
 test_readVersionConstraint_lessThanEqual :: Prop
-test_readVersionConstraint_lessThanEqual = readVersionConstraint "<= 1.2.3" -=- (Just $ VLte (1, 2, 3, Nothing))
+test_readVersionConstraint_lessThanEqual =
+  readVersionConstraint "<= 1.2.3" -=- (Just $ VLte (1, 2, 3, Nothing))
 
-test_readVersionConstraint_compatible :: Prop
-test_readVersionConstraint_compatible = readVersionConstraint "~>1.2.3" -=- (Just $ VCompatible (1, 2, 3, Nothing))
+test_readVersionConstraint_mincompatible :: Prop
+test_readVersionConstraint_mincompatible =
+  readVersionConstraint "~1.2.3" -=- (Just $ VMinCompatible (1, 2, 3, Nothing))
+
+test_readVersionConstraint_majcompatible :: Prop
+test_readVersionConstraint_majcompatible =
+  readVersionConstraint "^1.2.3" -=- (Just $ VMajCompatible (1, 2, 3, Nothing))
 
 pVersionConstraint :: Parser VersionConstraint
 pVersionConstraint = pConstraint <*> (pWhitespace *> pVersion)
@@ -933,7 +947,9 @@ pConstraint =   char '=' *> yield VExact
             <|> char '>' *> yield VGt
             <|> char '<' *> char '=' *> yield VLte
             <|> char '<' *> yield VLt
-            <|> char '~' *> char '>' *> yield VCompatible
+            <|> char '~' *> yield VMinCompatible
+            <|> char '~' *> char '>' *> yield VMinCompatible -- backward comp.
+            <|> char '^' *> yield VMajCompatible
             <|> yield VExact
 
 pWhitespace :: Parser ()
