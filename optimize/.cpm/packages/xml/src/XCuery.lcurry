@@ -575,7 +575,7 @@ each occurrence of ``\lstinline{unknown}'' in the right-hand side of
 a rule denotes a fresh logic variable.}
 \begin{lcurry}
 
-> with :: [a] -> [a]
+> with :: Data a => [a] -> [a]
 > with []     = unknown
 > with (x:xs) = unknown ++ x : with xs
 
@@ -741,7 +741,7 @@ from \code{with} since we have to accumulate the remaining elements
 that are not part of the first arguments in the second argument:
 \begin{lcurry}
 
-> withOthers :: [a] -> [a] -> [a]
+> withOthers :: Data a => [a] -> [a] -> [a]
 > withOthers ys zs = withAcc [] ys zs
 >  where -- Accumulate remaining elements:
 >    withAcc prevs [] others | others=:=prevs++suffix = suffix

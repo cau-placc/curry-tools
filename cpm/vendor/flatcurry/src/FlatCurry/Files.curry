@@ -117,11 +117,29 @@ readFlatCurryIntWithParseOptions progname options = do
       callFrontendWithParams FINT options progname
       readFlatCurryFile (flatCurryIntName (dir </> takeFileName progname))
 
+--- Writes a FlatCurry program into a file in `.fcy` format.
+--- The file is written in the standard location for intermediate files,
+--- i.e., in the 'flatCurryFileName' relative to the directory of the
+--- Curry source program (which must exist!).
+writeFlatCurry :: Prog -> IO ()
+writeFlatCurry prog@(Prog mname _ _ _ _) = do
+  mbsrc <- lookupModuleSourceInLoadPath mname
+  case mbsrc of
+    Nothing      -> error $ "Curry source file for module '" ++ mname ++
+                            "' not found!"
+    Just (dir,_) -> writeFlatCurryFile (flatCurryFileName (dir </> mname)) prog
+
 --- Writes a FlatCurry program into a file in ".fcy" format.
 --- The first argument must be the name of the target file
---- (with suffix ".fcy").
+--- (usually with suffix ".fcy").
+writeFlatCurryFile :: String -> Prog -> IO ()
+writeFlatCurryFile file prog = writeFile file (showTerm prog)
+
+--- Writes a FlatCurry program into a file in ".fcy" format.
+--- The first argument must be the name of the target file
+--- (usually with suffix ".fcy").
 writeFCY :: String -> Prog -> IO ()
-writeFCY file prog = writeFile file (showTerm prog)
+writeFCY = writeFlatCurryFile
 
 --- Returns the name of the FlatCurry file of a module in the load path,
 --- if this file exists.

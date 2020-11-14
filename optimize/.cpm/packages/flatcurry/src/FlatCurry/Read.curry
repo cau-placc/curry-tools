@@ -15,9 +15,10 @@ module FlatCurry.Read
   , readFlatCurryIntWithImportsInPath
   ) where
 
+import Control.Monad       ( when )
 import System.Directory    ( getModificationTime, getFileWithSuffix
                            , findFileWithSuffix )
-import System.FilePath     ( normalise, takeBaseName )
+import System.FilePath     ( dropExtension, normalise, takeBaseName )
 import System.CurryPath    ( getLoadPathForModule, lookupModuleSource )
 import System.FrontendExec ( FrontendTarget (FCY), callFrontendWithParams
                            , defaultParams, setQuiet, setFullPath )
@@ -141,7 +142,7 @@ tryReadFlatCurry verb loadpath modname suffixes = do
   mbSrc <- lookupModuleSource loadpath modname
   case mbSrc of
     Nothing -> findFileWithSuffix flattakeBaseName suffixes loadpath >>=
-               maybe (return Nothing) (liftIO Just  . readFlatCurryFile)
+               maybe (return Nothing) (fmap Just  . readFlatCurryFile)
     Just (_,src) -> do
       mbFcy <- findFileWithSuffix flattakeBaseName suffixes loadpath
       case mbFcy of
@@ -153,5 +154,5 @@ tryReadFlatCurry verb loadpath modname suffixes = do
             then return Nothing
             else do
               when verb $ putStr (normalise fcy ++ " ")
-              Just `liftIO` readFlatCurryFile fcy
+              fmap Just (readFlatCurryFile fcy)
  where flattakeBaseName = dropExtension (flatCurryFileName modname)

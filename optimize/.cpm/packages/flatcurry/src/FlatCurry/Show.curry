@@ -11,7 +11,7 @@
 ---     Curry syntax (`showCurryType`, `showCurryExpr`,...).
 ---
 --- @author Michael Hanus
---- @version February 2020
+--- @version March 2019
 ------------------------------------------------------------------------------
 
 module FlatCurry.Show
@@ -37,13 +37,16 @@ showFlatProg (Prog modname imports types funcs ops) =
      ++ "\n " ++ showFlatList showFlatOp ops
      ++ "\n )\n"
 
+showFlatVisibility :: Visibility -> String
 showFlatVisibility Public  = " Public "
 showFlatVisibility Private = " Private "
 
+showFlatFixity :: Fixity -> String
 showFlatFixity InfixOp = " InfixOp "
 showFlatFixity InfixlOp = " InfixlOp "
 showFlatFixity InfixrOp = " InfixrOp "
 
+showFlatOp :: OpDecl -> String
 showFlatOp (Op name fix prec) =
  "(Op " ++ show name ++ showFlatFixity fix ++ show prec ++ ")"
 
@@ -57,6 +60,7 @@ showFlatType (TypeSyn name vis tpars texp) =
                   ++ showFlatList show tpars
                   ++ showFlatTypeExpr texp ++ ")"
 
+showFlatCons :: ConsDecl -> String
 showFlatCons (Cons cname arity vis types) =
   "(Cons " ++ show cname ++ " " ++ show arity
            ++ showFlatVisibility vis
@@ -69,6 +73,7 @@ showFlatFunc (Func name arity vis ftype rl) =
   "\n        " ++ showFlatTypeExpr ftype ++
   "\n       " ++ showFlatRule rl ++ ")"
 
+showFlatRule :: Rule -> String
 showFlatRule (Rule params expr) =
   " (Rule " ++ showFlatList show params
             ++ showFlatExpr expr ++ ")"
@@ -111,13 +116,16 @@ showFlatExpr (Case Flex e bs) =
 showFlatExpr (Typed e ty) =
   "(Typed " ++ showFlatExpr e ++ ' ' : showFlatTypeExpr ty ++ ")"
 
+showFlatLit :: Literal -> String
 showFlatLit (Intc   i) = "(Intc " ++ show i ++ ")"
 showFlatLit (Floatc f) = "(Floatc " ++ show f ++ ")"
 showFlatLit (Charc  c) = "(Charc " ++ show c ++ ")"
 
+showFlatBranch :: BranchExpr -> String
 showFlatBranch (Branch p e) = "(Branch " ++ showFlatPattern p
                                          ++ showFlatExpr e ++ ")"
 
+showFlatPattern :: Pattern -> String
 showFlatPattern (Pattern qn xs) =
       "(Pattern " ++ show qn
                   ++ showFlatList show xs ++ ")"
@@ -129,7 +137,7 @@ showFlatList :: (a->String) -> [a] -> String
 showFlatList format elems = " [" ++ showFlatListElems format elems ++ "] "
 
 showFlatListElems :: (a->String) -> [a] -> String
-showFlatListElems format elems = concat (intersperse "," (map format elems))
+showFlatListElems format elems = intercalate "," (map format elems)
 
 
 ------------------------------------------------------------------------------
@@ -141,7 +149,7 @@ showFlatListElems format elems = concat (intersperse "," (map format elems))
 --- @param texpr - the FlatCurry type expression to be formatted
 --- @return the String representation of the formatted type expression
 
-showCurryType :: ((String,String) -> String) -> Bool -> TypeExpr -> String
+showCurryType :: (QName -> String) -> Bool -> TypeExpr -> String
 showCurryType tf nested texp = case texp of
   FuncType t1 t2 -> maybe (showCurryType_ tf nested texp)
                           (\ (cn,cv) -> showBracketsIf nested $
@@ -200,7 +208,7 @@ isFuncType (ForallType _ te) = isFuncType te
 --- @param expr - the FlatCurry expression to be formatted
 --- @return the String representation of the formatted expression
 
-showCurryExpr :: ((String,String) -> String) -> Bool -> Int -> Expr -> String
+showCurryExpr :: (QName -> String) -> Bool -> Int -> Expr -> String
 
 showCurryExpr _ _ _ (Var n) = showCurryVar n
 
@@ -221,7 +229,7 @@ showCurryExpr tf nested b (Comb ct cf [e1,e2])
   = if isStringConstant (Comb ct cf [e1,e2])
     then "\"" ++ showCurryStringConstant (Comb ct cf [e1,e2]) ++ "\""
     else "[" ++
-         concat (intersperse "," (showCurryFiniteList tf b (Comb ct cf [e1,e2])))
+         intercalate "," (showCurryFiniteList tf b (Comb ct cf [e1,e2]))
          ++ "]"
  | snd cf == "(,)" -- pair constructor?
   = "(" ++ showCurryExpr tf False b e1 ++ "," ++
@@ -239,7 +247,7 @@ showCurryExpr tf nested b (Comb _ cf (e1:e2:e3:es))
          sceBlanks b ++ " else " ++ showCurryExpr tf False (b+2) e3)
  | take 2 (snd cf) == "(,"  -- tuple constructor?
   = "(" ++
-    concat (intersperse "," (map (showCurryExpr tf False b) (e1:e2:e3:es)))
+    intercalate "," (map (showCurryExpr tf False b) (e1:e2:e3:es))
         ++ ")"
  | otherwise
   = showBracketsIf nested
@@ -248,15 +256,17 @@ showCurryExpr tf nested b (Comb _ cf (e1:e2:e3:es))
 
 showCurryExpr tf nested b (Let bindings exp) =
   showBracketsIf nested
-    ("\n"++sceBlanks b++"let " ++ concat (intersperse ("\n    "++sceBlanks b)
-     (map (\ (x,e)->showCurryVar x ++" = "++showCurryExpr tf False (b+4) e) bindings)) ++
-     ("\n"++sceBlanks b++" in ") ++ showCurryExpr tf False (b+4) exp)
+    ("\n" ++ sceBlanks b ++ "let " ++
+     intercalate ("\n    " ++ sceBlanks b)
+       (map (\ (x,e) -> showCurryVar x ++ " = " ++
+                         showCurryExpr tf False (b+4) e) bindings) ++
+     ("\n" ++ sceBlanks b ++ " in ") ++ showCurryExpr tf False (b+4) exp)
 
 showCurryExpr tf nested b (Free [] e) = showCurryExpr tf nested b e
 
 showCurryExpr tf nested b (Free (x:xs) e) =
   showBracketsIf nested
-    ("let " ++ concat (intersperse "," (map showCurryVar (x:xs))) ++
+    ("let " ++ intercalate "," (map showCurryVar (x:xs)) ++
      " free in " ++ showCurryExpr tf False b e)
 
 showCurryExpr tf nested b (Or e1 e2) =
@@ -271,19 +281,24 @@ showCurryExpr tf nested b (Case ctype e cs) =
      showCurryElems (showCurryCase tf (b+2)) cs ++ sceBlanks b)
 
 showCurryExpr tf nested b (Typed e ty) =
-  showBracketsIf nested (showCurryExpr tf True b e ++ " :: " ++ showCurryType tf False ty)
+  showBracketsIf nested
+    (showCurryExpr tf True b e ++ " :: " ++ showCurryType tf False ty)
 
+showCurryVar :: Show a => a -> String
 showCurryVar i = "v" ++ show i
 
 --- Shows an identifier in Curry form. Thus, operators are enclosed in brackets.
+showCurryId :: String -> String
 showCurryId name | isAlpha (head name) = name
                  | name == "[]"        = name
                  | otherwise           = ('(':name)++")"
 
+showCurryLit :: Literal -> String
 showCurryLit (Intc   i) = show i
 showCurryLit (Floatc f) = show f
 showCurryLit (Charc  c) = show c
 
+showCurryCase :: (QName -> String) -> Int -> BranchExpr -> String
 showCurryCase tf b (Branch (Pattern l vs) e) =
   sceBlanks b ++ showPattern (tf l) vs
               ++ " -> " ++ showCurryExpr tf False b e ++ "\n"
@@ -298,14 +313,15 @@ showCurryCase tf b (Branch (Pattern l vs) e) =
           else showCurryVar x1 ++ " " ++ c ++ " " ++ showCurryVar x2
    showPattern c (x1:x2:x3:xs) =
      if take 2 c == "(,"  -- tuple constructor?
-     then "("++ concat (intersperse "," (map showCurryVar (x1:x2:x3:xs))) ++")"
+     then "(" ++ intercalate "," (map showCurryVar (x1:x2:x3:xs)) ++ ")"
      else c ++ " " ++ showCurryElems showCurryVar (x1:x2:x3:xs)
 
 showCurryCase tf b (Branch (LPattern l) e) =
   sceBlanks b ++ showCurryLit l ++ " "
               ++ " -> " ++ showCurryExpr tf False b e ++ "\n"
 
-showCurryFiniteList _ _ (Comb _ ("Prelude","[]") []) = []
+showCurryFiniteList :: (QName -> String) -> Int -> Expr -> [String]
+showCurryFiniteList _  _ (Comb _ ("Prelude","[]") []) = []
 showCurryFiniteList tf b (Comb _ ("Prelude",":") [e1,e2]) =
   showCurryExpr tf False b e1 : showCurryFiniteList tf b e2
 
@@ -321,14 +337,14 @@ showCharExpr (Lit (Charc c))
   | c=='\'' = "\\\'"
   | c=='\n' = "\\n"
   | o < 32 || o > 126 =
-    ['\\',chr(o `div` 100 + 48), chr(((o `mod` 100) `div` 10 + 48)),chr(o `mod` 10 + 48)]
+    ['\\', chr (o `div` 100 + 48), chr (((o `mod` 100) `div` 10 + 48)),
+           chr(o `mod` 10 + 48)]
   | otherwise = [c]
  where
    o = ord c
 
-showCurryElems :: (a->String) -> [a] -> String
-showCurryElems format elems =
-   concat (intersperse " " (map format elems))
+showCurryElems :: (a -> String) -> [a] -> String
+showCurryElems format elems = intercalate " " (map format elems)
 
 showBracketsIf :: Bool -> String -> String
 showBracketsIf nested s = if nested then '(' : s ++ ")" else s
