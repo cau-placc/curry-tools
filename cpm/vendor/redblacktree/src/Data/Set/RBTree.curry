@@ -21,6 +21,10 @@ type SetRBT a = RBT.RedBlackTree a
 empty :: Eq a => (a -> a -> Bool) -> SetRBT a
 empty = RBT.empty (==) (==)
 
+--- Returns an empty set that uses the Ord's ordering predicate.
+emptyOrd :: Ord a => SetRBT a
+emptyOrd = empty (<)
+
 --- Test for an empty set.
 null :: SetRBT _ -> Bool
 null = RBT.isEmpty

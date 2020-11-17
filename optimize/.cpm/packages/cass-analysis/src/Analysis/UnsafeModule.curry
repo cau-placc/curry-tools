@@ -3,13 +3,13 @@
 --- it imports directly or indirectly the module `Unsafe`.
 ---
 --- @author Michael Hanus
---- @version June 2018
+--- @version November 2020
 ------------------------------------------------------------------------
 
 module Analysis.UnsafeModule ( showUnsafe, unsafeModuleAnalysis )
  where
 
-import Data.List         ( nub )
+import Data.List         ( isInfixOf, nub )
 
 import Analysis.Types
 import FlatCurry.Goodies ( progImports, progName )
@@ -36,8 +36,9 @@ showUnsafe AText ms@(_:_:_) = "unsafe (due to modules " ++ unwords ms ++ ")"
 -- TODO: to be real safe, one also has to check external operations!
 importsUnsafe :: Prog -> [(String,[String])] -> [String]
 importsUnsafe prog impinfos =
-  let unsafemods = (if "Unsafe" `elem` progImports prog then [progName prog]
-                                                        else []) ++
+  let unsafemods = (if any ("Unsafe" `isInfixOf`) (progImports prog)
+                      then [progName prog]
+                      else []) ++
                    concatMap snd impinfos
   in nub unsafemods
 

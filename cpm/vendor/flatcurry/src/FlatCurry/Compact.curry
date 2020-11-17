@@ -19,11 +19,10 @@ import FlatCurry.Files
 import qualified Data.Set.RBTree as RBS
 import qualified Data.Table.RBTree as RBT
 import Data.Maybe
-import Data.List           (nub, union)
-import System.FilePath     (takeFileName, (</>))
+import Data.List           ( nub, union )
+import System.CurryPath    ( lookupModuleSourceInLoadPath, stripCurrySuffix)
+import System.FilePath     ( takeFileName, (</>) )
 import System.Directory
-import Language.Curry.Distribution ( lookupModuleSourceInLoadPath
-                                    , stripCurrySuffix)
 import XML
 
 infix 0 `requires`
@@ -149,7 +148,6 @@ generateCompactFlatCurryFile :: [Option] -> String -> String -> IO ()
 generateCompactFlatCurryFile options progname target = do
   optprog <- computeCompactFlatCurry options progname
   writeFCY target optprog
-  done
 
 --- Computes a single FlatCurry program containing all functions potentially
 --- called from a set of main functions.
@@ -259,20 +257,20 @@ extendFuncTable ftable fdecls =
 requiredInCompactProg :: Prog -> [Option] -> IO ([QName],RBS.SetRBT String,[Prog])
 requiredInCompactProg mainmod options
  | not (null initfuncs)
-  = do impprogs <- mapIO readCurrentFlatCurry imports
+  = do impprogs <- mapM readCurrentFlatCurry imports
        return (concat initfuncs, add2mainmodset imports, mainmod:impprogs)
  | Exports `elem` options
-  = do impprogs <- mapIO readCurrentFlatCurry imports
+  = do impprogs <- mapM readCurrentFlatCurry imports
        return (nub mainexports, add2mainmodset imports, mainmod:impprogs)
  | any isMainOption options
   = let func = getMainFuncFromOptions options in
      if (mainmodname,func) `elem` (map functionName (moduleFuns mainmod))
      then do
-       impprogs <- mapIO readCurrentFlatCurry imports
+       impprogs <- mapM readCurrentFlatCurry imports
        return ([(mainmodname,func)], add2mainmodset imports, mainmod:impprogs)
      else error $ "CompactFlat: Cannot find main function \""++func++"\"!"
  | otherwise
-  = do impprogs <- mapIO readCurrentFlatCurry
+  = do impprogs <- mapM readCurrentFlatCurry
                          (nub (imports ++ moduleImports mainmod))
        return (nub (mainexports ++
                     concatMap (exportedFuncNames . moduleFuns) impprogs),

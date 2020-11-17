@@ -3,7 +3,7 @@
 --- and all substructures (e.g., expressions).
 ---
 --- @author  Bjoern Peemoeller
---- @version June 2015
+--- @version November 2020
 --- --------------------------------------------------------------------------
 
 module FlatCurry.Pretty where
@@ -125,9 +125,9 @@ ppTypeDecls o = vsepBlank . map (ppTypeDecl o)
 --- pretty-print a type declaration
 ppTypeDecl :: Options -> TypeDecl -> Doc
 ppTypeDecl o (Type    qn _ vs cs) = indent o $ (text "data" <+> ppName qn
-  <+> hsep (empty : map ppTVarIndex vs)) $$ ppConsDecls o cs
+  <+> hsep (empty : map (ppTVarIndex . fst) vs)) $$ ppConsDecls o cs
 ppTypeDecl o (TypeSyn qn _ vs ty) = indent o $ text "type" <+> ppName qn
-  <+> hsep (empty : map ppTVarIndex vs) </> equals <+> ppTypeExp o ty
+  <+> hsep (empty : map (ppTVarIndex . fst) vs) </> equals <+> ppTypeExp o ty
 
 --- pretty-print the constructor declarations
 ppConsDecls :: Options -> [ConsDecl] -> Doc
