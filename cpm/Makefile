@@ -57,7 +57,7 @@ runtest:
 	for i in `ls vendor`; do					\
 		export CURRYPATH="$$CURRYPATH:`pwd`/vendor/$$i/src";	\
 	done;								\
-	cd src; $(REPL) check CPM.Package CPM.Resolution CPM.LookupSet
+	cd src && curry-check CPM.Package CPM.Resolution CPM.LookupSet
 
 .PHONY: doc
 doc:
@@ -66,7 +66,7 @@ doc:
 		export CURRYPATH="$$CURRYPATH:`pwd`/vendor/$$i/src";	\
 	done;								\
 	export CURRYPATH="$$CURRYPATH:`pwd`/src"; \
-	$(REPL) doc cdoc CPM.Main
+	curry-doc cdoc CPM.Main
 
 .PHONY: manual
 manual:
