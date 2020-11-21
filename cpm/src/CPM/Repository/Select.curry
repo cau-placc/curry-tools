@@ -2,7 +2,7 @@
 --- Some queries on the repository cache.
 ---
 --- @author Michael Hanus
---- @version April 2018
+--- @version November 2020
 ------------------------------------------------------------------------------
  
 
@@ -10,6 +10,7 @@ module CPM.Repository.Select
   ( searchNameSynopsisModules
   , searchExportedModules, searchExecutable
   , getRepositoryWithNameVersionSynopsis
+  , getRepositoryWithNameVersionSynopsisDeps
   , getRepositoryWithNameVersionCategory
   , getBaseRepository
   , getRepoForPackageSpec
@@ -136,6 +137,22 @@ getRepositoryWithNameVersionSynopsis cfg = queryDBorCache cfg True $
     emptyPackage { name = nm
                  , version = pkgRead vs
                  , synopsis = syn
+                 , compilerCompatibility = pkgRead cmp
+                 }
+
+--- Returns the complete repository where in each package
+--- the name, version, synopsis, dependencies and compilerCompatibility is set.
+getRepositoryWithNameVersionSynopsisDeps :: Config -> IO Repository
+getRepositoryWithNameVersionSynopsisDeps cfg = queryDBorCache cfg True $
+  liftM (pkgsToRepository . map toPackage)
+    (Database.CDBI.ER.getColumnFiveTuple [] [Database.CDBI.ER.FiveCS Database.CDBI.ER.All (Database.CDBI.ER.fiveCol (Database.CDBI.ER.singleCol CPM.Repository.RepositoryDB.indexEntryNameColDesc 0 Database.CDBI.ER.none) (Database.CDBI.ER.singleCol CPM.Repository.RepositoryDB.indexEntryVersionColDesc 0 Database.CDBI.ER.none) (Database.CDBI.ER.singleCol CPM.Repository.RepositoryDB.indexEntrySynopsisColDesc 0 Database.CDBI.ER.none) (Database.CDBI.ER.singleCol CPM.Repository.RepositoryDB.indexEntryDependenciesColDesc 0 Database.CDBI.ER.none) (Database.CDBI.ER.singleCol CPM.Repository.RepositoryDB.indexEntryCompilerCompatibilityColDesc 0 Database.CDBI.ER.none)) (Database.CDBI.ER.TC CPM.Repository.RepositoryDB.indexEntryTable 0 Nothing) (Database.CDBI.ER.Criteria Database.CDBI.ER.None Nothing)] [] Nothing)
+
+ where
+  toPackage (nm,vs,syn,deps,cmp) =
+    emptyPackage { name = nm
+                 , version = pkgRead vs
+                 , synopsis = syn
+                 , dependencies = pkgRead deps
                  , compilerCompatibility = pkgRead cmp
                  }
 

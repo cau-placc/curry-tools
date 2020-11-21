@@ -56,31 +56,35 @@ import CPM.PackageCache.Runtime ( dependencyPathsSeparate, writePackageConfig )
 import CPM.PackageCopy
 import CPM.Diff.API as APIDiff
 import qualified CPM.Diff.Behavior as BDiff
-import CPM.ConfigPackage        ( packagePath )
+import CPM.ConfigPackage        ( packagePath, packageVersion )
 
 -- Banner of this tool:
 cpmBanner :: String
-cpmBanner = unlines [bannerLine,bannerText,bannerLine]
+cpmBanner = unlines [bannerLine, bannerText, bannerLine]
  where
- bannerText =
-   "Curry Package Manager <curry-lang.org/tools/cpm> (version of 20/10/2020)"
- bannerLine = take (length bannerText) (repeat '-')
+  bannerText =
+    "Curry Package Manager <curry-lang.org/tools/cpm> (Version " ++
+    packageVersion ++ ", 20/11/2020)"
+  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
 main = do
   args <- getArgs
-  parseResult <- return $ parse (unwords args) (optionParser args) "cypm"
-  case parseResult of
-    Left err -> do putStrLn cpmBanner
-                   putStrLn err
-                   --putStrLn "(use option -h for usage information)"
-                   exitWith 1
-    Right  r -> case applyParse r of
-      Left err   -> do putStrLn cpmBanner
-                       --printUsage "cypm" 80 (optionParser args)
+  if "-V" `elem` args || "--version" `elem` args
+    then putStrLn $ "Curry Package Manager, version " ++ packageVersion
+    else do
+      parseResult <- return $ parse (unwords args) (optionParser args) "cypm"
+      case parseResult of
+        Left err -> do putStrLn cpmBanner
                        putStrLn err
+                       --putStrLn "(use option -h for usage information)"
                        exitWith 1
-      Right opts -> runWithArgs opts
+        Right  r -> case applyParse r of
+          Left err   -> do putStrLn cpmBanner
+                           --printUsage "cypm" 80 (optionParser args)
+                           putStrLn err
+                           exitWith 1
+          Right opts -> runWithArgs opts
 
 runWithArgs :: Options -> IO ()
 runWithArgs opts = do
@@ -118,16 +122,17 @@ runWithArgs opts = do
 
 -- The global options of CPM.
 data Options = Options
-  { optLogLevel  :: LogLevel
-  , optDefConfig :: [(String,String)]
-  , optWithTime  :: Bool
-  , optCommand   :: Command }
+  { optLogLevel    :: LogLevel
+  , optDefConfig   :: [(String,String)]
+  , optShowVersion :: Bool
+  , optWithTime    :: Bool
+  , optCommand     :: Command }
 
 -- The default options: no command, no timing, info log level
 defaultOptions :: Options
-defaultOptions = Options Info [] False NoCommand
+defaultOptions = Options Info [] False False NoCommand
 
-data Command 
+data Command
   = NoCommand
   | Config     ConfigOptions
   | Deps       DepsOptions
@@ -182,9 +187,10 @@ data InfoOptions = InfoOptions
   }
 
 data ListOptions = ListOptions
-  { listVers :: Bool   -- list all versions of each package
-  , listCSV  :: Bool   -- list in CSV format
-  , listCat  :: Bool   -- list all categories
+  { listVers   :: Bool   -- list all versions of each package
+  , listSystem :: Bool   -- list package compatible with current Curry system
+  , listCSV    :: Bool   -- list in CSV format
+  , listCat    :: Bool   -- list all categories
   }
 
 data SearchOptions = SearchOptions
@@ -287,7 +293,7 @@ infoOpts s = case optCommand s of
 listOpts :: Options -> ListOptions
 listOpts s = case optCommand s of
   List opts -> opts
-  _         -> ListOptions False False False
+  _         -> ListOptions False False False False
 
 searchOpts :: Options -> SearchOptions
 searchOpts s = case optCommand s of
@@ -379,13 +385,17 @@ applyParse :: [Options -> Either String Options] -> Either String Options
 applyParse fs = applyEither fs defaultOptions
 
 (>.>) :: Either String a -> (a -> b) -> Either String b
-a >.> f = case a of 
+a >.> f = case a of
   Left err -> Left err
   Right  v -> Right $ f v
 
 optionParser :: [String] -> ParseSpec (Options -> Either String Options)
-optionParser allargs = optParser 
-  (   option (\s a -> readLogLevel s >.> \ll -> a { optLogLevel = ll })
+optionParser allargs = optParser
+  (   flag (\a -> Right $ a { optShowVersion = True })
+        (  long "version"
+        <> short "V"
+        <> help "Show version and quit" )
+  <.> option (\s a -> readLogLevel s >.> \ll -> a { optLogLevel = ll })
        (  long "verbosity"
        <> short "v"
        <> metavar "LEVEL"
@@ -609,7 +619,7 @@ optionParser allargs = optParser
           (  metavar "PACKAGE"
           <> help ("The package name. If no name is specified, CPM tries " ++
                    "to read a package specification in the current directory.")
-          <> optional) 
+          <> optional)
     <.> arg (\s a -> readVersion' s >.> \v -> a
                                  { optCommand = PkgInfo (infoOpts a)
                                                   { infoVersion = Just v } })
@@ -746,7 +756,12 @@ optionParser allargs = optParser
                                   List (listOpts a) { listVers = True } })
           (  short "v"
           <> long "versions"
-          <> help "Show all versions" ) 
+          <> help "List all versions" )
+    <.> flag (\a -> Right $ a { optCommand =
+                                  List (listOpts a) { listSystem = True } })
+          (  short "s"
+          <> long "system"
+          <> help "List packages compatible with current compiler" )
     <.> flag (\a -> Right $ a { optCommand =
                                   List (listOpts a) { listCSV = True } })
           (  short "t"
@@ -770,7 +785,7 @@ optionParser allargs = optParser
              <> long "exec"
              <> help "Search for the name of an executable" )
     <.> arg (\s a -> Right $ a { optCommand = Search (searchOpts a)
-                                                { searchQuery = s } }) 
+                                                { searchQuery = s } })
             (  metavar "QUERY"
             <> help "The search term" )
 
@@ -778,7 +793,7 @@ optionParser allargs = optParser
     arg (\s a -> Right $ a { optCommand = Upgrade (upgradeOpts a)
                                             { upgrTarget = Just s } })
         (  metavar "PACKAGE"
-        <> help "The package to upgrade" 
+        <> help "The package to upgrade"
         <> optional )
 
   linkArgs =
@@ -821,10 +836,10 @@ checkRequiredExecutables = do
     exitWith 1
   debugMessage "All required executables found."
  where
-  listOfExecutables = 
-    [ "curl"  
-    , "git"   
-    , "unzip" 
+  listOfExecutables =
+    [ "curl"
+    , "git"
+    , "unzip"
     , "tar"
     , "cp"
     , "rm"
@@ -1056,21 +1071,29 @@ uninstallPackageExecutable cfg pkg =
 --- Lists all (compiler-compatible if `lall` is false) packages
 --- in the given repository.
 listCmd :: ListOptions -> Config -> ErrorLoggerIO ()
-listCmd (ListOptions lv csv cat) cfg = do
+listCmd (ListOptions lv currysystem csv cat) cfg = do
   repo <- execIO $ if cat then getRepositoryWithNameVersionCategory cfg
-                          else getRepositoryWithNameVersionSynopsis cfg
+                          else if currysystem
+                                 then getRepositoryWithNameVersionSynopsisDeps cfg
+                                 else getRepositoryWithNameVersionSynopsis cfg
   let listresult = if cat then renderCats (catgroups repo)
                           else renderPkgs (allpkgs repo)
   putStrELM listresult
  where
   -- all packages (and versions if `lv`)
-  allpkgs repo = concatMap (if lv then id else ((:[]) . filterCompatPkgs cfg))
-                    (sortBy (\ps1 ps2 -> name (head ps1) <= name (head ps2))
-                            (listPackages repo))
+  allpkgs repo = concatMap filterPkgVersions
+                   (sortBy (\ps1 ps2 -> name (head ps1) <= name (head ps2))
+                           (listPackages repo))
+   where
+    filterPkgVersions pvs =
+      if lv then pvs
+            else if currysystem
+                   then take 1 (filter (isCompatibleToCompiler cfg) pvs)
+                   else take 1 pvs
 
   -- all categories together with their package names:
   catgroups repo =
-    let pkgid p = name p ++ '-' : showVersionIfCompatible cfg p
+    let pkgid p = name p -- ++ '-' : showVersionIfCompatible cfg p
         newpkgs = map (filterCompatPkgs cfg) (listPackages repo)
         catpkgs = concatMap (\p -> map (\c -> (c, pkgid p)) (category p))
                             newpkgs
@@ -1081,7 +1104,7 @@ listCmd (ListOptions lv csv cat) cfg = do
                        else [("???", nub $ sortBy (<=) nocatps)]
 
   renderPkgs pkgs =
-    let (colsizes,rows) = packageVersionAsTable cfg pkgs
+    let (colsizes,rows) = packageVersionAsTable cfg pkgs True
     in renderTable colsizes rows
 
   renderCats catgrps =
@@ -1105,15 +1128,17 @@ filterCompatPkgs cfg pkgs =
 
 -- Format a list of packages by showing their names, synopsis, and versions
 -- as table rows. Returns also the column sizes.
-packageVersionAsTable :: Config -> [Package] -> ([Int],[[String]])
-packageVersionAsTable cfg pkgs = (colsizes, rows)
+packageVersionAsTable :: Config -> [Package] -> Bool -> ([Int],[[String]])
+packageVersionAsTable cfg pkgs withversion =
+  (colsizes, if withversion then rows else map (take 2) rows)
  where
   namelen = foldl max 4 $ map (length . name) pkgs
-  colsizes = [namelen + 2, 68 - namelen, 10]
+  colsizes = if withversion then [namelen + 2, 68 - namelen, 10]
+                            else [namelen + 2, 78 - namelen]
   header  = [ ["Name", "Synopsis", "Version"]
             , ["----", "--------", "-------"]]
-  rows    = header ++ map formatPkg pkgs
   formatPkg p = [name p, synopsis p, showVersionIfCompatible cfg p]
+  rows    = header ++ map formatPkg pkgs
 
 --- Shows the version of a package if it is compatible with the
 --- current compiler, otherwise shows the version in brackets.
@@ -1138,7 +1163,7 @@ searchCmd (SearchOptions q smod sexec) cfg = do
                             (map (sortBy (\a b -> version a `vgt` version b))
                                  (groupBy (\a b -> name a == name b)
                                  allpkgs)))
-      (colsizes,rows) = packageVersionAsTable cfg results
+      (colsizes,rows) = packageVersionAsTable cfg results False
   putStrELM $ unlines $
     if null results
       then [ "No packages found for '" ++ q ++ "'", useUpdateHelp ]
@@ -1685,7 +1710,9 @@ uploadCmd opts cfg = do
   installPkg lpkg instdir
   let pkgid = packageId lpkg
   pkg <- loadPackageSpecELM (instdir </> pkgid)
-  ecode <- testPackage pkgid instdir
+  -- Test package if CurryCheck is installed:
+  mbccfile <- execIO $ getFileInPath "curry-check"
+  ecode <- maybe (return 0) (\_ -> testPackage pkgid instdir) mbccfile
   if ecode > 0
     then do execIO cleanTempDir
             logMsg Critical "ERROR in package, package not uploaded!"

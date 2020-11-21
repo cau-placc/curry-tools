@@ -2,7 +2,7 @@
 --- Some queries on the repository cache.
 ---
 --- @author Michael Hanus
---- @version April 2018
+--- @version November 2020
 ------------------------------------------------------------------------------
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=foreigncode --optF=-o #-}
 
@@ -10,6 +10,7 @@ module CPM.Repository.Select
   ( searchNameSynopsisModules
   , searchExportedModules, searchExecutable
   , getRepositoryWithNameVersionSynopsis
+  , getRepositoryWithNameVersionSynopsisDeps
   , getRepositoryWithNameVersionCategory
   , getBaseRepository
   , getRepoForPackageSpec
@@ -136,6 +137,22 @@ getRepositoryWithNameVersionSynopsis cfg = queryDBorCache cfg True $
     emptyPackage { name = nm
                  , version = pkgRead vs
                  , synopsis = syn
+                 , compilerCompatibility = pkgRead cmp
+                 }
+
+--- Returns the complete repository where in each package
+--- the name, version, synopsis, dependencies and compilerCompatibility is set.
+getRepositoryWithNameVersionSynopsisDeps :: Config -> IO Repository
+getRepositoryWithNameVersionSynopsisDeps cfg = queryDBorCache cfg True $
+  liftM (pkgsToRepository . map toPackage)
+    ``sql* Select Name, Version, Synopsis, Dependencies, CompilerCompatibility
+           From   IndexEntry;''
+ where
+  toPackage (nm,vs,syn,deps,cmp) =
+    emptyPackage { name = nm
+                 , version = pkgRead vs
+                 , synopsis = syn
+                 , dependencies = pkgRead deps
                  , compilerCompatibility = pkgRead cmp
                  }
 
