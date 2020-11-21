@@ -52,7 +52,7 @@ src/CPM/ConfigPackage.curry: Makefile
 	@echo "packagePath :: String" >> $@
 	@echo "packagePath = \"$(CURDIR)\"" >> $@
 	@echo "packageVersion :: String" >> $@
-	@echo "packageVersion = \"2.0.0\"" >> $@
+	@echo "packageVersion = \"2.2.0\"" >> $@
 	@echo "Curry configuration module '$@' written."
 
 runtest:
