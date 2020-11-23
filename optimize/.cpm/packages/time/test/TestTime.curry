@@ -15,7 +15,7 @@ testDayString :: Prop
 testDayString = toDayString aTime -=- "February 5, 2020"
 
 testTimeString :: Prop
-testTimeString = toDayString aTime -=- "13:51:04"
+testTimeString = toTimeString aTime -=- "13:51:04"
 
 testDaysOfMonth1 :: Prop
 testDaysOfMonth1 = daysOfMonth 2 2020 -=- 29

@@ -3,8 +3,7 @@
 --- together with all its imported modules in the current load path.
 ---
 --- @author Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version November 2017
---- @category meta
+--- @version November 2020
 ------------------------------------------------------------------------------
 
 module FlatCurry.Read
@@ -18,7 +17,7 @@ module FlatCurry.Read
 import Control.Monad       ( when )
 import System.Directory    ( getModificationTime, getFileWithSuffix
                            , findFileWithSuffix )
-import System.FilePath     ( dropExtension, normalise, takeBaseName )
+import System.FilePath     ( dropExtension, normalise, takeFileName )
 import System.CurryPath    ( getLoadPathForModule, lookupModuleSource )
 import System.FrontendExec ( FrontendTarget (FCY), callFrontendWithParams
                            , defaultParams, setQuiet, setFullPath )
@@ -39,7 +38,7 @@ readFlatCurryInPath loadpath modname = do
 readFlatCurryWithImports :: String -> IO [Prog]
 readFlatCurryWithImports modname = do
   loadpath <- getLoadPathForModule modname
-  readFlatCurryFileInPath True False loadpath (takeBaseName modname) [".fcy"]
+  readFlatCurryFileInPath True False loadpath (takeFileName modname) [".fcy"]
 
 --- Reads a FlatCurry program together with all its imported modules
 --- in a given load path.
@@ -57,11 +56,11 @@ readFlatCurryWithImportsInPath loadpath modname =
 readFlatCurryIntWithImports :: String -> IO [Prog]
 readFlatCurryIntWithImports modname = do
   loadpath <- getLoadPathForModule modname
-  readFlatCurryFileInPath True False loadpath (takeBaseName modname)
+  readFlatCurryFileInPath True False loadpath (takeFileName modname)
                                      [".fint",".fcy"]
 
---- Reads a FlatCurry interface together with all its imported module interfaces
---- in a given load path.
+--- Reads a FlatCurry interface together with all its imported module
+--- interfaces in a given load path.
 --- The arguments are a load path and the name of the main module.
 --- If there is no interface file but a FlatCurry file (suffix ".fcy"),
 --- the FlatCurry file is read instead of the interface.

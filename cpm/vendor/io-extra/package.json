@@ -18,6 +18,10 @@
     "exportedModules": [
          "System.IOExts"
   ],
+    "testsuite": {
+        "src-dir": "test",
+        "modules":  [ "TestConnect" ]
+    },
     "source": {
       "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/io-extra.git",
       "tag": "$version"

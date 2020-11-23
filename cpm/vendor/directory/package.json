@@ -18,6 +18,10 @@
   "exportedModules": [
         "System.Directory"
   ],
+  "testsuite": {
+      "src-dir": "test",
+      "modules":  [ "TestDirectory" ]
+  },
   "source": {
         "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/directory.git",
         "tag": "$version"

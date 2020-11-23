@@ -35,6 +35,9 @@ typesInTypeDecl (Type _ _ _ conDecls) usedtypes =
 typesInTypeDecl (TypeSyn _ _ _ typeExpr) usedtypes =
   typesInTypeExpr usedtypes typeExpr
 
+typesInTypeDecl (TypeNew _ _ _ (NewCons _ _ typeExpr)) usedtypes =
+  typesInTypeExpr usedtypes typeExpr
+
 
 -- Computes all type constructors occurring in a type expression.
 typesInTypeExpr :: [(QName,[QName])] -> TypeExpr -> [QName]

@@ -114,35 +114,44 @@ rnmProg name p = updProgName (const name) (updQNamesInProg rnm p)
 -- Selectors
 
 --- transform type declaration
-trType :: (QName -> Visibility -> [(TVarIndex,Kind)] -> [ConsDecl] -> a)
-       -> (QName -> Visibility -> [(TVarIndex,Kind)] -> TypeExpr   -> a)
-       -> TypeDecl -> a
-trType typ _ (Type name vis params cs) = typ name vis params cs
-trType _ typesyn (TypeSyn name vis params syn) = typesyn name vis params syn
+trType :: (QName -> Visibility -> [(TVarIndex,Kind)] -> [ConsDecl]  -> a) ->
+          (QName -> Visibility -> [(TVarIndex,Kind)] -> TypeExpr    -> a) ->
+          (QName -> Visibility -> [(TVarIndex,Kind)] -> NewConsDecl -> a) -> TypeDecl -> a
+trType typ _ _ (Type name vis params cs) = typ name vis params cs
+trType _ typesyn _ (TypeSyn name vis params syn) = typesyn name vis params syn
+trType _ _ typenew (TypeNew name vis params c) = typenew name vis params c
 
 --- get name of type declaration
 typeName :: TypeDecl -> QName
-typeName = trType (\name _ _ _ -> name) (\name _ _ _ -> name)
+typeName = trType (\name _ _ _ -> name) (\name _ _ _ -> name) (\name _ _ _ -> name)
 
 --- get visibility of type declaration
 typeVisibility :: TypeDecl -> Visibility
-typeVisibility = trType (\_ vis _ _ -> vis) (\_ vis _ _ -> vis)
+typeVisibility = trType (\_ vis _ _ -> vis) (\_ vis _ _ -> vis) (\_ vis _ _ -> vis)
 
 --- get type parameters of type declaration
-typeParams :: TypeDecl -> [(TVarIndex,Kind)]
-typeParams = trType (\_ _ params _ -> params) (\_ _ params _ -> params)
+typeParams :: TypeDecl -> [(TVarIndex, Kind)]
+typeParams = trType (\_ _ params _ -> params) (\_ _ params _ -> params) (\_ _ params _ -> params)
 
 --- get constructor declarations from type declaration
 typeConsDecls :: TypeDecl -> [ConsDecl]
-typeConsDecls = trType (\_ _ _ cs -> cs) failed
+typeConsDecls = trType (\_ _ _ cs -> cs) failed failed
 
 --- get synonym of type declaration
 typeSyn :: TypeDecl -> TypeExpr
-typeSyn = trType failed (\_ _ _ syn -> syn)
+typeSyn = trType failed (\_ _ _ syn -> syn) failed
+
+--- is type declaration a basic data type?
+isTypeData :: TypeDecl -> Bool
+isTypeData = trType (\_ _ _ _ -> True) (\_ _ _ _ -> False) (\_ _ _ _ -> False)
 
 --- is type declaration a type synonym?
 isTypeSyn :: TypeDecl -> Bool
-isTypeSyn = trType (\_ _ _ _ -> False) (\_ _ _ _ -> True)
+isTypeSyn = trType (\_ _ _ _ -> False) (\_ _ _ _ -> True) (\_ _ _ _ -> False)
+
+--- is type declaration a newtype?
+isTypeNew :: TypeDecl -> Bool
+isTypeNew = trType (\_ _ _ _ -> False) (\_ _ _ _ -> False) (\_ _ _ _ -> True)
 
 -- Update Operations
 
@@ -151,38 +160,44 @@ updType :: (QName -> QName) ->
            (Visibility -> Visibility) ->
            ([(TVarIndex,Kind)] -> [(TVarIndex,Kind)]) ->
            ([ConsDecl] -> [ConsDecl]) ->
+           (NewConsDecl -> NewConsDecl) ->
            (TypeExpr -> TypeExpr)     -> TypeDecl -> TypeDecl
-updType fn fv fp fc fs = trType typ typesyn
+updType fn fv fp fc fnc fs = trType typ typesyn typenew
  where
   typ name vis params cs = Type (fn name) (fv vis) (fp params) (fc cs)
   typesyn name vis params syn = TypeSyn (fn name) (fv vis) (fp params) (fs syn)
+  typenew name vis params nc = TypeNew (fn name) (fv vis) (fp params) (fnc nc)
 
 --- update name of type declaration
 updTypeName :: Update TypeDecl QName
-updTypeName f = updType f id id id id
+updTypeName f = updType f id id id id id
 
 --- update visibility of type declaration
 updTypeVisibility :: Update TypeDecl Visibility
-updTypeVisibility f = updType id f id id id
+updTypeVisibility f = updType id f id id id id
 
 --- update type parameters of type declaration
-updTypeParams :: Update TypeDecl [(TVarIndex,Kind)]
-updTypeParams f = updType id id f id id
+updTypeParams :: Update TypeDecl [(TVarIndex, Kind)]
+updTypeParams f = updType id id f id id id
 
 --- update constructor declarations of type declaration
 updTypeConsDecls :: Update TypeDecl [ConsDecl]
-updTypeConsDecls f = updType id id id f id
+updTypeConsDecls f = updType id id id f id id
+
+--- update newtype constructor declaration of type declaration
+updTypeNewConsDecl :: Update TypeDecl NewConsDecl
+updTypeNewConsDecl f = updType id id id id f id
 
 --- update synonym of type declaration
 updTypeSynonym :: Update TypeDecl TypeExpr
-updTypeSynonym = updType id id id id
+updTypeSynonym = updType id id id id id
 
 -- Auxiliary Functions
 
 --- update all qualified names in type declaration
 updQNamesInType :: Update TypeDecl QName
 updQNamesInType f
-  = updType f id id (map (updQNamesInConsDecl f)) (updQNamesInTypeExpr f)
+  = updType f id id (map (updQNamesInConsDecl f)) (updQNamesInNewConsDecl f) (updQNamesInTypeExpr f)
 
 -- ConsDecl ------------------------------------------------------------------
 
@@ -241,6 +256,51 @@ updConsArgs = updCons id id id
 updQNamesInConsDecl :: Update ConsDecl QName
 updQNamesInConsDecl f = updCons f id id (map (updQNamesInTypeExpr f))
 
+-- NewConsDecl ------------------------------------------------------------------
+
+--- transform newtype constructor declaration
+trNewCons :: (QName -> Visibility -> TypeExpr -> a) -> NewConsDecl -> a
+trNewCons cons (NewCons name vis arg) = cons name vis arg
+
+-- get argument of newtype constructor declaration
+newConsArg :: NewConsDecl -> TypeExpr
+newConsArg = trNewCons (\_ _ arg -> arg)
+
+-- get name of newtype constructor declaration
+newConsName :: NewConsDecl -> QName
+newConsName = trNewCons (\name _ _ -> name)
+
+-- get visibility of newtype constructor declaration
+newConsVisibility :: NewConsDecl -> Visibility
+newConsVisibility = trNewCons (\_ vis _ -> vis)
+
+-- Update Operations
+
+--- update newtype constructor declaration
+updNewCons :: (QName -> QName) ->
+              (Visibility -> Visibility) ->
+              (TypeExpr -> TypeExpr) -> NewConsDecl -> NewConsDecl
+updNewCons fn fv fas = trNewCons newcons
+ where
+  newcons name vis args = NewCons (fn name) (fv vis) (fas args)
+
+--- update name of newtype constructor declaration
+updNewConsName :: Update NewConsDecl QName
+updNewConsName f = updNewCons f id id
+
+--- update visibility of newtype constructor declaration
+updNewConsVisibility :: Update NewConsDecl Visibility
+updNewConsVisibility f = updNewCons id f id
+
+--- update argument of newtype constructor declaration
+updNewConsArg :: Update NewConsDecl TypeExpr
+updNewConsArg = updNewCons id id
+
+-- Auxiliary Functions
+
+updQNamesInNewConsDecl :: Update NewConsDecl QName
+updQNamesInNewConsDecl f = updNewCons f id (updQNamesInTypeExpr f)
+
 -- TypeExpr ------------------------------------------------------------------
 
 -- Selectors
@@ -276,11 +336,11 @@ tConsArgs texpr = case texpr of
   _              -> error "FlatCurryGoodies.tConsArgs: no constructed type"
 
 --- transform type expression
-trTypeExpr :: (Int -> a) ->
+trTypeExpr :: (TVarIndex -> a) ->
               (QName -> [a] -> a) ->
               (a -> a -> a) ->
               ([(TVarIndex, Kind)] -> a -> a) -> TypeExpr -> a
-trTypeExpr tvar _ _ _ (TVar n) = tvar n
+trTypeExpr tvar _ _ _ (TVar tv) = tvar tv
 trTypeExpr tvar tcons functype foralltype (TCons name args)
   = tcons name (map (trTypeExpr tvar tcons functype foralltype) args)
 trTypeExpr tvar tcons functype foralltype (FuncType from to)
@@ -314,7 +374,7 @@ isForallType
 -- Update Operations
 
 --- update all type variables
-updTVars :: (Int -> TypeExpr) -> TypeExpr -> TypeExpr
+updTVars :: (TVarIndex -> TypeExpr) -> TypeExpr -> TypeExpr
 updTVars tvar = trTypeExpr tvar TCons FuncType ForallType
 
 --- update all type constructors
@@ -326,7 +386,8 @@ updFuncTypes :: (TypeExpr -> TypeExpr -> TypeExpr) -> TypeExpr -> TypeExpr
 updFuncTypes functype = trTypeExpr TVar TCons functype ForallType
 
 --- update all forall types
-updForallTypes :: ([(Int, Kind)] -> TypeExpr -> TypeExpr) -> TypeExpr -> TypeExpr
+updForallTypes :: ([(TVarIndex, Kind)] -> TypeExpr -> TypeExpr)
+               -> TypeExpr -> TypeExpr
 updForallTypes = trTypeExpr TVar TCons FuncType
 
 -- Auxiliary Functions
@@ -346,7 +407,7 @@ resultType (FuncType _ ran) = resultType ran
 resultType (ForallType ns t) = ForallType ns t
 
 --- rename variables in type expression
-rnmAllVarsInTypeExpr :: (Int -> Int) -> TypeExpr -> TypeExpr
+rnmAllVarsInTypeExpr :: (TVarIndex -> TVarIndex) -> TypeExpr -> TypeExpr
 rnmAllVarsInTypeExpr f = updTVars (TVar . f)
 
 --- update all qualified names in type expression

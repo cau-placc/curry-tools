@@ -4,7 +4,7 @@
 --- to read Curry programs and transform them into this representation.
 ---
 --- @author Michael Hanus, Finn Teegen
---- @version December 2018
+--- @version November 2020
 ------------------------------------------------------------------------------
 
 module FlatCurry.Files where

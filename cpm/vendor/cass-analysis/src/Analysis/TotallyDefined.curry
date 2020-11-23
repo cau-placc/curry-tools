@@ -37,6 +37,7 @@ siblingCons = simpleConstructorAnalysis "SiblingCons" consNamesArOfType
     map (\cd -> (consName cd, consArity cd))
         (filter (\cd -> consName cd /= consName cdecl) consDecls)
   consNamesArOfType _ (TypeSyn _ _ _ _) = []
+  consNamesArOfType _ (TypeNew _ _ _ _) = []
 
 ------------------------------------------------------------------------------
 -- The completeness analysis assigns to an operation a flag indicating

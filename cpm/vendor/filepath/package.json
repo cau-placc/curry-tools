@@ -16,6 +16,10 @@
     "exportedModules": [
          "System.FilePath"
   ],
+  "testsuite": {
+      "src-dir": "test",
+      "modules": [ "TestFilePath" ]
+  },
     "source": {
       "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/filepath.git",
       "tag": "$version"

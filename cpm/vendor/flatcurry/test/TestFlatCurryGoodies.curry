@@ -1,7 +1,7 @@
 --- Some tests for library FlatCurry.Goodies.
 ---
 --- To run all tests automatically by the currycheck tool, use the command:
---- "curry check TestFlatCurryGoodies"
+--- `curry-check TestFlatCurryGoodies`
 --- 
 --- @author Sebastian Fischer
 
@@ -21,14 +21,19 @@ idProg = trProg prog
   prog name imps types funcs ops
     = Prog name imps (map idType types) (map idFunc funcs) (map idOp ops)
 
-idType = trType typ typesyn
+idType = trType typ typesyn typenew
  where
-  typ name vis params cs = Type name vis params (map idCons cs)
+  typ name vis params cs      = Type name vis params (map idCons cs)
   typesyn name vis params syn = TypeSyn name vis params (idTypeExpr syn)
+  typenew name vis params ncd = TypeNew name vis params (idNewCons ncd)
 
 idCons = trCons cons
  where
   cons name arity vis args = Cons name arity vis (map idTypeExpr args)
+
+idNewCons = trNewCons cons
+ where
+  cons name vis te = NewCons name vis (idTypeExpr te)
 
 idTypeExpr = trTypeExpr TVar TCons FuncType ForallType
 

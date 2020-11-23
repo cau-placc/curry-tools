@@ -42,6 +42,9 @@ orderOfType (Type _ _ _ conDecls) usedtypes =
 orderOfType (TypeSyn _ _ _ typeExpr) usedtypes =
  hoOr (orderOfTypeExpr typeExpr) (foldr hoOr FO (map snd usedtypes))
 
+orderOfType (TypeNew _ _ _ (NewCons _ _ typeExpr)) usedtypes =
+ hoOr (orderOfTypeExpr typeExpr) (foldr hoOr FO (map snd usedtypes))
+
 
 -- compute the order of a type expression (ignore the type constructors,
 -- i.e., check whether this expression contains a `FuncType`).

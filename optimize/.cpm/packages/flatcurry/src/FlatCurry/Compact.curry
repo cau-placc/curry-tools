@@ -176,7 +176,7 @@ computeCompactFlatCurry orgoptions progname =
 makeCompactFlatCurry :: Prog -> [Option] -> IO Prog
 makeCompactFlatCurry mainmod options = do
   (initfuncs,loadedmnames,loadedmods) <- requiredInCompactProg mainmod options
-  let initFuncTable = extendFuncTable RBT.empty
+  let initFuncTable = extendFuncTable (RBT.empty (<))
                                       (concatMap moduleFuns loadedmods)
       required = getRequiredFromOptions options
       loadedreqfuns = concatMap (getRequiredInModule required)
@@ -185,8 +185,8 @@ makeCompactFlatCurry mainmod options = do
   (finalmods,finalfuncs,finalcons,finaltcons) <-
      getCalledFuncs required
                     loadedmnames loadedmods initFuncTable
-                    (foldr RBS.insert RBS.empty initreqfuncs)
-                    RBS.empty RBS.empty
+                    (foldr RBS.insert (RBS.empty (<)) initreqfuncs)
+                    (RBS.empty (<)) (RBS.empty (<))
                     initreqfuncs
   putStrLn ("\nCompactFlat: Total number of functions (without unused imports): "
             ++ show (foldr (+) 0 (map (length . moduleFuns) finalmods)))
@@ -220,6 +220,10 @@ newTypeConsOfTDecl tcnames (TypeSyn tcons _ _ texp) =
   if tcons `RBS.member` tcnames
   then filter (\tc -> not (tc `RBS.member` tcnames)) (allTypesOfTExpr texp)
   else []
+newTypeConsOfTDecl tcnames (TypeNew tcons _ _ (NewCons _ _ texp)) =
+  if tcons `RBS.member` tcnames
+  then filter (\tc -> not (tc `RBS.member` tcnames)) (allTypesOfTExpr texp)
+  else []
 newTypeConsOfTDecl tcnames (Type tcons _ _ cdecls) =
   if tcons `RBS.member` tcnames
   then filter (\tc -> not (tc `RBS.member` tcnames))
@@ -234,6 +238,10 @@ extendTConsWithConsType :: RBS.SetRBT QName -> RBS.SetRBT QName -> [TypeDecl]
 extendTConsWithConsType _ tcons [] = tcons
 extendTConsWithConsType cnames tcons (TypeSyn tname _ _ _ : tds) =
   extendTConsWithConsType cnames (RBS.insert tname tcons) tds
+extendTConsWithConsType cnames tcons (TypeNew tname _ _ cdecl : tds) =
+  if newConsName cdecl `RBS.member` cnames
+  then extendTConsWithConsType cnames (RBS.insert tname tcons) tds
+  else extendTConsWithConsType cnames tcons tds
 extendTConsWithConsType cnames tcons (Type tname _ _ cdecls : tds) =
   if tname `elem` defaultRequiredTypes ||
      any (\cdecl->consName cdecl `RBS.member` cnames) cdecls
@@ -285,7 +293,7 @@ requiredInCompactProg mainmod options
 
    mainexports = exportedFuncNames (moduleFuns mainmod)
 
-   mainmodset = RBS.insert mainmodname RBS.empty
+   mainmodset = RBS.insert mainmodname $ RBS.empty (<)
 
    add2mainmodset mnames = foldr RBS.insert mainmodset mnames
 
@@ -446,10 +454,15 @@ functionName (Func name _ _ _ _) = name
 consName :: ConsDecl -> QName
 consName (Cons name _ _ _) = name
 
+--- Extracts the constructor name of a newtype constructor declaration.
+newConsName :: NewConsDecl -> QName
+newConsName (NewCons name _ _) = name
+
 --- Extracts the type name of a type declaration.
 tconsName :: TypeDecl -> QName
 tconsName (Type name _ _ _) = name
 tconsName (TypeSyn name _ _ _) = name
+tconsName (TypeNew name _ _ _) = name
 
 --- Extracts the names of imported modules of a FlatCurry program.
 moduleImports :: Prog -> [String]

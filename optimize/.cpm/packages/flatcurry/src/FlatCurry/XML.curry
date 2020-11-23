@@ -49,16 +49,22 @@ cImports      = eRep    "import" (eString "module")
 cTypes        = eRep    "types" cType
 cType         = eSeq4   "type" Type cQName cVis cTParams (rep cConsDecl)
               ! eSeq4   "typesyn" TypeSyn cQName cVis cTParams cTypeExpr
+              ! eSeq4   "typenew" TypeNew cQName cVis cTParams cNewConsDecl
 cQName        = seq2    (\a b -> (a,b)) (aString "module") (aString "name")
 cVis          = adapt   (b2v,v2b) (aBool "visibility" "public" "private")
 b2v b         = if b then Public else Private
 v2b v         = v==Public
-cTParams      = eRep    "params" (eInt "tvar")
+cTParams      = eRep    "params" cTVarWithKind
 cConsDecl     = eSeq4   "cons" Cons cQName cArity cVis (rep cTypeExpr)
+cNewConsDecl  = eSeq3   "newcons" NewCons cQName cVis cTypeExpr
 cArity        = aInt    "arity"
 cTypeExpr     = eSeq2   "functype" FuncType cTypeExpr cTypeExpr
               ! eSeq2   "tcons" TCons cQName (rep cTypeExpr)
               ! eSeq1   "tvar" TVar int
+              ! eSeq2   "forall" ForallType cTParams cTypeExpr
+cTVarWithKind = eSeq2   "tvarwithkind" (,) int cKind
+cKind         = eEmpty  "kstar" KStar
+              ! eSeq2   "karrow" KArrow cKind cKind
 cFuncs        = eRep    "functions" cFunc
 cFunc         = eSeq5   "func" Func cQName cArity cVis cTypeExpr cRule
 cRule         = eSeq2   "rule" Rule cLHS cRHS
@@ -78,7 +84,7 @@ cExpr         = eSeq1   "var" Var int
               ! eSeq2   "case" cr cExpr (rep cBranch)
               ! eSeq2   "fcase" cf cExpr (rep cBranch)
               ! eSeq2   "letrec" Let (rep cBind) cExpr
-        ! eSeq2 "typed" Typed cExpr cTypeExpr
+              ! eSeq2   "typed" Typed cExpr cTypeExpr
 cLit          = eSeq1   "intc" Intc int
               ! eSeq1   "floatc" Floatc float
               ! eSeq1   "charc" Charc (adapt (chr,ord) int)

@@ -49,6 +49,8 @@ predefinedSensibles = [pre "Int", pre "Float", pre "Char", pre "IO"]
 sensOfType :: TypeDecl -> [(QName,Sensible)] -> Sensible
 sensOfType (TypeSyn _ _ _ typeExpr) usedtypes =
   sensOfTypeExpr usedtypes typeExpr
+sensOfType (TypeNew _ _ _ (NewCons _ _ typeExpr)) usedtypes =
+  sensOfTypeExpr usedtypes typeExpr
 sensOfType (Type tc _ _ conDecls) usedtypes
   | tc `elem` predefinedSensibles = Sensible
   | otherwise = foldr lubSens NotSensible (map sensOfConsDecl conDecls)

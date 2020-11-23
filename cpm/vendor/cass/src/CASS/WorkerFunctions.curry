@@ -3,7 +3,7 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2019
+--- @version November 2020
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
@@ -247,7 +247,7 @@ executeAnalysis (SimpleConstructorAnalysis _ anaFunc) prog _ _ _ =
   (lists2ProgInfo
     . map2 (\ (cdecl,tdecl) -> (consName cdecl, anaFunc cdecl tdecl))
     . partition isVisibleCons
-    . concatMap (\t -> map (\c->(c,t)) (consDeclsOfType t))
+    . concatMap (\t -> map (\c -> (c,t)) (consDeclsOfType t))
     . progTypes) prog
  where
   isVisibleCons (consDecl,_) = consVisibility consDecl == Public
@@ -322,8 +322,9 @@ addUsedTypes tdecl = (tdecl, dependsDirectlyOnTypes tdecl)
 
 --- Gets all constructors of datatype declaration.
 consDeclsOfType :: TypeDecl -> [ConsDecl]
-consDeclsOfType (Type _ _ _ consDecls) = consDecls
-consDeclsOfType (TypeSyn _ _ _ _) = []
+consDeclsOfType (Type _ _ _ consDecls)              = consDecls
+consDeclsOfType (TypeSyn _ _ _ _)                   = []
+consDeclsOfType (TypeNew _ _ _ (NewCons qn vis te)) = [Cons qn 1 vis [te]]
 
 -----------------------------------------------------------------------
 --- Fixpoint iteration to compute analysis information. The arguments are:

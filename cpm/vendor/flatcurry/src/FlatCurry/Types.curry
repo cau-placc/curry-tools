@@ -41,6 +41,10 @@ data Visibility
 --- They are represented by `(TVar i)` where `i` is a type variable index.
 type TVarIndex = Int
 
+--- Kinded type variables are represented by a tuple of type variable
+--- index and kind.
+type TVarWithKind = (TVarIndex, Kind)
+
 --- Data type for representing definitions of algebraic data types
 --- and type synonyms.
 ---
@@ -60,14 +64,21 @@ type TVarIndex = Int
 --- Thus, a data type declaration consists of the name of the data type,
 --- a list of type parameters and a list of constructor declarations.
 data TypeDecl
-  = Type    QName Visibility [(TVarIndex,Kind)] [ConsDecl]
-  | TypeSyn QName Visibility [(TVarIndex,Kind)] TypeExpr
+  = Type    QName Visibility [TVarWithKind] [ConsDecl]
+  | TypeSyn QName Visibility [TVarWithKind] TypeExpr
+  | TypeNew QName Visibility [TVarWithKind] NewConsDecl
   deriving (Eq, Ord, Read, Show)
 
 --- A constructor declaration consists of the name and arity of the
 --- constructor and a list of the argument types of the constructor.
 data ConsDecl = Cons QName Int Visibility [TypeExpr]
   deriving (Eq, Ord, Read, Show)
+
+--- A constructor declaration for a newtype consists
+--- of the name of the constructor
+--- and the argument type of the constructor.
+data NewConsDecl = NewCons QName Visibility TypeExpr
+    deriving (Eq, Ord, Read, Show)
 
 --- Data type for type expressions.
 --- A type expression is either a type variable, a function type,
@@ -77,11 +88,11 @@ data ConsDecl = Cons QName Int Visibility [TypeExpr]
 --- "Int", "Float", "Bool", "Char", "IO",
 --- "()" (unit type), "(,...,)" (tuple types), "[]" (list type)
 data TypeExpr
-  = TVar TVarIndex                   -- type variable
-  | FuncType TypeExpr TypeExpr       -- function type t1->t2
-  | TCons QName [TypeExpr]           -- type constructor application
-                                     -- TCons module name typeargs
-  | ForallType  [(TVarIndex, Kind)] TypeExpr -- forall type
+  = TVar TVarIndex                      -- type variable
+  | FuncType TypeExpr TypeExpr          -- function type t1->t2
+  | TCons QName [TypeExpr]              -- type constructor application
+                                        -- TCons module name typeargs
+  | ForallType  [TVarWithKind] TypeExpr -- forall type
  deriving (Eq, Ord, Read, Show)
 
 data Kind

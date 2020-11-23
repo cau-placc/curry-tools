@@ -19,8 +19,9 @@ dependsDirectlyOnTypes :: TypeDecl -> [QName]
 dependsDirectlyOnTypes (Type _ _ _ consDeclList) =
   nub (concatMap (\ (Cons _ _ _ typeExprs) -> concatMap tconsOf typeExprs)
                  consDeclList)
-
 dependsDirectlyOnTypes (TypeSyn _ _ _ typeExpr) = nub (tconsOf typeExpr)
+dependsDirectlyOnTypes (TypeNew _ _ _ (NewCons _ _ typeExpr)) =
+  nub (tconsOf typeExpr)
 
 
 tconsOf :: TypeExpr -> [QName]
