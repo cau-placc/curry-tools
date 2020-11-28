@@ -14,11 +14,12 @@ module System.CurryPath
   , currySubdir, inCurrySubdir, inCurrySubdirModule, addCurrySubdir
   , sysLibPath, getLoadPathForModule
   , lookupModuleSourceInLoadPath, lookupModuleSource
+  , curryrcFileName
   ) where
 
 import Data.Char           ( toLower )
 import Data.List           ( intercalate, split )
-import System.Directory    ( doesFileExist )
+import System.Directory    ( doesFileExist, getHomeDirectory )
 import System.Environment  ( getEnv )
 import System.Process      ( system )
 import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
@@ -30,7 +31,7 @@ import Language.Curry.Distribution
                            ( curryCompiler, curryCompilerMajorVersion
                            , curryCompilerMinorVersion
                            , curryCompilerRevisionVersion
-                           , installDir, rcFileName )
+                           , installDir )
 
 import Data.PropertyFile   ( getPropertyFromFile )
 
@@ -52,8 +53,9 @@ splitModuleFileName mid fn = case splitModuleIdentifiers mid of
   ms  -> let (base, ext) = splitExtension fn
              dirs        = splitDirectories base
              (pre , suf) = splitAt (length dirs - length ms) dirs
-             path        = if null pre then ""
-                                       else addTrailingPathSeparator (joinPath pre)
+             path        = if null pre
+                             then ""
+                             else addTrailingPathSeparator (joinPath pre)
          in  (path, joinPath suf <.> ext)
 
 --- Split up the components of a module identifier. For instance,
@@ -71,8 +73,8 @@ joinModuleIdentifiers = foldr1 combine
 stripCurrySuffix :: String -> String
 stripCurrySuffix s =
   if takeExtension s `elem` [".curry",".lcurry"]
-  then dropExtension s
-  else s
+    then dropExtension s
+    else s
 
 --- A module path consists of a directory prefix (which can be omitted)
 --- and a module name (which can be hierarchical). For instance, the
@@ -139,7 +141,7 @@ sysLibPath = case curryCompiler of
 --- CURRYRPATH and the entry "libraries" of the system's rc file.
 getLoadPathForModule :: ModulePath -> IO [String]
 getLoadPathForModule modpath = do
-  rcfile <- rcFileName
+  rcfile <- curryrcFileName
   mblib  <- getPropertyFromFile rcfile "libraries"
   let fileDir = dropFileName modpath
   if curryCompiler `elem` ["pakcs","kics","kics2"] then
@@ -182,5 +184,13 @@ lookupModuleSource loadpath mod = lookupSourceInPath loadpath
      curryExists <- doesFileExist (dir </> fncurry)
      if curryExists then return (Just (dir, dir </> fncurry))
                     else lookupSourceInPath dirs
+
+------------------------------------------------------------------------------
+--- The name of the file specifying resource configuration parameters of the
+--- current distribution.
+--- This file must have the usual format of property files.
+curryrcFileName :: IO FilePath
+curryrcFileName = getHomeDirectory >>= return . (</> rcFile)
+  where rcFile = '.' : curryCompiler ++ "rc"
 
 ------------------------------------------------------------------------------
