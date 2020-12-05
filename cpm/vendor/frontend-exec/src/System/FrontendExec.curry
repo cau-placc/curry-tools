@@ -18,16 +18,16 @@ module System.FrontendExec
   , callFrontend, callFrontendWithParams
   ) where
 
-import Data.Char           ( toUpper )
-import Data.List           ( intercalate, nub )
-import Data.PropertyFile   ( getPropertiesFromFile )
-import System.FilePath     ( FilePath, (</>), takeDirectory, takeFileName )
-import System.Process      ( system )
-import System.CurryPath    ( currySubdir, getLoadPathForModule )
+import Data.Char          ( toUpper )
+import Data.List          ( intercalate, nub )
+import Data.PropertyFile  ( getPropertiesFromFile )
+import System.FilePath    ( FilePath, (</>), takeDirectory, takeFileName )
+import System.Process     ( system )
+import System.CurryPath   ( curryrcFileName, currySubdir, getLoadPathForModule )
 import Language.Curry.Distribution 
-                           ( curryCompiler, curryCompilerMajorVersion
-                           , curryCompilerMinorVersion, installDir, rcFileName 
-                           )
+                          ( curryCompiler, curryCompilerMajorVersion
+                          , curryCompilerMinorVersion, installDir
+                          )
 
 -------------------------------------------------------------------
 -- calling the front end
@@ -89,7 +89,7 @@ defaultParams =
 --- specific resource configuration file.
 rcParams :: IO FrontendParams
 rcParams = do
-  rcfile <- rcFileName
+  rcfile <- curryrcFileName
   [mbExtended,mbOverlapWarn] <- getPropertiesFromFile rcfile
                                   ["curryextensions","warnoverlapping"]
   return $ setExtended    (mbExtended    /= Just "no")

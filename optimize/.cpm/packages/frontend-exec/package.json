@@ -14,10 +14,6 @@
         "process"      : ">= 3.0.0, < 4.0.0",
         "propertyfile" : ">= 3.0.0, < 4.0.0"
     },
-    "compilerCompatibility": {
-        "pakcs": ">= 3.0.0, < 4.0.0",
-        "kics2": ">= 3.0.0, < 4.0.0"
-    },
     "exportedModules": [ "System.FrontendExec" ],
     "source": {
       "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/frontend-exec.git",

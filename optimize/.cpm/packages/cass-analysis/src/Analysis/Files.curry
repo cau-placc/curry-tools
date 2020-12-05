@@ -3,14 +3,17 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version December 2018
+--- @version December 2020
 --------------------------------------------------------------------------
 
 module Analysis.Files where
 
+import Curry.Compiler.Distribution ( curryCompiler, curryCompilerMajorVersion
+                                   , curryCompilerMinorVersion
+                                   , curryCompilerRevisionVersion, installDir )
 import System.Directory
 import System.FilePath
-import Data.List           ( isPrefixOf, isSuffixOf )
+import Data.List           ( intercalate, isPrefixOf, isSuffixOf )
 import Data.Time           ( ClockTime )
 import Control.Monad       ( when, unless )
 import ReadShowTerm        ( readQTerm, showQTerm )
@@ -19,7 +22,6 @@ import FlatCurry.Files
 import FlatCurry.Goodies   ( progImports )
 import FlatCurry.Types     ( Prog, QName )
 import System.CurryPath    ( lookupModuleSourceInLoadPath, stripCurrySuffix )
-import Language.Curry.Distribution ( installDir )
 
 import Analysis.Logging    ( debugMessage )
 import Analysis.ProgInfo
@@ -49,7 +51,13 @@ getAnalysisDirectory = do
   homedir <- getHomeDirectory
   hashomedir <- doesDirectoryExist homedir
   let cassStoreDir = if hashomedir then homedir else installDir
-  return $ cassStoreDir </> ".curryanalysis_cache"
+  return $ cassStoreDir </> ".curryanalysis_cache" </> syspath
+ where
+  syspath = curryCompiler ++ "-" ++
+            intercalate "."
+              (map show [ curryCompilerMajorVersion
+                        , curryCompilerMinorVersion
+                        , curryCompilerRevisionVersion ])
 
 -- loads analysis results for a list of modules
 getInterfaceInfos :: Read a => String -> [String] -> IO (ProgInfo a)
@@ -122,7 +130,7 @@ createDirectoryR maindir =
     let createdDir = dirname </> dir
     dirExists <- doesDirectoryExist createdDir
     unless dirExists $ do
-      debugMessage 3 ("Creating directory '"++createdDir++"'...")
+      debugMessage 3 ("Creating directory '" ++ createdDir ++ "'...")
       createDirectory createdDir
     createDirectories createdDir dirs
 

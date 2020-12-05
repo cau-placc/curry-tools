@@ -163,7 +163,7 @@ options =
 printHelp :: [String] -> IO ()
 printHelp args =
   if null args
-   then putStrLn usageText
+   then putStrLn $ systemBanner ++ "\n" ++ usageText
    else do aname <- checkAnalysisName (head args)
            getAnalysisDoc aname >>=
              maybe (putStrLn $

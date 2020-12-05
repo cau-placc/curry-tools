@@ -1387,6 +1387,30 @@ the command \code{cypm install} also compiles the main module
 and installs the executable in the \code{bin} install directory of CPM
 (see Section~\ref{sec:config} for details).
 
+\item[\fbox{\code{executables}}]
+It is also possible to specify more than one executable
+in package which will be installed by the command \code{cypm install}.
+In this case, one can use \code{executables}
+instead of \code{executable}.
+The value of \code{executables} is an array of JSON objects as used
+as \code{executable} values.
+For instance, a possible specification could be
+%
+\begin{lstlisting}
+{
+  ...,
+  "executables": [ {
+                   "name": "compiler",
+                   "main": "Compiler.Main"
+                   },
+                   {
+                   "name": "repl",
+                   "main": "REPL.Main"
+                   }
+                 ]
+}
+\end{lstlisting}
+
 \item[\fbox{\code{testsuite}}]
 A JSON object specifying a test suite for this package.
 This object contains a directory (with key \code{src-dir})

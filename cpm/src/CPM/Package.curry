@@ -182,7 +182,7 @@ data Package = Package {
   , sourceDirs            :: [String]
   , exportedModules       :: [String]
   , configModule          :: Maybe String
-  , executableSpec        :: Maybe PackageExecutable
+  , executableSpec        :: [PackageExecutable]
   , testSuite             :: Maybe [PackageTest]
   , documentation         :: Maybe PackageDocumentation
   }
@@ -216,16 +216,16 @@ emptyPackage = Package {
   , sourceDirs            = []
   , exportedModules       = []
   , configModule          = Nothing
-  , executableSpec        = Nothing
+  , executableSpec        = []
   , testSuite             = Nothing
   , documentation         = Nothing
   }
 
---- Returns the name of the executable of the package.
+--- Returns the names of the executables of the package.
 --- Returns the empty string if the package has no executable to install.
 execOfPackage :: Package -> String
 execOfPackage p =
-  maybe "" (\ (PackageExecutable e _ _) -> e) (executableSpec p)
+  unwords (map (\ (PackageExecutable e _ _) -> e) (executableSpec p))
 
 ------------------------------------------------------------------------------
 --- Translates a package to a JSON object.
@@ -254,7 +254,10 @@ packageSpecToJSON pkg = JObject $
   stringListToJSON "sourceDirs"      (sourceDirs pkg) ++
   stringListToJSON "exportedModules" (exportedModules pkg) ++
   maybeStringToJSON "configModule" (configModule pkg) ++
-  maybeExecToJSON (executableSpec pkg) ++
+  (case executableSpec pkg of
+     []  -> []
+     [e] -> [("executable", execToJSON e)]
+     es  -> [("executables", JArray $ map execToJSON es)]) ++
   maybeTestToJSON (testSuite pkg) ++
   maybeDocuToJSON (documentation pkg)
  where
@@ -282,16 +285,13 @@ packageSpecToJSON pkg = JObject $
       revToJSON (Tag t)      = [("tag", JString t)]
       revToJSON VersionAsTag = [("tag", JString "$version")]
 
-  maybeExecToJSON =
-    maybe [] (\ (PackageExecutable ename emain eopts) ->
-                  [("executable", JObject $ [ ("name", JString ename)
-                                            , ("main", JString emain)] ++
-                                            exOptsToJSON eopts)])
+  execToJSON (PackageExecutable ename emain eopts) =
+    JObject $ [ ("name", JString ename), ("main", JString emain)] ++ exOptsToJSON
    where
-    exOptsToJSON eopts =
-      if null eopts
-        then []
-        else [("options", JObject $ map (\ (c,o) -> (c, JString o)) eopts)]
+    exOptsToJSON =
+      if null eopts then []
+                    else [("options",
+                           JObject $ map (\ (c,o) -> (c, JString o)) eopts)]
 
   maybeTestToJSON = maybe [] (\tests -> [("testsuite", testsToJSON tests)])
    where
@@ -490,7 +490,7 @@ readPackageSpec s = case parseJSON s of
   Nothing -> Left "Invalid JSON"
   Just j -> case j of
     JObject kv -> packageSpecFromJObject kv
-    _ -> Left "Expected a JSON object."
+    _          -> Left "Expected a JSON object."
 
 --- Reads a package spec from the key-value-pairs of a JObject.
 packageSpecFromJObject :: [(String, JValue)] -> Either String Package
@@ -516,6 +516,7 @@ packageSpecFromJObject kv =
   getStringList "An exported module" "exportedModules" $ \exportedModules ->
   getCompilerCompatibility $ \compilerCompatibility ->
   getExecutableSpec $ \executable ->
+  getElemList (elemsFromJArray execSpecFromJValue) "executables" $ \executables ->
   getTestSuite $ \testsuite ->
   getDocumentationSpec $ \docspec ->
   Right Package {
@@ -538,7 +539,7 @@ packageSpecFromJObject kv =
     , sourceDirs      = sourcedirs
     , exportedModules = exportedModules
     , configModule    = configModule
-    , executableSpec  = executable
+    , executableSpec  = executable ++ executables
     , testSuite       = testsuite
     , documentation   = docspec
     }
@@ -611,13 +612,10 @@ packageSpecFromJObject kv =
       forKey       = " for key '" ++ key ++ "'"
       expectedText = "Expected an array, got "
 
-    getStringList :: String -> String -> ([String] -> Either String a)
-                  -> Either String a
-    getStringList keystr key f = case lookup key kv of
+    getElemList elemsfromarray key f = case lookup key kv of
       Nothing -> f []
-      Just (JArray a)  -> case stringsFromJArray keystr a of
-        Left  e -> Left e
-        Right e -> f e
+      Just (JArray a)  -> case elemsfromarray a of Left  e -> Left e
+                                                   Right e -> f e
       Just (JObject _) -> Left $ expectedText ++ "an object" ++ forKey
       Just (JString _) -> Left $ expectedText ++ "a string"  ++ forKey
       Just (JNumber _) -> Left $ expectedText ++ "a number"  ++ forKey
@@ -628,12 +626,14 @@ packageSpecFromJObject kv =
       forKey       = " for key '" ++ key ++ "'"
       expectedText = "Expected an array, got "
 
-    getExecutableSpec :: (Maybe PackageExecutable -> Either String a)
+    getStringList keystr = getElemList (stringsFromJArray keystr)
+
+    getExecutableSpec :: ([PackageExecutable] -> Either String a)
                       -> Either String a
     getExecutableSpec f = case lookup "executable" kv of
-      Nothing -> f Nothing
+      Nothing -> f []
       Just (JObject s) -> case execSpecFromJObject s of Left  e  -> Left e
-                                                        Right s' -> f (Just s')
+                                                        Right s' -> f [s']
       Just (JString _) -> Left $ "Expected an object, got a string" ++ forKey
       Just (JArray  _) -> Left $ "Expected an object, got an array" ++ forKey
       Just (JNumber _) -> Left $ "Expected an object, got a number" ++ forKey
@@ -645,8 +645,9 @@ packageSpecFromJObject kv =
     getTestSuite :: (Maybe [PackageTest] -> Either String a) -> Either String a
     getTestSuite f = case lookup "testsuite" kv of
       Nothing          -> f Nothing
-      Just (JObject s) -> case testSuiteFromJObject s of Left  e  -> Left e
-                                                         Right s' -> f (Just s')
+      Just (JObject s) -> case testSuiteFromJObject s of
+                            Left  e  -> Left e
+                            Right s' -> f (Just [s'])
       Just (JArray  a) -> case testSuiteFromJArray a of
                             Left  e  -> Left e
                             Right s' -> f (Just s')
@@ -670,7 +671,6 @@ packageSpecFromJObject kv =
       Just JFalse      -> Left $ "Expected an object, got 'false'"  ++ forKey
       Just JNull       -> Left $ "Expected an object, got 'null'"   ++ forKey
      where forKey = " for key 'documentation'"
-
 
 mandatoryString :: String -> [(String, JValue)]
                 -> (String -> Either String a) -> Either String a
@@ -719,14 +719,20 @@ test_specFromJObject_minimalSpec =
        test x = author p == ["me"] && name p == "mypackage"
           where p = (head . rights) [x]
 
+--- Reads a list of elements (specified by the first argument)
+--- from a list of JValues.
+elemsFromJArray :: (JValue -> Either String a) -> [JValue]
+                -> Either String [a]
+elemsFromJArray readelem a =
+  let elems = map readelem a
+  in if any isLeft elems
+       then Left $ head $ lefts elems
+       else Right $ rights elems
+
 --- Reads a list of strings from a list of JValues.
 stringsFromJArray :: String -> [JValue] -> Either String [String]
-stringsFromJArray ekind a =
-  if any isLeft strings
-    then Left $ head $ lefts strings
-    else Right $ rights strings
+stringsFromJArray ekind = elemsFromJArray extractString
  where
-  strings = map extractString a
   extractString s = case s of
     JString s' -> Right s'
     _          -> Left $ ekind ++ " must be a string"
@@ -798,6 +804,12 @@ revisionFromJObject kv = case lookup "tag" kv of
     else Right $ Just $ Tag tag
   Just _             -> Left "Tag expects string"
 
+--- Reads an executable specification from a list of JValue (a testsuite object).
+execSpecFromJValue :: JValue -> Either String PackageExecutable
+execSpecFromJValue s = case s of
+    JObject o -> execSpecFromJObject o
+    _         -> Left "Array element must be a executable object"
+
 --- Reads executable specification from the key-value-pairs of a JObject.
 execSpecFromJObject :: [(String, JValue)] -> Either String PackageExecutable
 execSpecFromJObject kv =
@@ -820,8 +832,16 @@ execSpecFromJObject kv =
     JString s' -> Right s'
     _          -> Left $ "'executable>options': values must be strings"
 
+--- Reads the list of testsuites from a list of JValues (testsuite objects).
+testSuiteFromJArray :: [JValue] -> Either String [PackageTest]
+testSuiteFromJArray = elemsFromJArray extractTest
+ where
+  extractTest s = case s of
+    JObject o -> testSuiteFromJObject o
+    _         -> Left "Array element must be a testsuite object"
+
 --- Reads a test suite specification from the key-value-pairs of a JObject.
-testSuiteFromJObject :: [(String, JValue)] -> Either String [PackageTest]
+testSuiteFromJObject :: [(String, JValue)] -> Either String PackageTest
 testSuiteFromJObject kv =
   mandatoryString "src-dir" kv $ \dir ->
   optionalString  "options" kv $ \opts ->
@@ -833,23 +853,11 @@ testSuiteFromJObject kv =
                     then Left emptyError
                     else if not (null script) && not (null mods)
                            then Left doubleError
-                           else Right [PackageTest dir mods (maybe "" id opts)
-                                                   script]
+                           else Right $ PackageTest dir mods (maybe "" id opts)
+                                                    script
  where
   emptyError  = "'script' and 'modules' cannot be both empty in 'testsuite'"
   doubleError = "'script' and 'modules' cannot be both non-empty in 'testsuite'"
-
---- Reads the list of testsuites from a list of JValues (testsuite objects).
-testSuiteFromJArray :: [JValue] -> Either String [PackageTest]
-testSuiteFromJArray a =
-  if any isLeft tests
-    then Left $ head $ lefts tests
-    else Right $ concat (rights tests)
- where
-  tests = map extractTests a
-  extractTests s = case s of
-    JObject o -> testSuiteFromJObject o
-    _         -> Left "Array element must be a testsuite object"
 
 --- Reads an (optional, if first argument = True) key with a string list value.
 getOptStringList :: Bool -> String -> [(String, JValue)]

@@ -6,7 +6,7 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version December 2018
+--- @version December 2020
 --------------------------------------------------------------------------
 
 module CASS.Configuration
@@ -17,15 +17,15 @@ module CASS.Configuration
  , getDefaultPath, waitTime, numberOfWorkers
  ) where
 
-import Data.Char           ( isSpace )
+import Curry.Compiler.Distribution ( curryCompiler )
 import Data.List           ( sort )
-import System.Directory
+import Numeric             ( readInt )
+import System.Environment  ( getEnv )
 import System.FilePath     ( FilePath, (</>), (<.>) )
-import System.Environment
+
 import System.Process
-import Language.Curry.Distribution ( curryCompiler )
+import System.Directory
 import Global
-import Numeric
 import ReadShowTerm
 
 import Analysis.Logging   ( debugMessage, setDebugLevel )
@@ -35,7 +35,7 @@ import Data.PropertyFile  ( readPropertyFile, updatePropertyFile )
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 13/09/2018 for " ++
+                   packageVersion ++ " of 04/12/2020 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
