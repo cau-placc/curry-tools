@@ -3,12 +3,12 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version October 2020
+--- @version December 2020
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
 
-import Language.Curry.Distribution ( installDir, curryCompiler )
+import Curry.Compiler.Distribution ( installDir, curryCompiler )
 import System.Directory    ( renameFile )
 import System.FilePath     ( (</>), (<.>), normalise, pathSeparator
                            , takeExtension, dropExtension )
@@ -37,7 +37,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 15/08/2018)"
+  let bannerText = "Curry Binding Optimizer (version of 09/12/2020)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -207,14 +207,14 @@ incOccNumber (TState qf on) = TState qf (on+1)
 
 -------------------------------------------------------------------------
 --- Transform a FlatCurry program rule w.r.t. information about required
---- values. If there is an occurrence of (e1==e2) where the value `True`
+--- values. If there is an occurrence of `(e1==e2)` where the value `True`
 --- is required, then this occurrence is replaced by
 ---
----     (e1 =:= e2)
+---     (Prelude.constrEq e1 e2)
 ---
---- Similarly, (e1/=e2) with required value `False` is replaced by
+--- Similarly, `(e1/=e2)` with required value `False` is replaced by
 ---
----     (not (e1 =:= e2))
+---     (not (Prelude.constrEq e1 e2))
 
 transformRule :: (QName -> Maybe AFType) -> TState -> Rule -> (TState,Rule)
 transformRule _ tst (External s) = (tst, External s)
@@ -227,11 +227,13 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 exp@(Comb ct qf es) reqval
     | reqval == aTrue && isBoolEqualCall "==" exp
-    = (Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "==" (Comb ct qf tes))
+    = (Comb FuncCall (pre "constrEq")
+                     (argsOfBoolEqualCall "==" (Comb ct qf tes))
       , incOccNumber tst1)
     | reqval == aFalse && isBoolEqualCall "/=" exp
     = (Comb FuncCall (pre "not")
-         [Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "/=" (Comb ct qf tes))]
+         [Comb FuncCall (pre "constrEq")
+                        (argsOfBoolEqualCall "/=" (Comb ct qf tes))]
       , incOccNumber tst1)
     | qf == pre "$" && length es == 2 &&
       (isFuncPartCall (head es) || isConsPartCall (head es))
