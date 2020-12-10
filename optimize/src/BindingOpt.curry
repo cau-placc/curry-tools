@@ -8,19 +8,20 @@
 
 module BindingOpt (main, transformFlatProg) where
 
+import Control.Monad               ( when, unless )
 import Curry.Compiler.Distribution ( installDir, curryCompiler )
-import System.Directory    ( renameFile )
-import System.FilePath     ( (</>), (<.>), normalise, pathSeparator
-                           , takeExtension, dropExtension )
-import System.Environment  ( getArgs )
-import System.Process      ( system, exitWith )
-import System.CPUTime      ( getCPUTime )
 import Data.List
-import Data.Maybe          ( fromJust )
-import Control.Monad       ( when, unless )
+import Data.Maybe                  ( fromJust )
+import System.Environment          ( getArgs )
+import System.CPUTime              ( getCPUTime )
+
 import FlatCurry.Types hiding  (Cons)
 import FlatCurry.Files
 import FlatCurry.Goodies
+import System.Directory    ( renameFile )
+import System.FilePath     ( (</>), (<.>), normalise, pathSeparator
+                           , takeExtension, dropExtension )
+import System.Process      ( system, exitWith )
 
 import Analysis.Types
 import Analysis.ProgInfo

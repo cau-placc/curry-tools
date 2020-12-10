@@ -3,7 +3,7 @@
 --- Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version November 2020
+--- @version December 2020
 ------------------------------------------------------------------------------
 {-# LANGUAGE CPP #-}
 
@@ -48,7 +48,7 @@ import Language.Curry.Distribution
 --- @cons COMMS - comments stream ending with .cycom
 data FrontendTarget = FCY | TFCY | FINT | ACY | UACY | HTML | CY | TOKS | TAFCY
                     | AST | SAST | COMMS
-  deriving Eq
+  deriving (Eq, Show)
 
 --- Abstract data type for representing parameters supported by the front end
 --- of the Curry compiler.
