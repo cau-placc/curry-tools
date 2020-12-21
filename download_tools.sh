@@ -61,9 +61,6 @@ cd .cpm/packages
  PKGV=`ls -d directory-*`
  mv $PKGV directory
  ln -s directory $PKGV
- PKGV=`ls -d distribution-*`
- mv $PKGV distribution
- ln -s distribution $PKGV
  PKGV=`ls -d filepath-*`
  mv $PKGV filepath
  ln -s filepath $PKGV

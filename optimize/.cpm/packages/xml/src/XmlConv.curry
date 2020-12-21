@@ -243,7 +243,7 @@ element name xa = Conv rd sh
 ---
 --- @param val Value without an XML representation
 --- @return Empty XML converter
-empty :: a -> XPrimConv a
+empty :: Data a => a -> XPrimConv a
 empty val = Conv rd sh
  where
   rd = ret val
@@ -404,7 +404,7 @@ eBool true false = eEmpty true True ! eEmpty false False
 --- @param name Tag name of the empty element
 --- @param val Value represented by the empty element
 --- @return XML converter representing an empty XML element
-eEmpty :: String -> a -> XElemConv a
+eEmpty :: Data a => String -> a -> XElemConv a
 eEmpty name a = element name (empty a)
 
 --- Creates an XML converter that represents an element containing
@@ -472,7 +472,7 @@ eRepSeq1 :: (Data a, Data b) => String -> (a -> b)
          -> XmlConv Repeatable _ a -> XElemConv [b]
 eRepSeq1 name cons xa = element name (repSeq1 cons xa)
 
-seq2_ :: (Data a, Data b) => (a -> b -> c)
+seq2_ :: (Data a, Data b, Data c) => (a -> b -> c)
       -> XmlConv _ _ a -> XmlConv _ _ b
       -> XmlConv _ NoElem c
 seq2_ cons xa xb = Conv rd sh
@@ -490,7 +490,7 @@ seq2_ cons xa xb = Conv rd sh
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a sequence
-seq2 :: (Data a, Data b) => (a -> b -> c)
+seq2 :: (Data a, Data b, Data c) => (a -> b -> c)
      -> XmlConv _ _ a -> XmlConv _ _ b
      -> XSeqConv c
 seq2 = seq2_
@@ -504,7 +504,7 @@ seq2 = seq2_
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a repetition of a sequence
-repSeq2 :: (Data a, Data b) => (a -> b -> c)
+repSeq2 :: (Data a, Data b, Data c) => (a -> b -> c)
         -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
         -> XRepConv [c]
 repSeq2 cons xa xb = rep (seq2_ cons xa xb)
@@ -517,7 +517,7 @@ repSeq2 cons xa xb = rep (seq2_ cons xa xb)
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a compound value
-eSeq2 :: (Data a, Data b) => String -> (a -> b -> c)
+eSeq2 :: (Data a, Data b, Data c) => String -> (a -> b -> c)
       -> XmlConv _ _ a -> XmlConv _ _ b
       -> XElemConv c
 eSeq2 name cons xa xb = element name (seq2 cons xa xb)
@@ -529,12 +529,12 @@ eSeq2 name cons xa xb = element name (seq2 cons xa xb)
 --- @param cons constructor of the sequence
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a repeated sequence
-eRepSeq2 :: (Data a, Data b) => String -> (a -> b -> c)
+eRepSeq2 :: (Data a, Data b, Data c) => String -> (a -> b -> c)
          -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
          -> XElemConv [c]
 eRepSeq2 name cons xa xb = element name (repSeq2 cons xa xb)
 
-seq3_ :: (Data a, Data b, Data c) => (a -> b -> c -> d)
+seq3_ :: (Data a, Data b, Data c, Data d) => (a -> b -> c -> d)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c
       -> XmlConv _ NoElem d
 seq3_ cons xa xb xc = Conv rd sh
@@ -553,7 +553,7 @@ seq3_ cons xa xb xc = Conv rd sh
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a sequence
-seq3 :: (Data a, Data b, Data c) => (a -> b -> c -> d)
+seq3 :: (Data a, Data b, Data c, Data d) => (a -> b -> c -> d)
      -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c
      -> XSeqConv d
 seq3 = seq3_
@@ -567,7 +567,7 @@ seq3 = seq3_
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a repetition of a sequence
-repSeq3 :: (Data a, Data b, Data c) => (a -> b -> c -> d)
+repSeq3 :: (Data a, Data b, Data c, Data d) => (a -> b -> c -> d)
         -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
         -> XmlConv Repeatable _ c
         -> XRepConv [d]
@@ -581,7 +581,7 @@ repSeq3 cons xa xb xc = rep (seq3_ cons xa xb xc)
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a compound value
-eSeq3 :: (Data a, Data b, Data c) => String -> (a -> b -> c -> d)
+eSeq3 :: (Data a, Data b, Data c, Data d) => String -> (a -> b -> c -> d)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c
       -> XElemConv d
 eSeq3 name cons xa xb xc = element name (seq3 cons xa xb xc)
@@ -593,13 +593,13 @@ eSeq3 name cons xa xb xc = element name (seq3 cons xa xb xc)
 --- @param cons constructor of the sequence
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a repeated sequence
-eRepSeq3 :: (Data a, Data b, Data c) => String -> (a -> b -> c -> d)
+eRepSeq3 :: (Data a, Data b, Data c, Data d) => String -> (a -> b -> c -> d)
          -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
          -> XmlConv Repeatable _ c
          -> XElemConv [d]
 eRepSeq3 name cons xa xb xc = element name (repSeq3 cons xa xb xc)
 
-seq4_ :: (Data a, Data b, Data c, Data d) => (a -> b -> c -> d -> e)
+seq4_ :: (Data a, Data b, Data c, Data d, Data e) => (a -> b -> c -> d -> e)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XmlConv _ NoElem e
 seq4_ cons xa xb xc xd = Conv rd sh
@@ -620,7 +620,7 @@ seq4_ cons xa xb xc xd = Conv rd sh
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a sequence
-seq4 :: (Data a, Data b, Data c, Data d) => (a -> b -> c -> d -> e)
+seq4 :: (Data a, Data b, Data c, Data d, Data e) => (a -> b -> c -> d -> e)
      -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
      -> XSeqConv e
 seq4 = seq4_
@@ -634,7 +634,7 @@ seq4 = seq4_
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a repetition of a sequence
-repSeq4 :: (Data a, Data b, Data c, Data d) => (a -> b -> c -> d -> e)
+repSeq4 :: (Data a, Data b, Data c, Data d, Data e) => (a -> b -> c -> d -> e)
         -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
         -> XmlConv Repeatable _ c -> XmlConv Repeatable _ d
         -> XRepConv [e]
@@ -648,7 +648,7 @@ repSeq4 cons xa xb xc xd = rep (seq4_ cons xa xb xc xd)
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a compound value
-eSeq4 :: (Data a, Data b, Data c, Data d) => String -> (a -> b -> c -> d -> e)
+eSeq4 :: (Data a, Data b, Data c, Data d, Data e) => String -> (a -> b -> c -> d -> e)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XElemConv e
 eSeq4 name cons xa xb xc xd = element name (seq4 cons xa xb xc xd)
@@ -660,13 +660,13 @@ eSeq4 name cons xa xb xc xd = element name (seq4 cons xa xb xc xd)
 --- @param cons constructor of the sequence
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a repeated sequence
-eRepSeq4 :: (Data a, Data b, Data c, Data d) => String -> (a -> b -> c -> d -> e)
+eRepSeq4 :: (Data a, Data b, Data c, Data d, Data e) => String -> (a -> b -> c -> d -> e)
          -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
          -> XmlConv Repeatable _ c -> XmlConv Repeatable _ d
          -> XElemConv [e]
 eRepSeq4 name cons xa xb xc xd = element name (repSeq4 cons xa xb xc xd)
 
-seq5_ :: (Data a, Data b, Data c, Data d, Data e) =>
+seq5_ :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
          (a -> b -> c -> d -> e -> f)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XmlConv _ _ e
@@ -691,7 +691,7 @@ seq5_ cons xa xb xc xd xe = Conv rd sh
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a sequence
-seq5 :: (Data a, Data b, Data c, Data d, Data e) =>
+seq5 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
         (a -> b -> c -> d -> e -> f)
      -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
      -> XmlConv _ _ e
@@ -707,7 +707,7 @@ seq5 = seq5_
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a repetition of a sequence
-repSeq5 :: (Data a, Data b, Data c, Data d, Data e) =>
+repSeq5 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
            (a -> b -> c -> d -> e -> f)
         -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
         -> XmlConv Repeatable _ c -> XmlConv Repeatable _ d
@@ -723,7 +723,7 @@ repSeq5 cons xa xb xc xd xe = rep (seq5_ cons xa xb xc xd xe)
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a compound value
-eSeq5 :: (Data a, Data b, Data c, Data d, Data e) =>
+eSeq5 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
          String -> (a -> b -> c -> d -> e -> f)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XmlConv _ _ e
@@ -737,7 +737,7 @@ eSeq5 name cons xa xb xc xd xe = element name (seq5 cons xa xb xc xd xe)
 --- @param cons constructor of the sequence
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a repeated sequence
-eRepSeq5 :: (Data a, Data b, Data c, Data d, Data e) =>
+eRepSeq5 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
             String -> (a -> b -> c -> d -> e -> f)
          -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
          -> XmlConv Repeatable _ c -> XmlConv Repeatable _ d
@@ -745,7 +745,7 @@ eRepSeq5 :: (Data a, Data b, Data c, Data d, Data e) =>
          -> XElemConv [f]
 eRepSeq5 name cons xa xb xc xd xe = element name (repSeq5 cons xa xb xc xd xe)
 
-seq6_ :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
+seq6_ :: (Data a, Data b, Data c, Data d, Data e, Data f, Data g) =>
          (a -> b -> c -> d -> e -> f -> g)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XmlConv _ _ e -> XmlConv _ _ f
@@ -771,7 +771,7 @@ seq6_ cons xa xb xc xd xe xf = Conv rd sh
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a sequence
-seq6 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
+seq6 :: (Data a, Data b, Data c, Data d, Data e, Data f, Data g) =>
         (a -> b -> c -> d -> e -> f -> g)
      -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
      -> XmlConv _ _ e -> XmlConv _ _ f
@@ -787,7 +787,7 @@ seq6 = seq6_
 --- @param f Invertable function (constructor) that combines the sequence
 --- @param conv(s) XML converter for the data contained in the sequence
 --- @return XML converter representing a repetition of a sequence
-repSeq6 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
+repSeq6 :: (Data a, Data b, Data c, Data d, Data e, Data f, Data g) =>
            (a -> b -> c -> d -> e -> f -> g)
         -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
         -> XmlConv Repeatable _ c -> XmlConv Repeatable _ d
@@ -803,7 +803,7 @@ repSeq6 cons xa xb xc xd xe xf = rep (seq6_ cons xa xb xc xd xe xf)
 --- @param cons constructor of the compound value
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a compound value
-eSeq6 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
+eSeq6 :: (Data a, Data b, Data c, Data d, Data e, Data f, Data g) =>
          String -> (a -> b -> c -> d -> e -> f -> g)
       -> XmlConv _ _ a -> XmlConv _ _ b -> XmlConv _ _ c -> XmlConv _ _ d
       -> XmlConv _ _ e -> XmlConv _ _ f
@@ -817,7 +817,7 @@ eSeq6 name cons xa xb xc xd xe xf = element name (seq6 cons xa xb xc xd xe xf)
 --- @param cons constructor of the sequence
 --- @param conv(s) XML converter for the components
 --- @return XML element converter for a repeated sequence
-eRepSeq6 :: (Data a, Data b, Data c, Data d, Data e, Data f) =>
+eRepSeq6 :: (Data a, Data b, Data c, Data d, Data e, Data f, Data g) =>
             String -> (a -> b -> c -> d -> e -> f -> g)
          -> XmlConv Repeatable _ a -> XmlConv Repeatable _ b
          -> XmlConv Repeatable _ c -> XmlConv Repeatable _ d

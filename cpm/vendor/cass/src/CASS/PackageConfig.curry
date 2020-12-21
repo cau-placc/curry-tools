@@ -1,7 +1,7 @@
 module CASS.PackageConfig where
 
-import Language.Curry.Distribution(installDir)
-import System.FilePath((</>))
+import Curry.Compiler.Distribution ( installDir )
+import System.FilePath             ( (</>) )
 
 --- Package version as a string.
 packageVersion :: String

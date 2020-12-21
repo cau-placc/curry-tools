@@ -3,7 +3,7 @@
 --- used in Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version November 2020
+--- @version December 2020
 ------------------------------------------------------------------------------
 
 module System.CurryPath
@@ -17,6 +17,11 @@ module System.CurryPath
   , curryrcFileName
   ) where
 
+import Curry.Compiler.Distribution
+                           ( curryCompiler, curryCompilerMajorVersion
+                           , curryCompilerMinorVersion
+                           , curryCompilerRevisionVersion
+                           , installDir )
 import Data.Char           ( toLower )
 import Data.List           ( intercalate, split )
 import System.Directory    ( doesFileExist, getHomeDirectory )
@@ -27,11 +32,6 @@ import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , splitExtension, splitFileName, splitSearchPath
                            , takeFileName, takeExtension, dropExtension
                            )
-import Language.Curry.Distribution
-                           ( curryCompiler, curryCompilerMajorVersion
-                           , curryCompilerMinorVersion
-                           , curryCompilerRevisionVersion
-                           , installDir )
 
 import Data.PropertyFile   ( getPropertyFromFile )
 
