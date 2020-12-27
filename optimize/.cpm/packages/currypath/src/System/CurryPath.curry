@@ -8,6 +8,8 @@
 
 module System.CurryPath
   ( ModuleIdent
+  , splitProgramName, splitValidProgramName, isValidModuleName
+  , runModuleAction
   , splitModuleFileName, splitModuleIdentifiers  , joinModuleIdentifiers
   , stripCurrySuffix
   , ModulePath, modNameToPath
@@ -17,29 +19,92 @@ module System.CurryPath
   , curryrcFileName
   ) where
 
+import Control.Monad       ( unless )
 import Curry.Compiler.Distribution
                            ( curryCompiler, curryCompilerMajorVersion
                            , curryCompilerMinorVersion
                            , curryCompilerRevisionVersion
                            , installDir )
 import Data.Char           ( toLower )
-import Data.List           ( intercalate, split )
-import System.Directory    ( doesFileExist, getHomeDirectory )
+import Data.List           ( init, intercalate, last, split )
+import System.Directory    ( doesFileExist, getCurrentDirectory
+                           , getHomeDirectory, setCurrentDirectory )
 import System.Environment  ( getEnv )
 import System.Process      ( system )
 import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , dropFileName, joinPath, splitDirectories
-                           , splitExtension, splitFileName, splitSearchPath
+                           , splitExtension, splitFileName, splitPath
+                           , splitSearchPath
                            , takeFileName, takeExtension, dropExtension
                            )
 
 import Data.PropertyFile   ( getPropertyFromFile )
 
------------------------------------------------------------
+------------------------------------------------------------------------------
 --- Functions for handling file names of Curry modules
------------------------------------------------------------
+------------------------------------------------------------------------------
 
 type ModuleIdent = String
+
+--- Splits a program name, i.e., a module name possibly prefixed by
+--- a directory, into the directory and the module name.
+--- A possible suffix like `.curry` or `.lcurry` is dropped from the
+--- module name.
+--- For instance `splitProgramName "lib/Data.Set.curry"` evaluates
+--- to `("lib","Data.Set")`.
+splitProgramName :: String -> (FilePath, ModuleIdent)
+splitProgramName s
+  | null ps
+  = (".", "")
+  | null (tail ps)
+  = (".", head ps)
+  | otherwise
+  = (concat (init ps), last ps)
+ where
+  ps = splitPath (stripCurrySuffix s)
+
+--- Splits a program name, i.e., a module name possibly prefixed by
+--- a directory, into the directory and a *valid* module name.
+--- A possible suffix like `.curry` or `.lcurry` is dropped from the
+--- module name.
+--- For instance `splitValidProgramName "lib/Data.Set.curry"` evaluates
+--- to `("lib","Data.Set")`.
+--- An error is raised if the program name is empty or the module name
+--- is not valid.
+splitValidProgramName :: String -> (FilePath, ModuleIdent)
+splitValidProgramName s
+  | null mname
+  = error $ "The module name is empty."
+  | not (isValidModuleName mname)
+  = error $ "The program name '" ++ s ++ "' contains an invalid module name."
+  | otherwise
+  = (dir,mname)
+ where
+  (dir,mname) = splitProgramName s
+
+--- Is the given string a valid module name?
+isValidModuleName :: String -> Bool
+isValidModuleName = all isModId . split (=='.')
+ where
+  isModId []     = False
+  isModId (c:cs) = isAlpha c && all (\x -> isAlphaNum x || x `elem` "_'") cs
+
+--- Executes an I/O action, which is parameterized over a module name,
+--- for a given program name. If the program name is prefixed by a directory,
+--- switch to this directory before executing the action.
+--- A possible suffix like `.curry` or `.lcurry` is dropped from the
+--- module name passed to the action.
+--- An error is raised if the module name is not valid.
+runModuleAction :: (String -> IO a) -> String -> IO a
+runModuleAction modaction progname = do
+  let (progdir,mname) = splitValidProgramName progname
+  curdir <- getCurrentDirectory
+  unless (progdir == ".") $ do
+    putStrLn $ "Switching to directory '" ++ progdir ++ "'..."
+    setCurrentDirectory progdir
+  result <- modaction mname
+  unless (progdir == ".") $ setCurrentDirectory curdir
+  return result
 
 --- Split the `FilePath` of a module into the directory prefix and the
 --- `FilePath` corresponding to the module name.
@@ -69,7 +134,7 @@ joinModuleIdentifiers :: [String] -> ModuleIdent
 joinModuleIdentifiers = foldr1 combine
   where combine xs ys = xs ++ '.' : ys
 
---- Strips the suffix ".curry" or ".lcurry" from a file name.
+--- Strips the suffix `.curry` or `.lcurry` from a file name.
 stripCurrySuffix :: String -> String
 stripCurrySuffix s =
   if takeExtension s `elem` [".curry",".lcurry"]
@@ -91,7 +156,10 @@ modNameToPath :: ModuleIdent -> String
 modNameToPath = foldr1 (</>) . split (=='.')
 
 --- Name of the sub directory where auxiliary files (.fint, .fcy, etc)
---- are stored.
+--- are stored. Note that the name of this directory depends
+--- on the compiler to avoid confusion when using different compilers.
+--- For instance, when using PAKCS 3.2.0, `currySubdir` evaluates
+--- to `".curry/pakcs-3.2.0"`.
 currySubdir :: FilePath
 currySubdir =
   ".curry" </> curryCompiler ++ "-" ++
@@ -100,10 +168,10 @@ currySubdir =
                curryCompilerRevisionVersion])
 
 --- Transforms a path to a module name into a file name
---- by adding the `currySubDir` to the path and transforming
+--- by adding the result of 'currySubDir' to the path and transforming
 --- a hierarchical module name into a path.
---- For instance, `inCurrySubdir "mylib/Data.Char"` evaluates to
---- `"mylib/.curry/Data/Char"`.
+--- For instance, when using PAKCS 3.2.0, `inCurrySubdir "mylib/Data.Char"`
+--- evaluates to `"mylib/.curry/pakcs-3.2.0/Data/Char"`.
 inCurrySubdir :: FilePath -> FilePath
 inCurrySubdir filename =
   let (base,file) = splitFileName filename
@@ -120,9 +188,9 @@ inCurrySubdirModule m fn = let (dirP, modP) = splitModuleFileName m fn
 addCurrySubdir :: FilePath -> FilePath
 addCurrySubdir dir = dir </> currySubdir
 
------------------------------------------------------------
---- finding files in correspondence to compiler load path
------------------------------------------------------------
+------------------------------------------------------------------------------
+--- Finding files in correspondence to compiler load path
+------------------------------------------------------------------------------
 
 --- Returns the current path (list of directory names) of the
 --- system libraries.

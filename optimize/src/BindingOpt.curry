@@ -18,6 +18,7 @@ import System.CPUTime              ( getCPUTime )
 import FlatCurry.Types hiding  (Cons)
 import FlatCurry.Files
 import FlatCurry.Goodies
+import System.CurryPath    ( runModuleAction )
 import System.Directory    ( renameFile )
 import System.FilePath     ( (</>), (<.>), normalise, pathSeparator
                            , takeExtension, dropExtension )
@@ -38,7 +39,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 09/12/2020)"
+  let bannerText = "Curry Binding Optimizer (version of 27/12/2020)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -77,9 +78,8 @@ checkArgs opts@(verbosity, withana, load) args = case args of
   "-l":margs           -> checkArgs (verbosity, withana, True) margs
   "-h":_               -> putStr (systemBanner++'\n':usageComment)
   "-?":_               -> putStr (systemBanner++'\n':usageComment)
-  mods                 -> do
-                          printVerbose verbosity 1 systemBanner
-                          mapM_ (transformBoolEq opts) mods
+  mods                 -> do printVerbose verbosity 1 systemBanner
+                             mapM_ (transformBoolEq opts) mods
 
 -- Verbosity level:
 -- 0 : show nothing
@@ -94,20 +94,15 @@ printVerbose verbosity printlevel message =
   unless (null message || verbosity < printlevel) $ putStrLn message
 
 transformBoolEq :: Options -> String -> IO ()
-transformBoolEq opts@(verb, _, _) name = do
-  let isfcyname = takeExtension name == ".fcy"
-      modname   = if isfcyname
-                  then modNameOfFcyName (normalise (dropExtension name))
-                  else name
-  printVerbose verb 1 $ "Reading and analyzing module '" ++ modname ++ "'..."
-  flatprog <- if isfcyname then readFlatCurryFile name
-                           else readFlatCurry     modname
-  transformAndStoreFlatProg opts modname flatprog
-
--- Drop a suffix from a list if present or leave the list as is otherwise.
-dropSuffix :: Eq a => [a] -> [a] -> [a]
-dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
-                 | otherwise          = s
+transformBoolEq opts name = do
+  if takeExtension name == ".fcy"
+    then do prog <- readFlatCurryFile name
+            let modname = modNameOfFcyName (normalise (dropExtension name))
+            transformAndStoreFlatProg opts modname name prog
+    else runModuleAction
+           (\mn -> readFlatCurry mn >>=
+                   transformAndStoreFlatProg opts mn (flatCurryFileName mn))
+           name
 
 -- Extracts the module name from a given FlatCurry file name:
 modNameOfFcyName :: String -> String
@@ -117,21 +112,20 @@ modNameOfFcyName name =
    in -- construct hierarchical module name:
       dir </> intercalate "." (split (==pathSeparator) wosubdir)
 
-transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
-transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
-  let (dir, name) = splitModuleFileName (progName prog) modname
-      oldprogfile = normalise $ addCurrySubdir dir </>  name         <.> "fcy"
-      newprogfile = normalise $ addCurrySubdir dir </>  name ++ "_O" <.> "fcy"
+transformAndStoreFlatProg :: Options -> String -> String -> Prog -> IO ()
+transformAndStoreFlatProg opts@(verb, _, load) modname fcyfile prog = do
+  printVerbose verb 1 $ "Reading and analyzing module '" ++ modname ++ "'..."
   starttime <- getCPUTime
   (newprog, transformed) <- transformFlatProg opts modname prog
-  when transformed $ writeFCY newprogfile newprog
+  let optfcyfile = fcyfile ++ "_OPT"
+  when transformed $ writeFCY optfcyfile newprog
   stoptime <- getCPUTime
   printVerbose verb 2 $ "Transformation time for " ++ modname ++ ": " ++
                         show (stoptime-starttime) ++ " msecs"
   when transformed $ do
-    printVerbose verb 2 $ "Transformed program stored in " ++ newprogfile
-    renameFile newprogfile oldprogfile
-    printVerbose verb 2 $ " ...and moved to " ++ oldprogfile
+    printVerbose verb 2 $ "Transformed program stored in " ++ optfcyfile
+    renameFile optfcyfile fcyfile
+    printVerbose verb 2 $ " ...and moved to " ++ fcyfile
   when load $ system (curryComp ++ " :l " ++ modname) >> return ()
  where curryComp = installDir </> "bin" </> curryCompiler
 

@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version December 2018
+--- @version December 2020
 --------------------------------------------------------------------------
 
 module CASS.Server
@@ -18,6 +18,7 @@ import Numeric            ( readNat )
 import ReadShowTerm       ( readQTerm, showQTerm )
 import Data.Char          ( isSpace )
 import Control.Monad      ( unless )
+import System.CurryPath   ( runModuleAction )
 import System.Directory
 import System.FilePath
 import System.IO
@@ -82,15 +83,15 @@ mainServer mbport = do
 --- by 'initializeAnalysisSystem'.
 analyzeModuleAsText :: String -> String -> Bool -> Bool -> IO String
 analyzeModuleAsText ananame mname optall enforce =
-  analyzeModule ananame mname enforce AText >>=
-             return . formatResult mname "Text" Nothing (not optall)
+  analyzeProgram ananame enforce AText mname >>=
+  return . formatResult mname "Text" Nothing (not optall)
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- Note that, before its first use, the analysis system must be initialized
 --- by 'initializeAnalysisSystem'.
 analyzeModuleForBrowser :: String -> String -> AOutFormat -> IO [(QName,String)]
-analyzeModuleForBrowser ananame moduleName aoutformat =
-  analyzeModule ananame moduleName False aoutformat >>=
+analyzeModuleForBrowser ananame mname aoutformat =
+  analyzeProgram ananame False aoutformat mname >>=
     return . either pinfo2list (const [])
  where
    pinfo2list pinfo = let (pubinfo,privinfo) = progInfo2Lists pinfo
@@ -102,35 +103,40 @@ analyzeModuleForBrowser ananame moduleName aoutformat =
 --- by 'initializeAnalysisSystem'.
 analyzeFunctionForBrowser :: String -> QName -> AOutFormat -> IO String
 analyzeFunctionForBrowser ananame qn@(mname,_) aoutformat = do
-  analyzeModule ananame mname False aoutformat >>=
+  analyzeProgram ananame False aoutformat mname >>=
     return . either (maybe "" id . lookupProgInfo qn) (const "")
 
---- Analyze a complete module for a given analysis result format.
+--- Analyze a given program (i.e., a module possibly prefixed with a
+--- directory name) for a given analysis result format.
 --- The third argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
 --- Note that before its first use, the analysis system must be initialized
 --- by 'initializeAnalysisSystem'.
-analyzeModule :: String -> String -> Bool -> AOutFormat
+analyzeProgram :: String -> Bool -> AOutFormat -> String
+               -> IO (Either (ProgInfo String) String)
+analyzeProgram ananame enforce aoutformat progname =
+  runModuleAction (analyzeModule ananame enforce aoutformat) progname
+
+--- Analyze a complete module for a given analysis result format.
+--- The second argument is a flag indicating whether the
+--- (re-)analysis should be enforced.
+--- Note that before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
+analyzeModule :: String -> Bool -> AOutFormat -> String
               -> IO (Either (ProgInfo String) String)
-analyzeModule ananame moduleName enforce aoutformat = do
-  let (mdir,mname) = splitFileName moduleName
+analyzeModule ananame enforce aoutformat modname = do
   getDefaultPath >>= setEnv "CURRYPATH"
-  curdir <- getCurrentDirectory
-  unless (mdir==".") $ setCurrentDirectory mdir
   numworkers <- numberOfWorkers
-  aresult <-
-   if numworkers>0
-     then do
-      serveraddress <- getServerAddress
-      (port,socket) <- listenOnFresh
-      handles <- startWorkers numworkers socket serveraddress port []
-      result <- runAnalysisWithWorkers ananame aoutformat enforce handles mname
-      stopWorkers handles
-      close socket
-      return result
-     else runAnalysisWithWorkers ananame aoutformat enforce [] mname
-  setCurrentDirectory curdir
-  return aresult
+  if numworkers>0
+    then do
+     serveraddress <- getServerAddress
+     (port,socket) <- listenOnFresh
+     handles <- startWorkers numworkers socket serveraddress port []
+     result <- runAnalysisWithWorkers ananame aoutformat enforce handles modname
+     stopWorkers handles
+     close socket
+     return result
+    else runAnalysisWithWorkers ananame aoutformat enforce [] modname
 
 --- Start the analysis system with a particular analysis.
 --- The analysis must be a registered one if workers are used.
