@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version December 2020
+--- @version January 2020
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -11,7 +11,7 @@ module BindingOpt (main, transformFlatProg) where
 import Control.Monad               ( when, unless )
 import Curry.Compiler.Distribution ( installDir, curryCompiler )
 import Data.List
-import Data.Maybe                  ( fromJust )
+import Data.Maybe                  ( fromJust, isJust )
 import System.Environment          ( getArgs )
 import System.CPUTime              ( getCPUTime )
 
@@ -39,7 +39,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 27/12/2020)"
+  let bannerText = "Curry Binding Optimizer (version of 06/01/2021)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -145,17 +145,21 @@ transformFlatProg (verb, withanalysis, _) modname
             return (flip lookupProgInfo reqinfo)
     else return (flip lookup preludeBoolReqValues)
   let (stats,newfdecls) = unzip (map (transformFuncDecl lookupreqinfo) fdecls)
-      numtrans = totalTrans stats
-      numbeqs  = totalBEqs  stats
-      csvfname = mname ++ "_BOPTSTATS.csv"
+      numtranseqs = totalTransEqs stats
+      numtranseqv = totalTransEqv stats
+      numbeqs     = totalBEqs  stats
+      csvfname    = mname ++ "_BOPTSTATS.csv"
   printVerbose verb 2 $ statSummary stats
   printVerbose verb 1 $
-     "Total number of transformed (dis)equalities: " ++ show numtrans ++
+     "Total number of transformed (dis)equalities: " ++
+     show numtranseqs ++ " (===) and " ++
+     show numtranseqv ++ " (==)" ++
      " (out of " ++ show numbeqs ++ ")"
   unless (verb<2) $ do
     writeCSVFile csvfname (stats2csv stats)
     putStrLn ("Detailed statistics written to '" ++ csvfname ++"'")
-  return (Prog mname imports tdecls newfdecls opdecls, numtrans > 0)
+  return ( Prog mname imports tdecls newfdecls opdecls
+         , numtranseqs + numtranseqs > 0)
 
 loadAnalysisWithImports :: (Read a, Show a) => Analysis a -> String -> [String]
                         -> IO (ProgInfo a,ProgInfo a)
@@ -174,31 +178,37 @@ showInfos showi =
 -- Transform a function declaration.
 -- Some statistical information and the new function declaration are returned.
 transformFuncDecl :: (QName -> Maybe AFType) -> FuncDecl
-                  -> (TransStat,FuncDecl)
+                  -> (TransStat, FuncDecl)
 transformFuncDecl lookupreqinfo fdecl@(Func qf@(_,fn) ar vis texp rule) =
   if containsBeqRule rule
   then
     let (tst,trule) = transformRule lookupreqinfo (initTState qf) rule
-        on = occNumber tst
-     in (TransStat fn beqs on, Func qf ar vis texp trule)
-  else (TransStat fn 0 0, fdecl)
+    in ( TransStat fn beqs (numTransEqs tst) (numTransEqv tst)
+       , Func qf ar vis texp trule )
+  else (TransStat fn 0 0 0, fdecl)
  where
   beqs = numberBeqRule rule
 
 -------------------------------------------------------------------------
 -- State threaded through the program transformer:
 -- * name of current function
+-- * number of occurrences of (===) that are replaced by (=:=)
 -- * number of occurrences of (==) that are replaced by (=:=)
-data TState = TState QName Int
+data TState = TState { currFunc :: QName
+                     , numTransEqs :: Int
+                     , numTransEqv :: Int
+                     }
 
 initTState :: QName -> TState
-initTState qf = TState qf 0
+initTState qf = TState qf 0 0
 
-occNumber :: TState -> Int
-occNumber (TState _ on) = on
+-- Increment number of transformed equalities.
+incNumEqs :: TState -> TState
+incNumEqs tst = tst { numTransEqs = numTransEqs tst + 1 }
 
-incOccNumber :: TState -> TState
-incOccNumber (TState qf on) = TState qf (on+1)
+-- Increment number of transformed equivalences.
+incNumEqv :: TState -> TState
+incNumEqv tst = tst { numTransEqv = numTransEqv tst + 1 }
 
 -------------------------------------------------------------------------
 --- Transform a FlatCurry program rule w.r.t. information about required
@@ -220,23 +230,28 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   -- transform an expression w.r.t. a required value
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
+
   transformExp tst0 exp@(Comb ct qf es) reqval
-    | reqval == aTrue && isBoolEqualCall "==" exp
-    = (Comb FuncCall (pre "constrEq")
-                     (argsOfBoolEqualCall "==" (Comb ct qf tes))
-      , incOccNumber tst1)
-    | reqval == aFalse && isBoolEqualCall "/=" exp
-    = (Comb FuncCall (pre "not")
-         [Comb FuncCall (pre "constrEq")
-                        (argsOfBoolEqualCall "/=" (Comb ct qf tes))]
-      , incOccNumber tst1)
+    | reqval == aTrue && isBoolEqualCall True exp
+    = case checkBoolEqualCall True (Comb ct qf tes) of
+        Just (eqs,targs) -> ( Comb FuncCall (pre "constrEq") targs
+                            , (if eqs then incNumEqs else incNumEqv) tst1 )
+        Nothing       -> error "transfromExp"
+    | reqval == aFalse && isBoolEqualCall False exp
+    = case checkBoolEqualCall False (Comb ct qf tes) of
+        Just (eqs,targs) -> ( Comb FuncCall (pre "not")
+                                [Comb FuncCall (pre "constrEq") targs]
+                            , (if eqs then incNumEqs else incNumEqv) tst1 )
+        Nothing       -> error "transfromExp"
     | qf == pre "$" && length es == 2 &&
       (isFuncPartCall (head es) || isConsPartCall (head es))
     = transformExp tst0 (reduceDollar es) reqval
     | otherwise
     = (Comb ct qf tes, tst1)
-   where reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
-         (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
+   where
+    reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
+    (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
+
   transformExp tst0 (Free vars e) reqval =
     let (te,tst1) = transformExp tst0 e reqval
      in (Free vars te, tst1)
@@ -273,49 +288,60 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
      in (Branch pat tbe, tstb)
 
 -------------------------------------------------------------------------
--- Check whether the expression argument is a call to a Boolean (dis)equality
--- and return the arguments of the call.
--- The first argument is "==" (for checking equalities) or "/="
--- (for checking disequalities).
--- If type classes are present, a Boolean (dis)equality call can be
+-- Check whether the expression argument is a call to a Boolean (dis)equality.
+-- If this is the case, return a flag indicating whether it is a `(===)` call
+-- and the actual arguments of the call.
+-- Otherwise, return `Nothing`.
+-- If the first argument is `True`, we check equalities ("===" or "=="),
+-- otherwise we check disequalities  ("/=").
+-- Since the equalities are defined in type classes,
+-- a Boolean (dis)equality call can be
 -- * an instance (dis)equality call: "_impl#==#Prelude.Eq#..." ... e1 e2
 --   (where there can be additional arguments for other Eq dicts)
 -- * a class (dis)equality call: apply (apply ("==" [dict]) e1) e2
 --   (where dict is a dictionary parameter)
 -- * a default instance (dis)equality call:
 --   apply (apply ("_impl#==#Prelude.Eq#..." []) e1) e2
-checkBoolEqualCall :: String -> Expr -> Maybe [Expr]
-checkBoolEqualCall deq exp = case exp of
+checkBoolEqualCall :: Bool -> Expr -> Maybe (Bool, [Expr])
+checkBoolEqualCall eq exp = case exp of
   Comb FuncCall qf es ->
-    if isNotEqualInstanceFunc qf && length es > 1
-      then Just (drop (length es - 2) es)
-                -- drop possible Eq dictionary arguments
+    if isEqNameOrInst qf && length es > 1
+      then Just (isEqsNameOrInst qf,
+                 -- drop possible Eq dictionary arguments:
+                 drop (length es - 2) es)
       else if qf == pre "apply"
              then case es of
                     [Comb FuncCall qfa [Comb FuncCall qfe [_],e1],e2] ->
-                      if qfa == pre "apply" &&
-                         (qfe == pre deq || isNotEqualInstanceFunc qfe)
-                        then Just [e1,e2]
+                      if qfa == pre "apply" && isEqNameOrInst qfe
+                        then Just (isEqsNameOrInst qfe, [e1,e2])
                         else Nothing
                     [Comb FuncCall qfa [Comb FuncCall qfe [],e1],e2] ->
-                      if qfa == pre "apply" &&
-                         (qfe == pre deq || isNotEqualInstanceFunc qfe)
-                        then Just [e1,e2]
+                      if qfa == pre "apply" && isEqNameOrInst qfe
+                        then Just (isEqsNameOrInst qfe, [e1,e2])
                         else Nothing
                     _ -> Nothing
              else Nothing
   _ -> Nothing
  where
-  isNotEqualInstanceFunc (_,f) =
-    ("_impl#"++deq++"#Prelude.Eq#") `isPrefixOf` f
+  isEqNameOrInst qf = isEqsNameOrInst qf || isEqvNameOrInst qf
+
+  isEqsNameOrInst qf@(_,f) =
+    if eq then qf `elem` [pre "==="] ||
+               "_impl#===#Prelude.Data#" `isPrefixOf` f
+          else qf `elem` [pre "/=="]
+
+  isEqvNameOrInst qf@(_,f) =
+    if eq then qf `elem` [pre "=="] ||
+               "_impl#==#Prelude.Eq#"    `isPrefixOf` f
+          else qf `elem` [pre "/="] ||
+               "_impl#/=#Prelude.Eq#"    `isPrefixOf` f
+
 
 -- Is this a call to a Boolean equality?
-isBoolEqualCall :: String -> Expr -> Bool
-isBoolEqualCall deq exp = checkBoolEqualCall deq exp /= Nothing
-
--- Returns the arguments of a call to a Boolean equality.
-argsOfBoolEqualCall :: String -> Expr -> [Expr]
-argsOfBoolEqualCall deq exp = fromJust (checkBoolEqualCall deq exp)
+-- If the first argument is `True`, it must be an equality call,
+-- otherwise an inequality call.
+isBoolEqualCall :: Bool -> Expr -> Bool
+isBoolEqualCall eq exp = isJust (checkBoolEqualCall eq exp)
 
 -------------------------------------------------------------------------
 
@@ -378,7 +404,7 @@ containsBeqRule (Rule _ rhs) = containsBeqExp rhs
   containsBeqExp (Var _) = False
   containsBeqExp (Lit _) = False
   containsBeqExp exp@(Comb _ _ es) =
-    isBoolEqualCall "==" exp || isBoolEqualCall "/=" exp ||
+    isBoolEqualCall True exp || isBoolEqualCall False exp ||
     any containsBeqExp es
   containsBeqExp (Free _ e   ) = containsBeqExp e
   containsBeqExp (Or e1 e2   ) = containsBeqExp e1 || containsBeqExp e2
@@ -398,11 +424,11 @@ numberBeqRule (Rule _ rhs) = numberBeqExp rhs
   numberBeqExp (Var _) = 0
   numberBeqExp (Lit _) = 0
   numberBeqExp exp@(Comb _ _ es) =
-    if isBoolEqualCall "==" exp
-      then 1 + sum (map numberBeqExp (argsOfBoolEqualCall "==" exp))
-      else if isBoolEqualCall "/=" exp
-             then 1  + sum (map numberBeqExp (argsOfBoolEqualCall "/=" exp))
-             else sum (map numberBeqExp es)
+    case checkBoolEqualCall True exp of
+      Just (_,targs) -> 1 + sum (map numberBeqExp targs)
+      Nothing        -> case checkBoolEqualCall False exp of
+                          Just (_,fargs) -> 1 + sum (map numberBeqExp fargs)
+                          Nothing        -> sum (map numberBeqExp es)
   numberBeqExp (Free _ e) = numberBeqExp e
   numberBeqExp (Or e1 e2) = numberBeqExp e1 + numberBeqExp e2
   numberBeqExp (Typed e _) = numberBeqExp e
@@ -454,33 +480,48 @@ aTrue  = aCons (pre "True")
 -------------------------------------------------------------------------
 --- Statistical information (e.g., for benchmarking the tool):
 --- * function name
---- * number of Boolean (dis)equalities in the rule
+--- * number of Boolean (dis)equalities/equivalences in the rule
 --- * number of transformed (dis)equalities in the rule
-data TransStat = TransStat String Int Int
+--- * number of transformed (dis)equivalences in the rule
+data TransStat = TransStat String Int Int Int
 
---- Number of all transformations:
-totalTrans :: [TransStat] -> Int
-totalTrans = sum . map (\ (TransStat _ _ teqs) -> teqs)
+--- Number of all (===) transformations:
+totalTransEqs :: [TransStat] -> Int
+totalTransEqs = sum . map (\ (TransStat _ _ teqs _) -> teqs)
+
+--- Number of all (==) transformations:
+totalTransEqv :: [TransStat] -> Int
+totalTransEqv = sum . map (\ (TransStat _ _ _ teqv) -> teqv)
 
 --- Number of all Boolean (dis)equalities:
 totalBEqs :: [TransStat] -> Int
-totalBEqs = sum . map (\ (TransStat _ beqs _) -> beqs)
+totalBEqs = sum . map (\ (TransStat _ beqs _ _) -> beqs)
 
 --- Show a summary of the actual transformations:
 statSummary :: [TransStat] -> String
 statSummary = concatMap showSum
  where
-  showSum (TransStat fn _ teqs) =
-    if teqs==0
+  showSum (TransStat fn _ teqs teqv) =
+    if teqs + teqv == 0
       then ""
-      else "Function "++fn++": "++
-           (if teqs==1 then "one occurrence" else show teqs++" occurrences") ++
-           " of (==) transformed into (=:=)\n"
+      else (if teqs > 0
+              then showFun fn ++ showNOccs teqs ++
+                   " of (===) transformed into (=:=)\n"
+              else "") ++
+           (if teqv > 0
+              then showFun fn ++ showNOccs teqv ++
+                   " of (==) transformed into (=:=)\n"
+              else "")
+
+  showFun fn  = "Function " ++ fn ++ ": "
+  showNOccs n = if n==1 then "one occurrence" else show n ++ " occurrences"
 
 --- Translate statistics into CSV format:
 stats2csv :: [TransStat] -> [[String]]
 stats2csv stats =
-  ["Function","Boolean equalities", "Transformed equalities"] :
-  map (\ (TransStat fn beqs teqs) -> [fn, show beqs, show teqs]) stats
+  ["Function","Boolean equalities",
+   "Transformed equalities", "Transformed equivalences"] :
+  map (\ (TransStat fn beqs teqs teqv) -> fn : map show [beqs, teqs, teqv])
+      stats
 
 -------------------------------------------------------------------------
