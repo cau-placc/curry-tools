@@ -30,11 +30,11 @@ sem (Alt  a b) = sem a ? sem b
 sem (Conc a b) = sem a ++ sem b
 sem (Star a)   = [] ? sem (Conc a (Star a))
 
-grep :: (Data a, Eq a) => RE a -> [a] -> Bool
-grep r s | _ ++ sem r ++ _ == s = True
+grep :: Data a => RE a -> [a] -> Bool
+grep r s | _ ++ sem r ++ _ === s = True
 
 bigABABC :: Int -> [Chr]
-bigABABC n = take n (concatMap (\i->A : take i (repeat B)) [1..]) ++ [A,B,C]
+bigABABC n = take n (concatMap (\i -> A : take i (repeat B)) [1..]) ++ [A,B,C]
 
 main :: Bool
 main = grep abstarc (bigABABC 50)

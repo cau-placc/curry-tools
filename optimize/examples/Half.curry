@@ -18,7 +18,7 @@ add O     p = p
 add (S p) q = S (add p q)
 
 half :: Peano -> Peano
-half y | add x x == y
+half y | add x x === y
        = x
  where x free 
 

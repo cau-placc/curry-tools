@@ -38,7 +38,7 @@ genExpWithVar' n = if n==0 then Add (Var X1) (Num O)
 
 -- return some variable occurring in an expression:
 varInExp :: Exp -> VarName
-varInExp exp | replace x y (Var v) == exp
+varInExp exp | replace x y (Var v) === exp
              = v
  where x, y, v free
 
@@ -53,7 +53,7 @@ test_varInExp = varInExp (genExpWithVar' 100) -=- X1
 ----------------------------------------------------------------
 
 simplify :: Exp -> Exp
-simplify exp | replace c p (evalTo x) == exp
+simplify exp | replace c p (evalTo x) === exp
              = replace c p x
   where c, p, x free
 

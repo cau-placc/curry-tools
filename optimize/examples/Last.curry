@@ -2,8 +2,8 @@
 
 import Test.Prop
 
-last :: (Data a, Eq a) => [a] -> a
-last xs | _ ++ [x] == xs = x  where x free
+last :: Data a => [a] -> a
+last xs | _ ++ [x] === xs = x  where x free
 
 main :: Int
 main = last [1,2,3]
