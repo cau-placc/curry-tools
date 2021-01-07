@@ -159,7 +159,7 @@ transformFlatProg (verb, withanalysis, _) modname
     writeCSVFile csvfname (stats2csv stats)
     putStrLn ("Detailed statistics written to '" ++ csvfname ++"'")
   return ( Prog mname imports tdecls newfdecls opdecls
-         , numtranseqs + numtranseqs > 0)
+         , numtranseqs + numtranseqv > 0)
 
 loadAnalysisWithImports :: (Read a, Show a) => Analysis a -> String -> [String]
                         -> IO (ProgInfo a,ProgInfo a)
@@ -212,12 +212,12 @@ incNumEqv tst = tst { numTransEqv = numTransEqv tst + 1 }
 
 -------------------------------------------------------------------------
 --- Transform a FlatCurry program rule w.r.t. information about required
---- values. If there is an occurrence of `(e1==e2)` where the value `True`
+--- values. If there is an occurrence of `(e1===e2)` where the value `True`
 --- is required, then this occurrence is replaced by
 ---
 ---     (Prelude.constrEq e1 e2)
 ---
---- Similarly, `(e1/=e2)` with required value `False` is replaced by
+--- Similarly, `(e1/==e2)` with required value `False` is replaced by
 ---
 ---     (not (Prelude.constrEq e1 e2))
 
@@ -236,13 +236,13 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
     = case checkBoolEqualCall True (Comb ct qf tes) of
         Just (eqs,targs) -> ( Comb FuncCall (pre "constrEq") targs
                             , (if eqs then incNumEqs else incNumEqv) tst1 )
-        Nothing       -> error "transfromExp"
+        Nothing          -> error "transfromExp"
     | reqval == aFalse && isBoolEqualCall False exp
     = case checkBoolEqualCall False (Comb ct qf tes) of
         Just (eqs,targs) -> ( Comb FuncCall (pre "not")
                                 [Comb FuncCall (pre "constrEq") targs]
                             , (if eqs then incNumEqs else incNumEqv) tst1 )
-        Nothing       -> error "transfromExp"
+        Nothing          -> error "transfromExp"
     | qf == pre "$" && length es == 2 &&
       (isFuncPartCall (head es) || isConsPartCall (head es))
     = transformExp tst0 (reduceDollar es) reqval
@@ -326,20 +326,17 @@ checkBoolEqualCall eq exp = case exp of
   isEqNameOrInst qf = isEqsNameOrInst qf || isEqvNameOrInst qf
 
   isEqsNameOrInst qf@(_,f) =
-    if eq then qf `elem` [pre "==="] ||
-               "_impl#===#Prelude.Data#" `isPrefixOf` f
-          else qf `elem` [pre "/=="]
+    if eq then qf == pre "===" || "_impl#===#Prelude.Data#" `isPrefixOf` f
+          else qf == pre "/=="
 
   isEqvNameOrInst qf@(_,f) =
-    if eq then qf `elem` [pre "=="] ||
-               "_impl#==#Prelude.Eq#"    `isPrefixOf` f
-          else qf `elem` [pre "/="] ||
-               "_impl#/=#Prelude.Eq#"    `isPrefixOf` f
+    if eq then qf == pre "==" || "_impl#==#Prelude.Eq#" `isPrefixOf` f
+          else qf == pre "/=" || "_impl#/=#Prelude.Eq#" `isPrefixOf` f
 
 
 -- Is this a call to a Boolean equality?
 -- If the first argument is `True`, it must be an equality call,
--- otherwise an inequality call.
+-- otherwise an disequality call.
 isBoolEqualCall :: Bool -> Expr -> Bool
 isBoolEqualCall eq exp = isJust (checkBoolEqualCall eq exp)
 
