@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version December 2018
+--- @version January 2021
 --------------------------------------------------------------------------
 
 module CASS.Main ( main ) where
@@ -173,9 +173,9 @@ printHelp args =
 -- Help text
 usageText :: String
 usageText =
-  usageInfo ("Usage: curry analyze <options> <analysis name> <module name>\n" ++
-             "   or: curry analyze <options> [-s|--server]\n" ++
-             "   or: curry analyze [-w|--worker] <host> <port>\n")
+  usageInfo ("Usage: cass <options> <analysis name> <module name>\n" ++
+             "   or: cass <options> [-s|--server]\n" ++
+             "   or: cass [-w|--worker] <host> <port>\n")
             options ++
   unlines ("" : "Registered analyses names:" :
            "(use option `-h <analysis name>' for more documentation)" :

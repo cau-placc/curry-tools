@@ -6,7 +6,6 @@
 ---
 --- @author Michael Hanus
 --- @version July 2016
---- @category meta
 ------------------------------------------------------------------------------
 
 module FlatCurry.Types where

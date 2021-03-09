@@ -25,11 +25,12 @@ import Control.Monad       ( when, unless, foldM )
 import System.IOExts       ( evalCmd, readCompleteFile )
 import Prelude hiding      ( (<|>) )
 
-import Boxes            ( table, render )
+import Boxes               ( table, render )
+import Data.GraphViz       ( showDotGraph, viewDotGraph )
 import OptParse
-import System.CurryPath ( addCurrySubdir, stripCurrySuffix )
-import System.Path      ( fileInPath, getFileInPath )
-import Text.CSV         ( readCSV, showCSV, writeCSVFile )
+import System.CurryPath    ( addCurrySubdir, stripCurrySuffix )
+import System.Path         ( fileInPath, getFileInPath )
+import Text.CSV            ( readCSV, showCSV, writeCSVFile )
 
 import CPM.ErrorLogger
 import CPM.FileUtil ( cleanTempDir, joinSearchPath, safeReadFile, whenFileExists
@@ -46,7 +47,8 @@ import CPM.PackageCache.Global ( acquireAndInstallPackage
 import CPM.Package
 import CPM.Package.Helpers ( cleanPackage, getLocalPackageSpec
                            , renderPackageInfo, installPackageSourceTo )
-import CPM.Resolution ( isCompatibleToCompiler, showResult )
+import CPM.Resolution ( isCompatibleToCompiler, showResult
+                      , dependenciesAsGraph )
 import CPM.Repository ( Repository, findVersion, listPackages
                       , findAllVersions, findLatestVersion
                       , useUpdateHelp, searchPackages, cleanRepositoryCache
@@ -65,7 +67,7 @@ cpmBanner = unlines [bannerLine, bannerText, bannerLine]
  where
   bannerText =
     "Curry Package Manager <curry-lang.org/tools/cpm> (Version " ++
-    packageVersion ++ ", 23/12/2020)"
+    packageVersion ++ ", 02/03/2021)"
   bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -168,7 +170,9 @@ data ConfigOptions = ConfigOptions
   }
 
 data DepsOptions = DepsOptions
-  { depsPath :: Bool  -- show CURRYPATH only?
+  { depsPath  :: Bool  -- show CURRYPATH only?
+  , depsGraph :: Bool  -- show dot graph instead of tree?
+  , depsView  :: Bool  -- view dot graph with `dotviewcommand` of rc file?
   }
 
 data CheckoutOptions = CheckoutOptions
@@ -254,6 +258,7 @@ data DocOptions = DocOptions
 
 data TestOptions = TestOptions
   { testModules   :: Maybe [String]  -- modules to be tested
+  , testCompile   :: Bool            -- only compile modules?
   , testSafe      :: Bool            -- safe test? (no scripts, no I/O props)
   , testFile      :: String          -- file to write test statistics as CSV
   , testCheckOpts :: [String]        -- additional options passed to CurryCheck
@@ -276,7 +281,7 @@ configOpts s = case optCommand s of
 depsOpts :: Options -> DepsOptions
 depsOpts s = case optCommand s of
   Deps opts -> opts
-  _         -> DepsOptions False
+  _         -> DepsOptions False False False
 
 checkoutOpts :: Options -> CheckoutOptions
 checkoutOpts s = case optCommand s of
@@ -357,7 +362,7 @@ defaultBaseDocURL = "https://www-ps.informatik.uni-kiel.de/~cpm/DOC"
 testOpts :: Options -> TestOptions
 testOpts s = case optCommand s of
   Test opts -> opts
-  _         -> TestOptions Nothing False "" []
+  _         -> TestOptions Nothing False False "" []
 
 diffOpts :: Options -> DiffOptions
 diffOpts s = case optCommand s of
@@ -492,12 +497,24 @@ optionParser allargs = optParser
          <> optional )
 
   depsArgs =
-    flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
-                                              { depsPath = True } })
-         (  short "p"
-         <> long "path"
-         <> help "Show value of CURRYPATH only"
-         <> optional )
+        flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
+                                                  { depsPath = True } })
+             (  short "p"
+             <> long "path"
+             <> help "Show value of CURRYPATH only"
+             <> optional )
+    <.> flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
+                                              { depsGraph = True } })
+             (  short "g"
+             <> long "graph"
+             <> help "Show dependencies as dot graph (in Graphviz format)"
+             <> optional )
+    <.> flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
+                                              { depsView = True } })
+             (  short "v"
+             <> long "viewgraph"
+             <> help "View dependency graph (with 'dotviewcommand')"
+             <> optional )
 
   checkoutArgs cmd =
         arg (\s a -> Right $ a { optCommand = cmd (checkoutOpts a)
@@ -703,6 +720,13 @@ optionParser allargs = optParser
           <> optional )
     <.>
     flag (\a -> Right $ a { optCommand =
+                              Test (testOpts a) { testCompile = True } })
+         (  short "c"
+         <> long "compile"
+         <> help "Only compile modules (no tests with CurryCheck)"
+         <> optional )
+    <.>
+    flag (\a -> Right $ a { optCommand =
                               Test (testOpts a) { testSafe = True } })
          (  short "s"
          <> long "safe"
@@ -892,10 +916,21 @@ depsCmd opts cfg = do
   pkg     <- loadPackageSpec specDir
   checkCompiler cfg pkg
   if depsPath opts -- show CURRYPATH only?
-    then do loadpath <- getCurryLoadPath cfg specDir
-            putStrLnELM loadpath
-    else do result <- resolveDependencies cfg specDir
-            putStrLnELM (showResult result)
+    then getCurryLoadPath cfg specDir >>= putStrLnELM
+    else do
+      result <- resolveDependencies cfg specDir
+      when (depsGraph opts) $ -- show dot graph?
+        maybe printFailure
+              (putStrLnELM . showDotGraph)
+              (dependenciesAsGraph result)
+      when (depsView opts) $ -- view dot graph?
+        maybe printFailure
+              (liftIOEL . viewDotGraph)
+              (dependenciesAsGraph result)
+      unless (depsGraph opts || depsView opts) $
+        putStrLnELM (showResult result)
+ where
+  printFailure = putStrLnELM "Dependency resolution failed."
 
 ------------------------------------------------------------------------------
 -- `info` command:
@@ -955,18 +990,20 @@ installCmd (InstallOptions Nothing Nothing _ instexec False) cfg = do
   (pkg,_) <- installLocalDependencies cfg pkgdir
   currypath <- getCurryLoadPath cfg pkgdir
   writePackageConfig cfg pkgdir pkg currypath
-  when instexec $ installExecutable cfg pkg
+  when instexec $ installExecutable cfg pkg Nothing
 -- Install executable only:
-installCmd (InstallOptions Nothing Nothing _ _ True) cfg = do
+installCmd (InstallOptions mbexec Nothing _ _ True) cfg = do
   pkgdir <- getLocalPackageSpec cfg "."
   pkg    <- loadPackageSpec pkgdir
-  installExecutable cfg pkg
-installCmd (InstallOptions (Just pkg) vers pre _ _) cfg = do
+  installExecutable cfg pkg mbexec
+installCmd (InstallOptions _ (Just _) _ _ True) _ =
+  fail "Cannot use option '--exec'  for a specific package version"
+installCmd (InstallOptions (Just pkg) vers pre _ False) cfg = do
   fileExists <- liftIOEL $ doesFileExist pkg
   if fileExists
     then installFromZip cfg pkg
     else installApp (CheckoutOptions pkg vers pre) cfg
-installCmd (InstallOptions Nothing (Just _) _ _ _) _ =
+installCmd (InstallOptions Nothing (Just _) _ _ False) _ =
   fail "Must specify package name"
 
 --- Installs the application (i.e., binary) provided by a package.
@@ -1009,8 +1046,8 @@ checkCompiler cfg pkg =
 
 --- Installs the executable specified in the package in the
 --- bin directory of CPM (compare .cpmrc).
-installExecutable :: Config -> Package -> ErrorLogger ()
-installExecutable cfg pkg = do
+installExecutable :: Config -> Package -> Maybe String -> ErrorLogger ()
+installExecutable cfg pkg mbexec = do
   checkCompiler cfg pkg
   mapM_ (\ (PackageExecutable name mainmod eopts) -> do
            lvl <- getLogLevel
@@ -1030,8 +1067,10 @@ installExecutable cfg pkg = do
            showExecCmd (unwords ["mv", mainmod, binexec])
            checkPath path bindir
         )
-        (executableSpec pkg)
+        (filter installExec (executableSpec pkg))
  where
+  installExec (PackageExecutable name _ _) = maybe True (==name) mbexec
+
   checkPath path bindir =
     if bindir `elem` splitSearchPath path
       then return ()
@@ -1430,29 +1469,42 @@ testCmd opts cfg = do
   specDir <- getLocalPackageSpec cfg "."
   pkg     <- loadPackageSpec specDir
   checkCompiler cfg pkg
-  aspecDir <- liftIOEL $ getAbsolutePath specDir
+  aspecDir  <- liftIOEL $ getAbsolutePath specDir
   mainprogs <- liftIOEL $ curryModulesInDir (aspecDir </> "src")
-  let tests = testSuites pkg mainprogs
+  mbcc      <- if testCompile opts then return Nothing else getCurryCheck
+  let pkg'  = maybe (pkg { testSuite = Nothing }) (const pkg) mbcc
+      tests = testSuites pkg' mainprogs
   stats <- if null tests
              then do logInfo "No modules to be tested!"
                      return []
-             else mapM (execTest aspecDir) tests
+             else mapM (execTest mbcc aspecDir) tests
   unless (null (testFile opts)) $ liftIOEL $
     combineCSVStatsOfPkg (packageId pkg) (concat stats) (testFile opts)
  where
+  ccbin = "curry-check"
+
   getCurryCheck = do
     mbf <- liftIOEL $ getFileInPath ccbin
     maybe (do let cpmcurrycheck = binInstallDir cfg </> ccbin
               ccex <- liftIOEL $ doesFileExist cpmcurrycheck
-              if ccex then return cpmcurrycheck
-                      else fail $ "Executable '" ++ ccbin ++ "' not found!"
+              if ccex
+                then return $ Just cpmcurrycheck
+                else do logInfo $ "Executable '" ++ ccbin ++
+                                  "' not found! No tests, just compiling..."
+                        return Nothing
           )
-          return
+          (return . Just)
           mbf
-   where ccbin = "curry-check"
 
-  execTest apkgdir (PackageTest dir mods pccopts script) = do
-    currycheck <- getCurryCheck
+  execTest Nothing apkgdir (PackageTest dir mods _ _) = do
+    logInfo $ "Compiling modules:" ++ concatMap (' ':) mods
+    let cmpcmd = unwords $ [curryExec cfg] ++
+                           concatMap (\m -> [":load", m]) mods ++ [":quit"]
+    inDirectoryEL (apkgdir </> dir) $ do
+      execWithPkgDir (ExecOptions $ cmpcmd) cfg apkgdir
+      return []
+
+  execTest (Just currycheck) apkgdir (PackageTest dir mods pccopts script) = do
     pid <- liftIOEL getPID
     let csvfile  = "TESTRESULT" ++ show pid ++ ".csv"
         statopts = if null (testFile opts) then [] else ["statfile=" ++ csvfile]
@@ -1605,6 +1657,8 @@ execCmd o cfg = do
   pkgdir <- getLocalPackageSpec cfg "."
   execWithPkgDir o cfg pkgdir
 
+-- Execute a command with the load path set to the package stored
+-- in a directory (third argument).
 execWithPkgDir :: ExecOptions -> Config -> String -> ErrorLogger ()
 execWithPkgDir o cfg specDir = do
   cp <- getCurryLoadPath cfg specDir

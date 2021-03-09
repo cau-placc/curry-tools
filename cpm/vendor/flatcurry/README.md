@@ -1,13 +1,36 @@
 flatcurry
 =========
 
-This package contains libraries to deal with FlatCurry programs.
-Currently, it contains the following modules:
+This package contains libraries to deal with *FlatCurry programs*.
+FlatCurry is an intermediate language to represent Curry programs
+where a lot of syntactic sugar has been eliminated.
+In particular, operations defined by general rules with
+local declarations and pattern matching
+are represented in FlatCurry by a single rule containing
+cas expressions and disjunctions in its right-hand side.
+The precise structure of FlatCurry is defined in the
+module `FlatCurry.Types`.
+
+Note that the definition of types introduced by `data` or `newtype`
+is still present in FlatCurry.
+Although `newtype` can also be considered as syntactic sugar,
+a `newtype` is important for typing reasons, i.e., a `newtype`
+is different from a type synonym. Thus, if one wants to translate
+FlatCurry programs into typed target languages (e.g., Haskell),
+the information about a `newtype` is relevant.
+However, if the target language is untyped, every use of a `newtype`
+can be eliminated by dropping the `newtype` constructors
+in the FlatCurry program. This can be done by operations
+provided by the module `FlatCurry.ElimNewtype`.
+
+Currently, this package contains the following modules:
 
 * `FlatCurry.Compact`: This module contains operations to reduce the size
   of FlatCurry programs by combining the main module and all imports
   into a single program that contains only the functions directly or
   indirectly called from a set of main functions.
+* `FlatCurry.ElimNewtype`: This module contains operations to eliminate
+  definitions and uses of `newtype` in a FlatCurry program.
 * `FlatCurry.Files`: This module defines operations to read and write
   FlatCurry programs.
 * `FlatCurry.FlexRigid`: provides a function to compute the rigid/flex status

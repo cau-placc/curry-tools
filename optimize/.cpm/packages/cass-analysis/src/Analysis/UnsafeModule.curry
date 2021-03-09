@@ -3,7 +3,7 @@
 --- it imports directly or indirectly the module `Unsafe`.
 ---
 --- @author Michael Hanus
---- @version November 2020
+--- @version February 2021
 ------------------------------------------------------------------------
 
 module Analysis.UnsafeModule ( showUnsafe, unsafeModuleAnalysis )
@@ -25,11 +25,11 @@ import FlatCurry.Types
 unsafeModuleAnalysis :: Analysis [String]
 unsafeModuleAnalysis = dependencyModuleAnalysis "UnsafeModule" importsUnsafe
 
--- Show a list of type constructor names as a string.
+-- Show the information about unsafe modules as a string.
 showUnsafe :: AOutFormat -> [String] -> String
-showUnsafe _     []    = "safe"
-showUnsafe ANote (_:_) = "unsafe"
-showUnsafe AText [mod] = "unsafe (due to module " ++ mod ++ ")"
+showUnsafe _     []         = "safe"
+showUnsafe ANote (_:_)      = "unsafe"
+showUnsafe AText [mod]      = "unsafe (due to module " ++ mod ++ ")"
 showUnsafe AText ms@(_:_:_) = "unsafe (due to modules " ++ unwords ms ++ ")"
 
 -- Does the module import the module `Unsafe` or any other unsafe module?

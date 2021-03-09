@@ -168,7 +168,8 @@ pNumber =   (0-) <$> (char '-' *> pPositiveFloat)
 
 -- number without decimal point, decimal digits, base 10 exponent
 toFloat :: Int -> Int -> Int -> Float
-toFloat n d e = (fromInt n) * (10 ^ (d + e))
+toFloat n d e = (fromInt n) * (exp 10 (d + e))
+  where exp x y = if y < 0 then 1 / (x ^ (0 - y)) else (x ^ y)
 
 pPositiveFloat :: Parser Float
 pPositiveFloat = (uncurry toFloat) <$> pWithDecimalPoint <*> pExponent

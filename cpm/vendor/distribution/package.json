@@ -2,8 +2,8 @@
   "name": "distribution",
   "version": "3.0.0",
   "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
-  "synopsis": "This module contains definition of constants to obtain information concerning the current distribution of the Curry implementation.",
-  "category": [ "Meta" ],
+  "synopsis": "The module in this package contains definition of constants to obtain information concerning the current distribution of the Curry compiler system.",
+  "category": [ "Compiler" ],
   "license": "BSD-3-Clause",
   "licenseFile": "LICENSE",
   "dependencies": {

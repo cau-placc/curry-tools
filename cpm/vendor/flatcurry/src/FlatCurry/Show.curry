@@ -348,27 +348,30 @@ showCurryCase tf b (Branch (LPattern l) e) =
               ++ " -> " ++ showCurryExpr tf False b e ++ "\n"
 
 showCurryFiniteList :: (QName -> String) -> Int -> Expr -> [String]
-showCurryFiniteList _  _ (Comb _ ("Prelude","[]") []) = []
-showCurryFiniteList tf b (Comb _ ("Prelude",":") [e1,e2]) =
-  showCurryExpr tf False b e1 : showCurryFiniteList tf b e2
+showCurryFiniteList tf b exp = case exp of
+  Comb _ ("Prelude","[]") []     -> []
+  Comb _ ("Prelude",":") [e1,e2] ->
+    showCurryExpr tf False b e1 : showCurryFiniteList tf b e2
+  _ -> error "Internal error in FlatCurry.Show.showCurryFiniteList"
 
 -- show a string constant
 showCurryStringConstant :: Expr -> String
-showCurryStringConstant (Comb _ ("Prelude","[]") []) = []
-showCurryStringConstant (Comb _ ("Prelude",":") [e1,e2]) =
-   showCharExpr e1 ++ showCurryStringConstant e2
-
-showCharExpr :: Expr -> String
-showCharExpr (Lit (Charc c))
-  | c=='"'  = "\\\""
-  | c=='\'' = "\\\'"
-  | c=='\n' = "\\n"
-  | o < 32 || o > 126 =
-    ['\\', chr (o `div` 100 + 48), chr (((o `mod` 100) `div` 10 + 48)),
-           chr(o `mod` 10 + 48)]
-  | otherwise = [c]
+showCurryStringConstant exp = case exp of
+  Comb _ ("Prelude","[]") []                 -> []
+  Comb _ ("Prelude",":") [Lit (Charc c), e2] ->
+    showChar c ++ showCurryStringConstant e2
+  _ -> error "Internal error in FlatCurry.Show.showCurryStringConstant"
  where
-   o = ord c
+  showChar c
+    | c=='"'  = "\\\""
+    | c=='\'' = "\\\'"
+    | c=='\n' = "\\n"
+    | o < 32 || o > 126
+    = ['\\', chr (o `div` 100 + 48), chr (((o `mod` 100) `div` 10 + 48)),
+             chr(o `mod` 10 + 48)]
+    | otherwise = [c]
+   where
+     o = ord c
 
 showCurryElems :: (a -> String) -> [a] -> String
 showCurryElems format elems = intercalate " " (map format elems)

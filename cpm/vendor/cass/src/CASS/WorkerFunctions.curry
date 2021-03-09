@@ -3,16 +3,14 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version November 2020
+--- @version January 2021
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
 
-import Prelude
+import Data.IORef
 import Data.List         ( partition )
-import Data.Maybe        ( fromJust )
 import System.CPUTime    ( getCPUTime )
-import System.IOExts
 
 import Analysis.Files
 import Analysis.Logging  ( debugMessage, debugString )
@@ -23,7 +21,6 @@ import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
                          , equalProgInfo, publicListFromProgInfo, showProgInfo )
 import Data.Map as Map
 import FlatCurry.Types
-import FlatCurry.Files
 import FlatCurry.Goodies
 import Data.SCC          ( scc )
 import Data.Set.RBTree as Set ( SetRBT, member, empty, insert, null )
@@ -124,7 +121,8 @@ getStartValues analysis prog =
 funcInfos2ProgInfo :: Prog -> [(QName,a)] -> ProgInfo a
 funcInfos2ProgInfo prog infos = lists2ProgInfo $
    map2 (\fdecl -> let fname = funcName fdecl
-                    in (fname, fromJust (Prelude.lookup fname infos)))
+                   in (fname, maybe (lookupError "funcInfos2ProgInfo" fname) id
+                                    (Prelude.lookup fname infos)))
         (partition isVisibleFunc (progFuncs prog))
 
 --- Compute a ProgInfo from a given list of infos for each type name w.r.t.
@@ -132,7 +130,8 @@ funcInfos2ProgInfo prog infos = lists2ProgInfo $
 typeInfos2ProgInfo :: Prog -> [(QName,a)] -> ProgInfo a
 typeInfos2ProgInfo prog infos = lists2ProgInfo $
    map2 (\tdecl -> let tname = typeName tdecl
-                    in (tname, fromJust (Prelude.lookup tname infos)))
+                   in (tname, maybe (lookupError "typeInfos2ProgInfo" tname) id
+                                    (Prelude.lookup tname infos)))
         (partition isVisibleType (progTypes prog))
 
 map2 :: (a -> b) -> ([a], [a]) -> ([b], [b])
@@ -344,9 +343,10 @@ simpleIteration analysis nameOf declsWithDeps importInfos currvals =
         map2 (\ (decl,calls) ->
                (nameOf decl,
                 analysis decl
-                         (map (\qn -> (qn,fromJust -- information must known!
-                                          (lookupProgInfo qn completeProgInfo)))
-                               calls)))
+                  (map (\qn -> (qn,maybe (lookupError "simpleIteration" qn) id
+                                         -- information must known!
+                                         (lookupProgInfo qn completeProgInfo)))
+                        calls)))
              declsWithDeps
 
       newproginfo = lists2ProgInfo newvals
@@ -375,7 +375,8 @@ wlIteration analysis nameOf (decldeps@(decl,calls):decls) declsDone
             changedEntities importInfos currvals =
   let decname = nameOf decl
 
-      lookupVal qn = maybe (fromJust (Map.lookup qn currvals)) id
+      lookupVal qn = maybe (maybe (lookupError "wlIteration" qn) id
+                                  (Map.lookup qn currvals)) id
                            (lookupProgInfo qn importInfos)
       oldval = lookupVal decname
       newval = analysis decl (map (\qn -> (qn, lookupVal qn)) calls)
@@ -386,6 +387,10 @@ wlIteration analysis nameOf (decldeps@(decl,calls):decls) declsDone
                        (Set.insert decname changedEntities) importInfos
                        (Map.adjust (const newval) decname currvals)
 
+lookupError :: String -> QName -> _
+lookupError s qn =
+  error $ "Internal error in CASS." ++ s ++ ": " ++
+          showQName qn ++ " not found."
 
 ---------------------------------------------------------------------
 -- Auxiliaries

@@ -1,6 +1,6 @@
 {
     "name": "frontend-exec",
-    "version": "3.0.0",
+    "version": "3.3.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Operations to execute the front end of the Curry system",
     "category": [ "System" ],
@@ -9,13 +9,13 @@
     "dependencies": {
         "base"         : ">= 3.0.0, < 4.0.0",
         "currypath"    : ">= 3.0.0, < 4.0.0",
-        "distribution" : ">= 3.0.0, < 4.0.0",
         "filepath"     : ">= 3.0.0, < 4.0.0",
         "process"      : ">= 3.0.0, < 4.0.0",
         "propertyfile" : ">= 3.0.0, < 4.0.0"
     },
     "compilerCompatibility": {
-        "pakcs": ">= 3.0.0, < 3.3.0"
+        "pakcs": ">= 3.3.0, < 4.0.0",
+        "kics2": ">= 3.0.0, < 4.0.0"
     },
     "exportedModules": [ "System.FrontendExec" ],
     "source": {

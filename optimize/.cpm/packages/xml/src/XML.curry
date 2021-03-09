@@ -236,7 +236,10 @@ unquoteUnicode (c:cs)
                    'x':cs' -> [chr (extr (readHex cs'))]
                    cs'     -> [chr (extr (readInt cs'))]
   | otherwise  = '&':(c:cs) ++ ";"
-  where extr [(a,"")] = a
+ where
+  extr rs = case rs of
+    [(a,"")] -> a
+    _        -> error $ "XML.unqoteUnicode: illegal string '" ++ c:cs ++ "'"
 
 ------------------------------------------------------------------------------
 -- Parser for XML documents

@@ -3,17 +3,16 @@
 --- Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version December 2020
+--- @version March 2021
 ------------------------------------------------------------------------------
-{-# LANGUAGE CPP #-}
 
 module System.FrontendExec
   (FrontendTarget(..)
 
   , FrontendParams(..), defaultParams, rcParams
   , setQuiet, setExtended, setCpp, addDefinition, setDefinitions
-  , setOverlapWarn, setFullPath, setHtmlDir, setLogfile, addTarget, setSpecials
-  , setFrontendPath
+  , setOverlapWarn, setFullPath, setHtmlDir, setOutDir, setLogfile
+  , addTarget, setSpecials, setFrontendPath
 
   , callFrontend, callFrontendWithParams
   ) where
@@ -63,7 +62,8 @@ data FrontendParams =
     , definitions     :: [(String, Int)]   -- definitions for conditional compiling
     , overlapWarn     :: Bool              -- warn for overlapping rules
     , fullPath        :: Maybe [String]    -- the complete list of directory names for loading modules
-    , htmldir         :: Maybe String      -- output directory (only relevant for HTML target)
+    , htmldir         :: Maybe String      -- output directory for HTML target
+    , outdir          :: String            -- output directory for Curry artifacts
     , logfile         :: Maybe String      -- store all output (including errors) of the front end in file
     , targets         :: [FrontendTarget]  -- additional targets for the front end
     , specials        :: String            -- additional special parameters (use with care!)
@@ -81,6 +81,7 @@ defaultParams =
     , overlapWarn  = True
     , fullPath     = Nothing
     , htmldir      = Nothing
+    , outdir       = currySubdir
     , logfile      = Nothing
     , targets      = []
     , specials     = ""
@@ -136,6 +137,10 @@ setFullPath s ps = ps { fullPath = Just s }
 setHtmlDir :: String -> FrontendParams -> FrontendParams
 setHtmlDir s ps = ps { htmldir = Just s }
 
+--- Sets the output directory of frontend artifacts ('currySubdir' by default)
+setOutDir :: String -> FrontendParams -> FrontendParams
+setOutDir s ps = ps { outdir = s }
+
 --- Set the logfile parameter of the front end.
 --- If this parameter is set, all messages produced by the front end
 --- are stored in this file.
@@ -161,7 +166,7 @@ setFrontendPath s ps = ps { frontendPath = s }
 --- with this action.
 --- If the front end returns with an error, an exception is raised.
 --- @param target - the kind of target file to be generated
---- @param progname - the name of the main module of the application to be compiled
+--- @param progname - the name of the main module to be compiled
 callFrontend :: FrontendTarget -> String -> IO ()
 callFrontend target p = do
   params <- rcParams
@@ -183,18 +188,18 @@ callFrontendWithParams target params modpath = do
       syscall = unwords $ [parsecurry] ++ map showFrontendTarget tgts ++
                           [showFrontendParams, cppParams, takeFileName modpath]
   retcode <- if null lf
-             then system syscall
-             else system (syscall ++ " > " ++ lf ++ " 2>&1")
+               then system syscall
+               else system (syscall ++ " > " ++ lf ++ " 2>&1")
   if retcode == 0
-   then return ()
-   else ioError (userError "Illegal source program")
+    then return ()
+    else ioError (userError "Illegal source program")
  where
    callParseCurry = do
      path <- maybe (getLoadPathForModule modpath)
                    (\p -> return (nub (takeDirectory modpath : p)))
                    (fullPath params)
-     return (quote (frontendPath params)
-             ++ concatMap ((" -i" ++) . quote) path)
+     return $ quote (frontendPath params) ++
+              concatMap ((" -i" ++) . quote) path
 
    quote s = '"' : s ++ "\""
 
@@ -212,18 +217,16 @@ callFrontendWithParams target params modpath = do
    showFrontendTarget COMMS = "--comments"
 
    showFrontendParams = unwords
-    [ "-o ", currySubdir
+    [ "-o ", outdir params
     , if quiet       params then runQuiet     else ""
     , if extended    params then "--extended" else ""
     , if cpp         params then "--cpp"      else ""
     , if overlapWarn params then ""           else "--no-overlap-warn"
     , maybe "" ("--htmldir="++) (htmldir params)
     , specials params
-#ifdef __PAKCS__
-    , if target `elem` [FCY,TFCY,TAFCY,FINT]
-        then "-Odesugar-newtypes" -- remove when newtypes added to FlatCurry
+    , if withNewtypeDesugar && target `elem` [FCY,TFCY,TAFCY,FINT]
+        then "-Odesugar-newtypes" -- remove newtypes by front end
         else ""
-#endif
     ]
 
    runQuiet = "--no-verb --no-warn --no-overlap-warn"
@@ -231,5 +234,9 @@ callFrontendWithParams target params modpath = do
    cppParams = intercalate " " $ map showDefinition (definitions params)
 
    showDefinition (s, v) = "-D" ++ s ++ "=" ++ show v
+
+   withNewtypeDesugar =
+     curryCompiler == "pakcs" && curryCompilerMajorVersion <= 3 &&
+     curryCompilerMinorVersion < 4
 
 ------------------------------------------------------------------------------
