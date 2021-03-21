@@ -87,12 +87,12 @@ external_d_C_prim_listenOn i _ _ = toCurry listenOn i
 
 
 external_d_C_prim_socketAccept :: C_Socket
-  -> Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.OP_Tuple2 Curry_Prelude.C_String Curry_IO.C_Handle)
+  -> Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.OP_Tuple2 Curry_Prelude.C_String System.Curry_IO.C_Handle)
 external_d_C_prim_socketAccept socket _ _ =
  toCurry (\s -> acceptOld s >>= \ (h,s,_) -> return (s,OneHandle h)) socket
 
 external_d_C_prim_waitForSocketAccept :: C_Socket -> Curry_Prelude.C_Int
- -> Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.C_Maybe (Curry_Prelude.OP_Tuple2 (Curry_Prelude.OP_List Curry_Prelude.C_Char) Curry_IO.C_Handle))
+ -> Cover -> ConstStore -> Curry_Prelude.C_IO (Curry_Prelude.C_Maybe (Curry_Prelude.OP_Tuple2 (Curry_Prelude.OP_List Curry_Prelude.C_Char) System.Curry_IO.C_Handle))
 external_d_C_prim_waitForSocketAccept s i _ _ = toCurry wait s i
 
 wait :: Socket -> Int -> IO (Maybe (String, CurryHandle))
@@ -120,6 +120,6 @@ external_d_C_prim_sClose :: C_Socket -> Cover -> ConstStore -> Curry_Prelude.C_I
 external_d_C_prim_sClose s _ _ = toCurry sClose s
 
 external_d_C_prim_connectToSocket :: Curry_Prelude.C_String -> Curry_Prelude.C_Int
-                                  -> Cover -> ConstStore -> Curry_Prelude.C_IO Curry_IO.C_Handle
+                                  -> Cover -> ConstStore -> Curry_Prelude.C_IO System.Curry_IO.C_Handle
 external_d_C_prim_connectToSocket str i _ _ =
   toCurry (\ s i -> connectTo s i >>= return . OneHandle) str i
