@@ -46,7 +46,6 @@ module XmlConv (
   ) where
 
 import XML
-import ReadShowTerm ( readQTerm )
 
 infixr 0 !
 infixl 1 />=
@@ -141,7 +140,7 @@ int_ :: ValConv Int
 int_ = (read,show)
 
 float_ :: ValConv Float
-float_ = (readQTerm,show)
+float_ = (read,show)
 
 char_ :: ValConv Char
 char_ = (head,(:[]))

@@ -14,7 +14,7 @@ module System.FrontendExec
   , setOverlapWarn, setFullPath, setHtmlDir, setOutDir, setLogfile
   , addTarget, setSpecials, setFrontendPath
 
-  , callFrontend, callFrontendWithParams
+  , callFrontend, callFrontendWithParams, getFrontendCall
   ) where
 
 import Curry.Compiler.Distribution 
@@ -54,21 +54,23 @@ data FrontendTarget = FCY | TFCY | FINT | ACY | UACY | HTML | CY | TOKS | TAFCY
 --- of the Curry compiler.
 -- The parameters are of the form
 -- FrontendParams Quiet Extended Cpp NoOverlapWarn FullPath HtmlDir LogFile Specials FrontendPath
-data FrontendParams =
-  FrontendParams
-    { quiet           :: Bool              -- work silently
-    , extended        :: Bool              -- support extended Curry syntax
-    , cpp             :: Bool              -- enable conditional compiling
-    , definitions     :: [(String, Int)]   -- definitions for conditional compiling
-    , overlapWarn     :: Bool              -- warn for overlapping rules
-    , fullPath        :: Maybe [String]    -- the complete list of directory names for loading modules
-    , htmldir         :: Maybe String      -- output directory for HTML target
-    , outdir          :: String            -- output directory for Curry artifacts
-    , logfile         :: Maybe String      -- store all output (including errors) of the front end in file
-    , targets         :: [FrontendTarget]  -- additional targets for the front end
-    , specials        :: String            -- additional special parameters (use with care!)
-    , frontendPath    :: String            -- the path to the frontend executable
-    }
+data FrontendParams = FrontendParams
+  { quiet         :: Bool              -- work silently
+  , extended      :: Bool              -- support extended Curry syntax
+  , cpp           :: Bool              -- enable conditional compiling
+  , definitions   :: [(String, Int)]   -- definitions for conditional compiling
+  , overlapWarn   :: Bool              -- warn for overlapping rules
+  , fullPath      :: Maybe [String]    -- the complete list of directory names
+                                       -- for loading modules
+  , htmldir       :: Maybe String      -- output directory for HTML target
+  , outdir        :: String            -- output directory for Curry artifacts
+  , logfile       :: Maybe String      -- store all output (including errors)
+                                       -- of the front end in file
+  , targets       :: [FrontendTarget]  -- additional targets for the front end
+  , specials      :: String            -- additional special parameters
+                                       -- (use with care!)
+  , frontendPath  :: String            -- the path to the frontend executable
+  }
 
 --- The default parameters of the front end.
 defaultParams :: FrontendParams
@@ -182,17 +184,27 @@ callFrontend target p = do
 ---                  directory where this module resides
 callFrontendWithParams :: FrontendTarget -> FrontendParams -> String -> IO ()
 callFrontendWithParams target params modpath = do
-  parsecurry <- callParseCurry
-  let lf      = maybe "" id (logfile params)
-      tgts    = nub (target : targets params)
-      syscall = unwords $ [parsecurry] ++ map showFrontendTarget tgts ++
-                          [showFrontendParams, cppParams, takeFileName modpath]
+  syscall <- getFrontendCall target params modpath
+  let lf = maybe "" id (logfile params)
   retcode <- if null lf
                then system syscall
                else system (syscall ++ " > " ++ lf ++ " 2>&1")
   if retcode == 0
     then return ()
     else ioError (userError "Illegal source program")
+
+--- Returns the system command invoked to call the front end of the
+--- Curry compiler where various parameters can be set.
+--- @param target - the kind of target file to be generated
+--- @param params - parameters for the front end
+--- @param modpath - the name of the main module possibly prefixed with a
+---                  directory where this module resides
+getFrontendCall :: FrontendTarget -> FrontendParams -> String -> IO String
+getFrontendCall target params modpath = do
+  parsecurry <- callParseCurry
+  let tgts = nub (target : targets params)
+  return $ unwords $ [parsecurry] ++ map showFrontendTarget tgts ++
+                     [showFrontendParams, cppParams, takeFileName modpath]
  where
    callParseCurry = do
      path <- maybe (getLoadPathForModule modpath)

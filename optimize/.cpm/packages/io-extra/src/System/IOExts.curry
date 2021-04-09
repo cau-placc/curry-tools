@@ -2,7 +2,7 @@
 --- Library with some useful extensions to the IO monad.
 ---
 --- @author Michael Hanus
---- @version January 2017
+--- @version March 2021
 ------------------------------------------------------------------------------
 {-# LANGUAGE CPP #-}
 
@@ -11,20 +11,16 @@ module System.IOExts
     execCmd, evalCmd, connectToCommand
     -- file access
   , readCompleteFile,updateFile, exclusiveIO
-    -- associations
-  , setAssoc,getAssoc
-    -- IORef
-  , IORef, newIORef, readIORef, writeIORef, modifyIORef
   ) where
 
-#ifdef __PAKCS__
-import Data.Char        (isAlphaNum)
-import System.Directory (removeFile)
+import Control.Monad    ( unless )
+#ifdef __KICS2__
+#else
+import Data.Char        ( isAlphaNum )
+import System.Directory ( removeFile )
 #endif
 import System.IO
 import System.Process
-import Data.IORef
-import Control.Monad
 
 --- Executes a command with a new default shell process.
 --- The standard I/O streams of the new process (stdin,stdout,stderr)
@@ -48,7 +44,12 @@ prim_execCmd external
 --- @param input - the input to be written to the command's stdin
 --- @return the exit code and the contents written to stdout and stderr
 evalCmd :: String -> [String] -> String -> IO (Int, String, String)
-#ifdef __PAKCS__
+#ifdef __KICS2__
+evalCmd cmd args input = ((prim_evalCmd $## cmd) $## args) $## input
+
+prim_evalCmd :: String -> [String] -> String -> IO (Int, String, String)
+prim_evalCmd external
+#else
 evalCmd cmd args input = do
   pid <- getPID
   let tmpfile = "/tmp/PAKCS_evalCMD"++show pid
@@ -83,11 +84,6 @@ evalCmd cmd args input = do
      else do c <- hGetChar h
              cs <- hGetEOF h
              return (c:cs)
-#else
-evalCmd cmd args input = ((prim_evalCmd $## cmd) $## args) $## input
-
-prim_evalCmd :: String -> [String] -> String -> IO (Int, String, String)
-prim_evalCmd external
 #endif
 
 
@@ -147,21 +143,3 @@ exclusiveIO lockfile action = do
         (\e -> deleteLockFile >> ioError e)
  where
   deleteLockFile = system $ "lockfile-remove --lock-name " ++ lockfile
-
---- Defines a global association between two strings.
---- Both arguments must be evaluable to ground terms before applying
---- this operation.
-setAssoc :: String -> String -> IO ()
-setAssoc key val = (prim_setAssoc $## key) $## val
-
-prim_setAssoc :: String -> String -> IO ()
-prim_setAssoc external
-
-
---- Gets the value associated to a string.
---- Nothing is returned if there does not exist an associated value.
-getAssoc :: String -> IO (Maybe String)
-getAssoc key = prim_getAssoc $## key
-
-prim_getAssoc :: String -> IO (Maybe String)
-prim_getAssoc external

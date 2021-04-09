@@ -25,12 +25,10 @@ import Curry.Compiler.Distribution
                            , curryCompilerMinorVersion
                            , curryCompilerRevisionVersion
                            , installDir )
-import Data.Char           ( toLower )
 import Data.List           ( init, intercalate, last, split )
 import System.Directory    ( doesFileExist, getCurrentDirectory
                            , getHomeDirectory, setCurrentDirectory )
 import System.Environment  ( getEnv )
-import System.Process      ( system )
 import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , dropFileName, joinPath, splitDirectories
                            , splitExtension, splitFileName, splitPath
@@ -196,10 +194,8 @@ addCurrySubdir dir = dir </> currySubdir
 --- system libraries.
 sysLibPath :: [String]
 sysLibPath = case curryCompiler of
-  "pakcs" -> [installDir </> "lib"]
   "kics"  -> [installDir </> "src" </> "lib"]
-  "kics2" -> [installDir </> "lib"]
-  _       -> error "Distribution.sysLibPath: unknown curryCompiler"
+  _       -> [installDir </> "lib"]
 
 --- Returns the current path (list of directory names) that is
 --- used for loading modules w.r.t. a given module path.
@@ -212,15 +208,13 @@ getLoadPathForModule modpath = do
   rcfile <- curryrcFileName
   mblib  <- getPropertyFromFile rcfile "libraries"
   let fileDir = dropFileName modpath
-  if curryCompiler `elem` ["pakcs","kics","kics2"] then
-    do currypath <- getEnv "CURRYPATH"
-       let llib = maybe [] (\l -> if null l then [] else splitSearchPath l)
-                        mblib
-       return $ (fileDir : (if null currypath
-                            then []
-                            else splitSearchPath currypath) ++
-                           llib ++ sysLibPath)
-    else error "Distribution.getLoadPathForModule: unknown curryCompiler"
+  currypath <- getEnv "CURRYPATH"
+  let llib = maybe []
+                   (\l -> if null l then [] else splitSearchPath l)
+                   mblib
+  return $ fileDir :
+           (if null currypath then [] else splitSearchPath currypath) ++
+           llib ++ sysLibPath
 
 --- Returns a directory name and the actual source file name for a module
 --- by looking up the module source in the current load path.

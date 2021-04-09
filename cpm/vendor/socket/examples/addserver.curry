@@ -10,22 +10,26 @@ import System.IO
 
 -- Choose a free port number:
 portnr :: Int
-portnr = 32145
+portnr = 65502
 
+sendTo :: String -> String -> IO ()
 sendTo host msg = do
   h <- connectToSocket host portnr
   hPutStr h msg
   hClose h
 
+stopServer :: String -> IO ()
 stopServer host = sendTo host "TERMINATE\n"
 
 
 -- An "addition" server:
+addServer :: IO ()
 addServer = do
   socket <- listenOn portnr
   putStrLn $ "Serving port: " ++ show portnr
   addServeSocket socket
 
+addServeSocket :: Socket -> IO ()
 addServeSocket socket = do
   (chost,stream) <- accept socket
   putStrLn $ "Connection from "++chost

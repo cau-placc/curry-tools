@@ -2,14 +2,13 @@
 --- Operations to handle dependencies of analysis files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2017
+--- @version March 2021
 -----------------------------------------------------------------------
 
 module CASS.Dependencies(getModulesToAnalyze,reduceDependencies) where
 
 import FlatCurry.Types
 import FlatCurry.Goodies (progImports)
-import ReadShowTerm      (readQTerm)
 import System.Directory  (doesFileExist,getModificationTime)
 import Data.Maybe        (fromMaybe)
 import Data.List         (delete)
@@ -94,7 +93,7 @@ isAnalysisValid ananame modname =
       stime <- getSourceFileTime modname >>= return . snd
       if itime>=stime
        then do
-        implist <- readFile importListFile >>= return . readQTerm
+        implist <- readFile importListFile >>= return . read
         sourceTimeList <- mapM getSourceFileTime        implist
         fcyTimeList    <- mapM getFlatCurryFileTime     implist
         anaTimeList    <- mapM (getAnaFileTime ananame) implist

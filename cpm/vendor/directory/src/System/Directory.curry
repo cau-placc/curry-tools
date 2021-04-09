@@ -3,7 +3,6 @@
 ---
 --- @author Michael Hanus
 --- @version January 2013
---- @category general
 
 module System.Directory
   ( doesFileExist, doesDirectoryExist, getFileSize, getModificationTime
@@ -18,9 +17,9 @@ module System.Directory
 
 import System.FilePath    ( FilePath, (</>), splitDirectories, isAbsolute
                           , normalise, pathSeparator, searchPathSeparator)
-import System.Environment (getEnv, isWindows)
-import Data.List          (isPrefixOf, scanl1, last, intersperse)
-import Data.Time          (ClockTime)
+import System.Environment ( getEnv, isWindows )
+import Data.List          ( isPrefixOf, scanl1, last, intersperse )
+import Data.Time          ( ClockTime )
 
 
 --- Returns true if the argument is the name of an existing file.

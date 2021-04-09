@@ -26,7 +26,6 @@ import System.FilePath     ( FilePath, (</>), (<.>) )
 import System.Process
 import System.Directory
 import Global
-import ReadShowTerm
 
 import Analysis.Logging   ( debugMessage, setDebugLevel )
 import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
@@ -167,14 +166,14 @@ storeServerPortNumber :: Int -> IO ()
 storeServerPortNumber portnum = do
   mypid <- getPID
   serverPortFileName <- getServerPortFileName
-  writeQTermFile serverPortFileName (portnum,mypid)
+  writeFile serverPortFileName (show (portnum,mypid))
 
 --- Removes the currently stored server port number.
 removeServerPortNumber :: IO ()
 removeServerPortNumber = getServerPortFileName >>= removeFile
 
 readServerPortPid :: IO (Int,Int)
-readServerPortPid = getServerPortFileName >>= readQTermFile
+readServerPortPid = getServerPortFileName >>= readFile >>= return . read
 
 --- Reads the current server port number. If the server is not running,
 --- it is also started.

@@ -165,7 +165,7 @@ nextIntRange seed n | n>0
                          k > 2 && k `rem` 2 == 0 && power_of_2 (k `quot` 2)
 #else
 nextIntRange seed n | n>0
-    = map (`mod` n) (nextInt seed)
+    = map (\i -> abs (i `mod` n)) (nextInt seed)
 #endif
 
 --- Returns a pseudorandom sequence of boolean values.

@@ -8,7 +8,7 @@
 
 
 % create a server side socket with a fresh port.
-'Network.Socket.prim_listenOnFresh'('Prelude.(,)'(Port,Socket)) :-
+'Network.Socket.listenOnFresh'('Prelude.(,)'(Port,Socket)) :-
 	listenOnNewSocket(Port,_,Socket).
 
 

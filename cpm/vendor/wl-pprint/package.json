@@ -11,10 +11,6 @@
         "base" : ">= 3.0.0, < 4.0.0",
         "queue": ">= 3.0.0, < 4.0.0"
   },
-    "compilerCompatibility": {
-        "pakcs": ">= 3.0.0, < 4.0.0",
-        "kics2": ">= 3.0.0, < 4.0.0"
-  },
   "exportedModules": [ "Text.Pretty" ],
   "source": {
       "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/wl-pprint.git",

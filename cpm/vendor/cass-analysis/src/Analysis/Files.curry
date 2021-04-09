@@ -16,7 +16,6 @@ import System.FilePath
 import Data.List           ( intercalate, isPrefixOf, isSuffixOf )
 import Data.Time           ( ClockTime )
 import Control.Monad       ( when, unless )
-import ReadShowTerm        ( readQTerm, showQTerm )
 
 import FlatCurry.Files
 import FlatCurry.Goodies   ( progImports )
@@ -74,14 +73,14 @@ getInterfaceInfos anaName (mod:mods) =
 --- the first component of each pair is the name of the operation
 --- (it is assumed that this denotes an operation of the current module)
 --- and the second component is an analysis value.
-loadDefaultAnalysisValues :: String -> String -> IO [(QName,a)]
+loadDefaultAnalysisValues :: Read a => String -> String -> IO [(QName,a)]
 loadDefaultAnalysisValues anaName moduleName = do
   (_,fileName) <- findModuleSourceInLoadPath moduleName
   let defaultFileName = stripCurrySuffix fileName ++ ".defaults." ++ anaName
   fileExists <- doesFileExist defaultFileName
   if fileExists
     then do debugMessage 3 ("Load default values from " ++ defaultFileName)
-            defaultValues <- readFile defaultFileName >>= return . readQTerm
+            defaultValues <- readFile defaultFileName >>= return . read
             return (map (\ (f,a) -> ((moduleName,f),a)) defaultValues)
     else return []
 
@@ -100,7 +99,7 @@ storeImportModuleList :: String -> [String] -> IO ()
 storeImportModuleList modname modlist = do
   importListFile <- getAnalysisBaseFile modname "IMPORTLIST"
   createDirectoryR (dropFileName importListFile)
-  writeFile importListFile (showQTerm modlist)
+  writeFile importListFile (show modlist)
 
 --- Gets the file containing import dependencies for a main module
 --- (if it exists).

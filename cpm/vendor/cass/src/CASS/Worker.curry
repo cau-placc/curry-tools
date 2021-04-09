@@ -2,7 +2,7 @@
 --- Implementation of a worker client to analyze a module
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version December 2018
+--- @version March 2021
 ------------------------------------------------------------------------
 
 module CASS.Worker(main, startWorker) where
@@ -10,7 +10,6 @@ module CASS.Worker(main, startWorker) where
 import System.IO            ( Handle, hClose, hFlush, hWaitForInput
                             , hPutStrLn, hGetLine )
 import System.Environment   ( getArgs, setEnv )
-import ReadShowTerm         ( readQTerm )
 
 import Analysis.Logging     ( debugMessage )
 import Network.Socket       ( connectToSocket )
@@ -24,7 +23,7 @@ main = do
   args <- getArgs
   if length args /= 2
    then error "Analysis worker program started with illegal arguments"
-   else startWorker (head args) (readQTerm (args!!1))
+   else startWorker (head args) (read (args!!1))
 
 startWorker :: String -> Int -> IO ()
 startWorker host port = do
@@ -41,7 +40,7 @@ worker handle = do
     then do
        input <- hGetLine handle
        debugMessage 3 ("input: "++input)
-       case readQTerm input of
+       case read input of
          Task ananame moduleName -> do
            debugMessage 1 ("Start task: "++ananame++" for "++moduleName)
            -- Run the analysis worker for the given analysis and module:

@@ -34,7 +34,8 @@ import FlatCurry.Goodies ( progImports, progTypes )
 import FlatCurry.Types
 
 --- Eliminates all `newtype` definitions/uses in a FlatCurry program.
---- The first argument are the interfaces of the imported modules.
+--- For this purpose, the interfaces of the imported modules are read
+--- before performing the transformation.
 elimNewtypeInProg :: Prog -> IO Prog
 elimNewtypeInProg prog = do
   impints <- mapM readFlatCurryInt (progImports prog)

@@ -6,8 +6,7 @@
 --- considered as comment lines and are ignored.
 ---
 --- @author Michael Hanus
---- @version August 2006
---- @category general
+--- @version March 2021
 ------------------------------------------------------------------------------
 
 module Data.PropertyFile
@@ -18,7 +17,7 @@ module Data.PropertyFile
 
 import Data.Char
 import System.Directory
-import System.IOExts
+import System.IO
 
 ------------------------------------------------------------------------------
 --- Reads a property file and returns the list of properties.
@@ -27,9 +26,10 @@ readPropertyFile :: String -> IO [(String,String)]
 readPropertyFile file = do
   pfexists <- doesFileExist file
   if pfexists
-   then do rcs <- readCompleteFile file -- to avoid open file handles
-           return $ splitEqs . filter (\l->not (null l) && isAlpha (head l))
-                             . lines $ rcs
+   then do
+     rcs <- openFile file ReadMode >>= hGetContents -- avoid open file handles
+     return $ splitEqs . filter (\l->not (null l) && isAlpha (head l))
+                       . lines $ rcs
    else return []
  where
   splitEqs [] = []
@@ -53,12 +53,14 @@ updatePropertyFile file pname pval = do
 --- Change a property in a property file.
 changePropertyInFile :: String -> String -> String -> IO ()
 changePropertyInFile file pname pval = do
-  updateFile (\rcs -> unlines . map changeProp . lines $ rcs) file
+  rcs <- openFile file ReadMode >>= hGetContents
+  writeFile file (unlines . map changeProp . lines $ rcs)
  where
   changeProp l = let (s1,s2) = break (=='=') l
-                  in if null l || not (isAlpha (head l)) || null s2
-                     then l
-                     else if s1==pname then s1++"="++pval else l
+                 in if null l || not (isAlpha (head l)) || null s2
+                      then l
+                      else if s1 == pname then s1 ++ "=" ++ pval
+                                          else l
 
 ------------------------------------------------------------------------------
 --- Looks up the value of a property stored in a property file.

@@ -15,7 +15,6 @@ import System.Process        ( exitWith )
 import System.Environment    ( getArgs )
 import System.Console.GetOpt
 import Numeric               ( readNat )
-import ReadShowTerm          ( readQTerm )
 
 import Analysis.Files     ( deleteAllAnalysisFiles )
 import Analysis.Logging   ( debugMessage )
@@ -52,7 +51,7 @@ main = do
    then mainServer (let p = optPort opts in if p == 0 then Nothing else Just p)
    else
      if optWorker opts
-       then startWorker (head args) (readQTerm (args!!1))
+       then startWorker (head args) (read (args!!1))
        else do
          let [ananame,mname] = args
          fullananame <- checkAnalysisName ananame

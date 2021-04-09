@@ -11,10 +11,6 @@
         "directory": ">= 3.0.0, < 4.0.0",
         "filepath" : ">= 3.0.0, < 4.0.0"
     },
-    "compilerCompatibility": {
-        "pakcs": ">= 3.0.0, < 4.0.0",
-        "kics2": ">= 3.0.0, < 4.0.0"
-    },
     "exportedModules": [ "System.Path" ],
     "source": {
       "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/execpath.git",

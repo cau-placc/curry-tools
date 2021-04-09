@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version December 2020
+--- @version March 2021
 --------------------------------------------------------------------------
 
 module CASS.Server
@@ -15,7 +15,6 @@ module CASS.Server
   ) where
 
 import Numeric            ( readNat )
-import ReadShowTerm       ( readQTerm, showQTerm )
 import Data.Char          ( isSpace )
 import Control.Monad      ( unless )
 import System.CurryPath   ( runModuleAction )
@@ -217,7 +216,7 @@ startWorkers number workersocket serveraddress workerport handles = do
 stopWorkers :: [Handle] -> IO ()
 stopWorkers [] = return ()
 stopWorkers (handle:whandles) = do
-  hPutStrLn handle (showQTerm StopWorker)
+  hPutStrLn handle (show StopWorker)
   hClose handle
   stopWorkers whandles
 
@@ -315,7 +314,7 @@ sendServerError handle errstring = do
 changeWorkerPath :: String -> [Handle] -> IO ()
 changeWorkerPath _ [] = return ()
 changeWorkerPath path (handle:whandles) = do
-  hPutStrLn handle (showQTerm (ChangePath path))
+  hPutStrLn handle (show (ChangePath path))
   changeWorkerPath path whandles
 
 -- parse incoming message for type of request

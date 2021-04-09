@@ -151,8 +151,9 @@ updateValue (key1,newValue) ((key2,value2):list) =
                 else (key2,value2):(updateValue (key1,newValue) list)
 
 -----------------------------------------------------------------------
-execCombinedAnalysis :: Eq a => Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
-                     -> String -> String -> IO (ProgInfo a)
+execCombinedAnalysis ::
+  (Eq a, Read a) => Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
+                 -> String -> String -> IO (ProgInfo a)
 execCombinedAnalysis analysis prog importInfos startvals moduleName fpmethod =
  case analysis of
   CombinedSimpleFuncAnalysis _ ananame _ runWithBaseAna -> do
@@ -176,8 +177,8 @@ execCombinedAnalysis analysis prog importInfos startvals moduleName fpmethod =
 -----------------------------------------------------------------------
 --- Run an analysis but load default values (e.g., for external operations)
 --- before and do not analyse the operations or types for these defaults.
-runAnalysis :: Eq a => Analysis a -> Prog -> ProgInfo a -> [(QName,a)] -> String
-            -> IO (ProgInfo a)
+runAnalysis :: (Eq a, Read a) => Analysis a -> Prog -> ProgInfo a
+            -> [(QName,a)] -> String -> IO (ProgInfo a)
 runAnalysis analysis prog importInfos startvals fpmethod = do
   deflts <- loadDefaultAnalysisValues (analysisName analysis) (progName prog)
   let defaultFuncs =

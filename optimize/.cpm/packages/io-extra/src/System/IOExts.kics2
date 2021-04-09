@@ -1,6 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 import Data.IORef
-import System.IO.Unsafe   (unsafePerformIO) -- for global associations
 import System.Process     (readProcessWithExitCode, runInteractiveCommand)
 import Control.Concurrent (forkIO)
 import System.IO
@@ -31,23 +30,3 @@ forwardError h = do
 
 
 -----------------------------------------------------------------------
--- Implementation of global associations as simple association lists
--- (could be later improved by a more efficient implementation, e.g., maps)
-
-type Assocs = [(String,String)]
-
-assocs :: IORef Assocs
-assocs = unsafePerformIO (newIORef [])
-
-external_d_C_prim_setAssoc :: Curry_Prelude.C_String -> Curry_Prelude.C_String -> Cover -> ConstStore
-                           -> Curry_Prelude.C_IO Curry_Prelude.OP_Unit
-external_d_C_prim_setAssoc str1 str2 _ _ = toCurry
-  (\key val -> do as <- readIORef assocs
-                  writeIORef assocs ((key,val):as)) str1 str2
-
-external_d_C_prim_getAssoc :: Curry_Prelude.C_String -> Cover -> ConstStore
-                           -> Curry_Prelude.C_IO (Curry_Prelude.C_Maybe (Curry_Prelude.C_String))
-external_d_C_prim_getAssoc str _ _ = toCurry
-  (\key -> do as <- readIORef assocs
-              return (lookup key as)) str
-

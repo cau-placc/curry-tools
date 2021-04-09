@@ -6,12 +6,7 @@
     "synopsis": "Libraries for XML processing",
     "category": [ "Data", "Web" ],
     "dependencies": {
-        "base"       : ">= 3.0.0, < 4.0.0",
-        "read-legacy": ">= 3.0.0, < 4.0.0"
-    },
-    "compilerCompatibility": {
-        "pakcs": ">= 3.0.0, < 4.0.0",
-        "kics2": ">= 3.0.0, < 4.0.0"
+        "base" : ">= 3.0.0, < 4.0.0"
     },
     "exportedModules": [ "XML", "XmlConv", "XCuery" ],
     "description":

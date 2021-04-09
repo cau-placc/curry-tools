@@ -8,9 +8,8 @@
 --- @version November 2020
 ------------------------------------------------------------------------------
 
-import System.Directory
 import Data.List
---import System
+import System.Directory
 import Test.Prop
 
 testCreateRenameDeleteFile = fileOps `returns` (True,False,True,False)

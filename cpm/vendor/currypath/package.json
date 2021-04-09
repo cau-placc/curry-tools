@@ -10,7 +10,6 @@
         "base"        : ">= 3.0.0, < 4.0.0",
         "directory"   : ">= 3.0.0, < 4.0.0",
         "filepath"    : ">= 3.0.0, < 4.0.0",
-        "process"     : ">= 3.0.0, < 4.0.0",
         "propertyfile": ">= 3.0.0, < 4.0.0"
     },
     "exportedModules": [ "System.CurryPath" ],

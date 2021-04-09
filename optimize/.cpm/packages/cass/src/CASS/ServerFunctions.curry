@@ -2,7 +2,7 @@
 --- Implementation of the analysis computations on the server side
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version December 2018
+--- @version March 2021
 ------------------------------------------------------------------------
 
 -- analysis computations on the server side
@@ -17,7 +17,6 @@ import Data.Maybe         ( fromMaybe )
 import Data.List          ( delete )
 import Data.Time          ( ClockTime )
 import XML                ( showXmlDoc, xml )
-import ReadShowTerm       ( readQTerm, showQTerm )
 
 import FlatCurry.Types    ( QName )
 import FlatCurry.Goodies  ( progImports )
@@ -28,7 +27,7 @@ import CASS.Dependencies
 import CASS.Configuration ( waitTime )
 
 data WorkerMessage = Task String String | ChangePath String | StopWorker
-
+ deriving (Read, Show)
 
 -- Master loop for communication with workers
 -- Argument 1: handles for workers that are currently free
@@ -54,14 +53,14 @@ masterLoop _ (b:busyWorker) ananame mainModule [] [] = do
       let handle =  b
       input <- hGetLine handle
       debugMessage 2 ("Master loop: got message: "++input)
-      let Task ananame2 moduleName2 = readQTerm input
+      let Task ananame2 moduleName2 = read input
       if ananame==ananame2 && moduleName2==mainModule
         then return Nothing
         else return (Just "Received analysis does not match requested analysis")
 
 masterLoop idleWorker busyWorker ananame mainModule
            modulesToDo@(_:_) [] = do
-  debugMessage 3 ("Master loop: modules to do: "++(showQTerm modulesToDo))
+  debugMessage 3 ("Master loop: modules to do: " ++ show modulesToDo)
   let modulesToDo2 = filter ((not . null) . snd) modulesToDo
       waitList     = map fst (filter (null . snd) modulesToDo)
   if null waitList
@@ -74,7 +73,7 @@ masterLoop idleWorker busyWorker ananame mainModule
           let handle =  busyWorker !! inputHandle
           input <- hGetLine handle
           debugMessage 2 ("Master loop: got message: "++input)
-          let Task ananame2 moduleName2 = readQTerm input
+          let Task ananame2 moduleName2 = read input
           if ananame==ananame2
             then do
               let modulesToDo3 = reduceDependencies modulesToDo2 [moduleName2]
@@ -90,7 +89,7 @@ masterLoop idleWorker busyWorker ananame mainModule
 masterLoop (handle:idleWorker) busyWorker ananame mainModule modulesToDo
            (modName:waitList) = do
   debugMessage 2 "Master loop: worker available, send task to a worker..."
-  let newTask = showQTerm (Task ananame modName)
+  let newTask = show (Task ananame modName)
   hPutStrLn handle newTask
   hFlush handle
   debugMessage 2 ("Master loop: send message: "++newTask)
@@ -107,8 +106,8 @@ masterLoop [] busyWorker ananame mainModule modulesToDo
       let handle = busyWorker !! inputHandle
       input <- hGetLine handle
       debugMessage 2 ("Master loop: got message: "++input)
-      let Task _ finishedmodule = readQTerm input
-          newTask = showQTerm (Task ananame modName)
+      let Task _ finishedmodule = read input
+          newTask = show (Task ananame modName)
       hPutStrLn handle newTask
       hFlush handle
       debugMessage 2 ("Master loop: send message: "++newTask)
