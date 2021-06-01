@@ -1,0 +1,24 @@
+{
+  "name": "transformers",
+  "version": "3.0.0",
+  "author": "Kai-Oliver Prott <stu126209@mail.uni-kiel.de>",
+  "synopsis": "A portable library of functor and monad transformers",
+  "category": [ "Control" ],
+  "description": "A portable library of functor and monad transformers, inspired by https://hackage.haskell.org/package/transformers",
+  "license": "BSD-3-Clause",
+  "licenseFile": "LICENSE",
+  "dependencies": {
+        "base" : ">= 3.0.0, < 4.0.0"
+  },
+  "exportedModules": [
+     "Control.Monad.IO.Class",
+     "Control.Monad.Trans.Class",
+     "Control.Monad.Trans.Cont",
+     "Control.Monad.Trans.Except",
+     "Control.Monad.Trans.Maybe",
+     "Control.Monad.Trans.State" ],
+  "source": {
+      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/transformers.git",
+      "tag": "$version"
+  }
+}

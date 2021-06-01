@@ -14,12 +14,13 @@
         "frontend-exec" : ">= 3.0.0, < 4.0.0",
         "read-legacy"   : ">= 3.0.0, < 4.0.0",
         "redblacktree"  : ">= 3.0.0, < 4.0.0",
+        "transformers"  : ">= 3.0.0, < 4.0.0",
         "wl-pprint"     : ">= 3.0.0, < 4.0.0",
         "xml"           : ">= 3.0.0, < 4.0.0"
     },
     "exportedModules": [ "FlatCurry.Compact", "FlatCurry.ElimNewtype",
-                         "FlatCurry.Files",
-                         "FlatCurry.FlexRigid", "FlatCurry.Goodies",
+                         "FlatCurry.Files", "FlatCurry.FlexRigid",
+                         "FlatCurry.Goodies", "FlatCurry.Normalize",
                          "FlatCurry.Pretty", "FlatCurry.Read",
                          "FlatCurry.Show", "FlatCurry.Types",
                          "FlatCurry.XML" ],
@@ -29,6 +30,7 @@
     },
     "testsuite": {
         "src-dir": "test",
-        "modules": [  "TestFlatCurryGoodies", "TestFlatCurryXML" ]
+        "modules": [ "TestFlatCurryGoodies", "TestFlatCurryXML"
+                   , "TestNormalize" ]
     }
 }

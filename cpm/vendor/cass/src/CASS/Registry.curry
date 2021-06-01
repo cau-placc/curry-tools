@@ -24,10 +24,10 @@ import Analysis.Logging (debugMessage)
 import Analysis.Files (getImports, loadCompleteAnalysis)
 import Analysis.ProgInfo
 import Analysis.Types
-import CASS.Configuration(numberOfWorkers)
-import CASS.Dependencies(getModulesToAnalyze)
-import CASS.ServerFunctions(masterLoop)
-import CASS.WorkerFunctions(analysisClient)
+import CASS.Configuration   ( CConfig, debugLevel, numberOfWorkers )
+import CASS.Dependencies    ( getModulesToAnalyze )
+import CASS.ServerFunctions ( masterLoop )
+import CASS.WorkerFunctions ( analysisClient )
 
 --------------------------------------------------------------------
 -- Configurable part of this module.
@@ -117,9 +117,9 @@ data RegisteredAnalysis =
   RegAna String
          Bool
          String
-         (String -> Bool -> [Handle] -> Maybe AOutFormat
-                 -> IO (Either (ProgInfo String) String))
-         ([String] -> IO ())
+         (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
+                  -> IO (Either (ProgInfo String) String))
+         (CConfig -> [String] -> IO ())
 
 regAnaName :: RegisteredAnalysis -> String
 regAnaName (RegAna n _ _ _ _) = n
@@ -131,11 +131,11 @@ regAnaFunc :: RegisteredAnalysis -> Bool
 regAnaFunc (RegAna _ fa _ _ _) = fa
 
 regAnaServer :: RegisteredAnalysis
-                -> (String -> Bool -> [Handle] -> Maybe AOutFormat
-                    -> IO (Either (ProgInfo String) String))
+             -> (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
+                 -> IO (Either (ProgInfo String) String))
 regAnaServer (RegAna _ _ _ a _) = a
 
-regAnaWorker :: RegisteredAnalysis -> ([String] -> IO ())
+regAnaWorker :: RegisteredAnalysis -> (CConfig -> [String] -> IO ())
 regAnaWorker (RegAna _ _ _ _ a) = a
 
 --- Names of all registered analyses.
@@ -156,31 +156,34 @@ lookupRegAna aname (ra@(RegAna raname _ _ _ _) : ras) =
   if aname==raname then Just ra else lookupRegAna aname ras
 
 -- Look up a registered analysis server with a given analysis name.
-lookupRegAnaServer :: String -> (String -> Bool -> [Handle] -> Maybe AOutFormat
-                                        -> IO (Either (ProgInfo String) String))
+lookupRegAnaServer :: String
+                   -> (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
+                       -> IO (Either (ProgInfo String) String))
 lookupRegAnaServer aname =
-  maybe (\_ _ _ _ -> return (Right ("unknown analysis: "++aname)))
+  maybe (\_ _ _ _ _ -> return (Right $ "unknown analysis: " ++ aname))
         regAnaServer
         (lookupRegAna aname registeredAnalysis)
 
 -- Look up a registered analysis worker with a given analysis name.
-lookupRegAnaWorker :: String -> ([String] -> IO ())
+lookupRegAnaWorker :: String -> (CConfig -> [String] -> IO ())
 lookupRegAnaWorker aname =
-  maybe (const (return ())) regAnaWorker (lookupRegAna aname registeredAnalysis)
+  maybe (\_ _ -> return ())
+        regAnaWorker
+        (lookupRegAna aname registeredAnalysis)
 
 --------------------------------------------------------------------
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles and return the analysis results.
-runAnalysisWithWorkers :: String -> AOutFormat -> Bool -> [Handle] -> String
-                       -> IO (Either (ProgInfo String) String)
-runAnalysisWithWorkers ananame aoutformat enforce handles moduleName =
-  (lookupRegAnaServer ananame) moduleName enforce handles (Just aoutformat)
+runAnalysisWithWorkers :: CConfig -> String -> AOutFormat -> Bool -> [Handle]
+                       -> String -> IO (Either (ProgInfo String) String)
+runAnalysisWithWorkers cc ananame aoutformat enforce handles moduleName =
+  (lookupRegAnaServer ananame) cc moduleName enforce handles (Just aoutformat)
 
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles but do not load analysis results.
-runAnalysisWithWorkersNoLoad :: String -> [Handle] -> String -> IO ()
-runAnalysisWithWorkersNoLoad ananame handles moduleName =
-  () <$ (lookupRegAnaServer ananame) moduleName False handles Nothing
+runAnalysisWithWorkersNoLoad :: CConfig -> String -> [Handle] -> String -> IO ()
+runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
+  () <$ (lookupRegAnaServer ananame) cc moduleName False handles Nothing
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the show operation for analysis results,
@@ -192,11 +195,13 @@ runAnalysisWithWorkersNoLoad ananame handles moduleName =
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
 analyzeAsString :: (Read a, Show a)
-                => Analysis a -> (AOutFormat->a->String) -> String -> Bool
-                -> [Handle] -> Maybe AOutFormat
+                => Analysis a -> (AOutFormat -> a -> String) -> CConfig
+                -> String -> Bool -> [Handle] -> Maybe AOutFormat
                 -> IO (Either (ProgInfo String) String)
-analyzeAsString analysis showres modname enforce handles mbaoutformat = do
-  analyzeMain analysis modname handles enforce (mbaoutformat /= Nothing) >>=
+analyzeAsString analysis showres cconfig
+                modname enforce handles mbaoutformat = do
+  analyzeMain cconfig analysis modname handles enforce
+              (mbaoutformat /= Nothing) >>=
     return . either (Left . mapProgInfo (showres aoutformat)) Right
  where
   aoutformat = maybe AText id mbaoutformat
@@ -210,66 +215,68 @@ analyzeAsString analysis showres modname enforce handles mbaoutformat = do
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
 analyzeMain :: (Read a, Show a)
-            => Analysis a -> String -> [Handle] -> Bool -> Bool
+            => CConfig -> Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
-analyzeMain analysis modname handles enforce load = do
+analyzeMain cconfig analysis modname handles enforce load = do
   let ananame = analysisName analysis
-  debugMessage 2 ("Start analysis: "++modname++"/"++ananame)
-  modulesToDo <- getModulesToAnalyze enforce analysis modname
+  debugMessage dl 2 ("Start analysis: " ++ modname ++ "/" ++ ananame)
+  modulesToDo <- getModulesToAnalyze cconfig enforce analysis modname
   let numModules = length modulesToDo
   workresult <-
     if numModules==0
     then return Nothing
     else do
-     when (numModules>1) $
-       debugMessage 1
+     when (numModules > 1) $
+       debugMessage dl 1
          ("Number of modules to be analyzed: " ++ show numModules)
-     prepareCombinedAnalysis analysis modname (map fst modulesToDo) handles
-     numworkers <- numberOfWorkers
-     if numworkers>0
-       then do debugMessage 2 "Starting master loop"
-               masterLoop handles [] ananame modname modulesToDo []
-       else analyzeLocally ananame (map fst modulesToDo)
+     prepareCombinedAnalysis cconfig analysis modname (map fst modulesToDo)
+                             handles
+     if numberOfWorkers cconfig > 0
+       then do debugMessage dl 2 "Starting master loop"
+               masterLoop cconfig handles [] ananame modname modulesToDo []
+       else analyzeLocally cconfig ananame (map fst modulesToDo)
   result <-
     maybe (if load
-           then do debugMessage 3 ("Reading analysis of: "++modname)
-                   loadCompleteAnalysis ananame modname >>= return . Left
+           then do debugMessage dl 3 ("Reading analysis of: "++modname)
+                   loadCompleteAnalysis dl ananame modname >>= return . Left
            else return (Left emptyProgInfo))
           (return . Right)
           workresult
-  debugMessage 4 ("Result: " ++ either showProgInfo id result)
+  debugMessage dl 4 ("Result: " ++ either showProgInfo id result)
   return result
+ where dl = debugLevel cconfig
 
 -- Analyze a module and all its imports locally without worker processes.
-analyzeLocally :: String -> [String] -> IO (Maybe String)
-analyzeLocally ananame modules = do
-  debugMessage 3 ("Local analysis of: "++ananame++"/"++show modules)
-  (lookupRegAnaWorker ananame) modules -- run client
+analyzeLocally :: CConfig -> String -> [String] -> IO (Maybe String)
+analyzeLocally cconfig ananame modules = do
+  debugMessage dl 3 ("Local analysis of: "++ananame++"/"++show modules)
+  (lookupRegAnaWorker ananame) cconfig modules -- run client
   return Nothing
-
+ where dl = debugLevel cconfig
 
 -- Perform the first analysis part of a combined analysis
 -- so that their results are available for the main analysis.
-prepareCombinedAnalysis:: Analysis a -> String -> [String] -> [Handle] -> IO ()
-prepareCombinedAnalysis analysis moduleName depmods handles =
+prepareCombinedAnalysis :: CConfig -> Analysis a -> String -> [String]
+                        -> [Handle] -> IO ()
+prepareCombinedAnalysis cc analysis moduleName depmods handles =
   if isCombinedAnalysis analysis
   then
     if isSimpleAnalysis analysis
     then do
       -- the directly imported interface information might be required...
-      importedModules <- getImports moduleName
+      importedModules <- getImports (debugLevel cc) moduleName
       mapM_ (\basename ->
-                mapM_ (runAnalysisWithWorkersNoLoad basename handles)
+                mapM_ (runAnalysisWithWorkersNoLoad cc basename handles)
                        (importedModules++[moduleName]))
              baseAnaNames
     else
       -- for a dependency analysis, the information of all implicitly
       -- imported modules might be required:
       mapM_ (\baseaname ->
-                mapM_ (runAnalysisWithWorkersNoLoad baseaname handles) depmods)
-             baseAnaNames
+              mapM_ (runAnalysisWithWorkersNoLoad cc baseaname handles) depmods)
+            baseAnaNames
   else return ()
  where
-   baseAnaNames = baseAnalysisNames analysis
+  baseAnaNames = baseAnalysisNames analysis
 
 --------------------------------------------------------------------

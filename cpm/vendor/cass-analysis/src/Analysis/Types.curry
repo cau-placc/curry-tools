@@ -29,6 +29,7 @@ module Analysis.Types
 import FlatCurry.Types   ( Prog, ConsDecl, FuncDecl, TypeDecl, QName )
 import FlatCurry.Goodies ( progImports )
 
+import Analysis.Logging  ( DLevel(..) )
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, lookupProgInfo )
 import Analysis.Files    ( getImports, loadCompleteAnalysis, getInterfaceInfos )
 
@@ -106,7 +107,7 @@ combinedSimpleFuncAnalysis :: Read b => String -> Analysis b
                            -> (ProgInfo  b -> FuncDecl -> a) -> Analysis a
 combinedSimpleFuncAnalysis ananame baseAnalysis anaFunc =
   CombinedSimpleFuncAnalysis [analysisName baseAnalysis] ananame True
-                             (runWithBaseAnalysis baseAnalysis anaFunc)
+                             (runWithBaseAnalysis Quiet baseAnalysis anaFunc)
 
 --- A simple combined analysis for functions.
 --- The analysis is based on an operation that computes
@@ -121,7 +122,7 @@ combined2SimpleFuncAnalysis ananame baseAnalysisA baseAnalysisB anaFunc =
     [analysisName baseAnalysisA, analysisName baseAnalysisB]
     ananame
     True
-    (runWith2BaseAnalyses baseAnalysisA baseAnalysisB anaFunc)
+    (runWith2BaseAnalyses Quiet baseAnalysisA baseAnalysisB anaFunc)
 
 --- A simple combined analysis for types.
 --- The analysis is based on an operation that computes
@@ -132,7 +133,7 @@ combinedSimpleTypeAnalysis :: Read b => String -> Analysis b
                            -> (ProgInfo  b -> TypeDecl -> a) -> Analysis a
 combinedSimpleTypeAnalysis ananame baseAnalysis anaFunc =
   CombinedSimpleTypeAnalysis [analysisName baseAnalysis] ananame True
-                             (runWithBaseAnalysis baseAnalysis anaFunc)
+                             (runWithBaseAnalysis Quiet baseAnalysis anaFunc)
 
 --- A combined analysis for functions with dependencies.
 --- The analysis is based on an operation that computes
@@ -147,7 +148,7 @@ combinedDependencyFuncAnalysis :: Read b => String -> Analysis b -> a
 combinedDependencyFuncAnalysis ananame baseAnalysis startval anaFunc =
   CombinedDependencyFuncAnalysis
     [analysisName baseAnalysis] ananame True startval
-    (runWithBaseAnalysis baseAnalysis anaFunc)
+    (runWithBaseAnalysis Quiet baseAnalysis anaFunc)
 
 --- A combined analysis for types with dependencies.
 --- The analysis is based on an operation that computes
@@ -162,7 +163,7 @@ combinedDependencyTypeAnalysis :: Read b => String -> Analysis b -> a
 combinedDependencyTypeAnalysis ananame baseAnalysis startval anaType =
   CombinedDependencyTypeAnalysis
     [analysisName baseAnalysis] ananame True startval
-    (runWithBaseAnalysis baseAnalysis anaType)
+    (runWithBaseAnalysis Quiet baseAnalysis anaType)
 
 --- Construct a simple analysis for entire modules.
 --- The analysis has a name and takes an operation that computes
@@ -263,30 +264,30 @@ data AOutFormat = AText | ANote
 --- Loads the results of the base analysis and put it as the first
 --- argument of the main analysis operation which is returned.
 runWithBaseAnalysis :: Read a
-                    => Analysis a -> (ProgInfo a -> (input -> b)) -> String
-                    -> IO (input -> b)
-runWithBaseAnalysis baseAnalysis analysisFunction moduleName = do
-  importedModules <- getImports moduleName
+                    => DLevel -> Analysis a -> (ProgInfo a -> (input -> b))
+                    -> String -> IO (input -> b)
+runWithBaseAnalysis dl baseAnalysis analysisFunction moduleName = do
+  importedModules <- getImports dl moduleName
   let baseananame = analysisName baseAnalysis
-  impbaseinfos  <- getInterfaceInfos baseananame importedModules
-  mainbaseinfos <- loadCompleteAnalysis baseananame moduleName
+  impbaseinfos  <- getInterfaceInfos dl baseananame importedModules
+  mainbaseinfos <- loadCompleteAnalysis dl baseananame moduleName
   let baseinfos = combineProgInfo impbaseinfos mainbaseinfos
   return (analysisFunction baseinfos)
 
 --- Loads the results of the base analysis and put it as the first
 --- argument of the main analysis operation which is returned.
 runWith2BaseAnalyses :: (Read a, Read b)
-                     => Analysis a -> Analysis b
+                     => DLevel -> Analysis a -> Analysis b
                      -> (ProgInfo a -> ProgInfo b -> (input -> c)) -> String
                      -> IO (input -> c)
-runWith2BaseAnalyses baseanaA baseanaB analysisFunction moduleName = do
-  importedModules <- getImports moduleName
+runWith2BaseAnalyses dl baseanaA baseanaB analysisFunction moduleName = do
+  importedModules <- getImports dl moduleName
   let baseananameA = analysisName baseanaA
       baseananameB = analysisName baseanaB
-  impbaseinfosA  <- getInterfaceInfos baseananameA importedModules
-  mainbaseinfosA <- loadCompleteAnalysis baseananameA moduleName
-  impbaseinfosB  <- getInterfaceInfos baseananameB importedModules
-  mainbaseinfosB <- loadCompleteAnalysis baseananameB moduleName
+  impbaseinfosA  <- getInterfaceInfos dl baseananameA importedModules
+  mainbaseinfosA <- loadCompleteAnalysis dl baseananameA moduleName
+  impbaseinfosB  <- getInterfaceInfos dl baseananameB importedModules
+  mainbaseinfosB <- loadCompleteAnalysis dl baseananameB moduleName
   let baseinfosA = combineProgInfo impbaseinfosA mainbaseinfosA
       baseinfosB = combineProgInfo impbaseinfosB mainbaseinfosB
   return (analysisFunction baseinfosA baseinfosB)

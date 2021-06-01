@@ -4,7 +4,6 @@
 --- @author Michael Hanus 
 --- @version April 2021
 ------------------------------------------------------------------------------ 
-{-# LANGUAGE CPP #-}
 
 module ReadShowTerm ( showTerm, readsUnqualifiedTerm, readUnqualifiedTerm )
  where
@@ -18,20 +17,11 @@ import Data.Char ( isSpace )
 --- but can read the string back with `readUnqualifiedTerm`
 --- (provided that the constructor names are unique without the module
 --- qualifier).
-#ifdef __CURRY2GO__
-showTerm :: Show a => a -> String
-#else
 showTerm :: Data a => a -> String 
-#endif
 showTerm x = prim_showTerm $## x 
  
-#ifdef __CURRY2GO__
-prim_showTerm :: Show a => a -> String 
-prim_showTerm = show
-#else
 prim_showTerm :: _ -> String 
 prim_showTerm external 
-#endif
 
  
 --- Transform a string containing a data term in standard prefix notation 
@@ -43,31 +33,18 @@ prim_showTerm external
 --- In case of a successful parse, the result is a one element list 
 --- containing a pair of the data term and the remaining unparsed string. 
  
-#ifdef __CURRY2GO__
-readsUnqualifiedTerm :: Read a => [String] -> String -> [(a,String)]
-#else
 readsUnqualifiedTerm :: Data a => [String] -> String -> [(a,String)]
-#endif
 readsUnqualifiedTerm [] _ =
   error "ReadShowTerm.readsUnqualifiedTerm: list of module prefixes is empty"
 readsUnqualifiedTerm (prefix:prefixes) s =
   readsUnqualifiedTermWithPrefixes (prefix:prefixes) s
  
-#ifdef __CURRY2GO__
-readsUnqualifiedTermWithPrefixes :: Read a => [String] -> String -> [(a,String)]
-#else
 readsUnqualifiedTermWithPrefixes :: Data a => [String] -> String -> [(a,String)]
-#endif
 readsUnqualifiedTermWithPrefixes prefixes s =
   (prim_readsUnqualifiedTerm $## prefixes) $## s 
  
-#ifdef __CURRY2GO__
-prim_readsUnqualifiedTerm :: Read a => [String] -> String -> [(a,String)]
-prim_readsUnqualifiedTerm _ s = reads s
-#else
 prim_readsUnqualifiedTerm :: [String] -> String -> [(_,String)]
 prim_readsUnqualifiedTerm external
-#endif
 
 --- Transforms a string containing a data term in standard prefix notation 
 --- without module qualifiers into the corresponding data term. 
@@ -78,11 +55,7 @@ prim_readsUnqualifiedTerm external
 --- 
 --- Example: `readUnqualifiedTerm ["Prelude"] "Just 3"` evaluates to `(Just 3)`
  
-#ifdef __CURRY2GO__
-readUnqualifiedTerm :: Read a => [String] -> String -> a
-#else
 readUnqualifiedTerm :: Data a => [String] -> String -> a
-#endif
 readUnqualifiedTerm prefixes s = case result of
   [(term,tail)] 
      -> if all isSpace tail

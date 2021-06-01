@@ -3,7 +3,7 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version December 2020
+--- @version April 2021
 --------------------------------------------------------------------------
 
 module Analysis.Files where
@@ -22,7 +22,7 @@ import FlatCurry.Goodies   ( progImports )
 import FlatCurry.Types     ( Prog, QName )
 import System.CurryPath    ( lookupModuleSourceInLoadPath, stripCurrySuffix )
 
-import Analysis.Logging    ( debugMessage )
+import Analysis.Logging    ( DLevel, debugMessage )
 import Analysis.ProgInfo
 
 
@@ -59,11 +59,11 @@ getAnalysisDirectory = do
                         , curryCompilerRevisionVersion ])
 
 -- loads analysis results for a list of modules
-getInterfaceInfos :: Read a => String -> [String] -> IO (ProgInfo a)
-getInterfaceInfos _ [] = return emptyProgInfo
-getInterfaceInfos anaName (mod:mods) =
-  do modInfo  <- loadPublicAnalysis anaName mod
-     modsInfo <- getInterfaceInfos anaName mods
+getInterfaceInfos :: Read a => DLevel -> String -> [String] -> IO (ProgInfo a)
+getInterfaceInfos _  _       [] = return emptyProgInfo
+getInterfaceInfos dl anaName (mod:mods) =
+  do modInfo  <- loadPublicAnalysis dl anaName mod
+     modsInfo <- getInterfaceInfos dl anaName mods
      return (combineProgInfo modInfo modsInfo)
 
 --- Gets the file name in which default analysis values different from
@@ -73,32 +73,33 @@ getInterfaceInfos anaName (mod:mods) =
 --- the first component of each pair is the name of the operation
 --- (it is assumed that this denotes an operation of the current module)
 --- and the second component is an analysis value.
-loadDefaultAnalysisValues :: Read a => String -> String -> IO [(QName,a)]
-loadDefaultAnalysisValues anaName moduleName = do
+loadDefaultAnalysisValues :: Read a => DLevel -> String -> String
+                          -> IO [(QName,a)]
+loadDefaultAnalysisValues dl anaName moduleName = do
   (_,fileName) <- findModuleSourceInLoadPath moduleName
   let defaultFileName = stripCurrySuffix fileName ++ ".defaults." ++ anaName
   fileExists <- doesFileExist defaultFileName
   if fileExists
-    then do debugMessage 3 ("Load default values from " ++ defaultFileName)
+    then do debugMessage dl 3 ("Load default values from " ++ defaultFileName)
             defaultValues <- readFile defaultFileName >>= return . read
             return (map (\ (f,a) -> ((moduleName,f),a)) defaultValues)
     else return []
 
 --- Loads the currently stored analysis information for a module.
-loadCompleteAnalysis :: Read a => String -> String -> IO (ProgInfo a)
-loadCompleteAnalysis ananame mainModule =
-  getAnalysisBaseFile mainModule ananame >>= readAnalysisFiles
+loadCompleteAnalysis :: Read a => DLevel -> String -> String -> IO (ProgInfo a)
+loadCompleteAnalysis dl ananame mainModule =
+  getAnalysisBaseFile mainModule ananame >>= readAnalysisFiles dl
 
 --- Reads analysis result from file for the public entities of a given module.
-loadPublicAnalysis::  Read a => String -> String -> IO (ProgInfo a)
-loadPublicAnalysis anaName moduleName = do
-  getAnalysisPublicFile moduleName anaName >>= readAnalysisPublicFile
+loadPublicAnalysis::  Read a => DLevel -> String -> String -> IO (ProgInfo a)
+loadPublicAnalysis dl anaName moduleName = do
+  getAnalysisPublicFile moduleName anaName >>= readAnalysisPublicFile dl
 
 --- Store current import dependencies.
-storeImportModuleList :: String -> [String] -> IO ()
-storeImportModuleList modname modlist = do
+storeImportModuleList :: DLevel -> String -> [String] -> IO ()
+storeImportModuleList dl modname modlist = do
   importListFile <- getAnalysisBaseFile modname "IMPORTLIST"
-  createDirectoryR (dropFileName importListFile)
+  createDirectoryR dl (dropFileName importListFile)
   writeFile importListFile (show modlist)
 
 --- Gets the file containing import dependencies for a main module
@@ -111,16 +112,17 @@ getImportModuleListFile modname = do
 
 --- Store an analysis results in a file and create directories if neccesssary.
 --- The first argument is the analysis name.
-storeAnalysisResult :: Show a => String -> String -> ProgInfo a -> IO ()
-storeAnalysisResult ananame moduleName result = do
+storeAnalysisResult :: Show a => DLevel -> String -> String -> ProgInfo a
+                    -> IO ()
+storeAnalysisResult dl ananame moduleName result = do
    baseFileName <- getAnalysisBaseFile moduleName ananame
-   createDirectoryR (dropFileName baseFileName)
-   debugMessage 4 ("Analysis result: " ++ showProgInfo result)
-   writeAnalysisFiles baseFileName result
+   createDirectoryR dl (dropFileName baseFileName)
+   debugMessage dl 4 ("Analysis result: " ++ showProgInfo result)
+   writeAnalysisFiles dl baseFileName result
 
 -- creates directory (and all needed root-directories) recursively
-createDirectoryR :: String -> IO ()
-createDirectoryR maindir =
+createDirectoryR :: DLevel -> String -> IO ()
+createDirectoryR dl maindir =
   let (drv,dir) = splitDrive maindir
    in createDirectories drv (splitDirectories dir)
  where
@@ -129,7 +131,7 @@ createDirectoryR maindir =
     let createdDir = dirname </> dir
     dirExists <- doesDirectoryExist createdDir
     unless dirExists $ do
-      debugMessage 3 ("Creating directory '" ++ createdDir ++ "'...")
+      debugMessage dl 3 ("Creating directory '" ++ createdDir ++ "'...")
       createDirectory createdDir
     createDirectories createdDir dirs
 
@@ -171,9 +173,9 @@ findModuleSourceInLoadPath modname =
         return
 
 --- Get the imports of a module.
-getImports :: String -> IO [String]
-getImports moduleName = do
-  debugMessage 3 ("Reading interface of module "++moduleName)
+getImports :: DLevel -> String -> IO [String]
+getImports dl moduleName = do
+  debugMessage dl 3 $ "Reading interface of module " ++ moduleName
   readNewestFlatCurryInt moduleName >>= return . progImports
 
 -- Get timestamp of a Curry source module file (together with the module name)

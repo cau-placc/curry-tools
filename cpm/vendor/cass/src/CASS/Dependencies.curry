@@ -2,7 +2,7 @@
 --- Operations to handle dependencies of analysis files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2021
+--- @version April 2021
 -----------------------------------------------------------------------
 
 module CASS.Dependencies(getModulesToAnalyze,reduceDependencies) where
@@ -14,19 +14,20 @@ import Data.Maybe        (fromMaybe)
 import Data.List         (delete)
 import Data.Time(ClockTime)
 
-import Analysis.Logging   ( debugMessage )
+import Analysis.Logging   ( DLevel, debugMessage )
 import Analysis.Types
 import Analysis.ProgInfo
 import Analysis.Files
-import CASS.Configuration ( getWithPrelude )
+import CASS.Configuration ( CConfig, debugLevel, withPrelude )
 
 -----------------------------------------------------------------------
 --- Compute the modules and their imports which must be analyzed
 --- w.r.t. a given analysis and main module.
 --- If the first argument is true, then the analysis is enforced
 --- (even if analysis information exists).
-getModulesToAnalyze :: Bool -> Analysis a -> String -> IO [(String,[String])]
-getModulesToAnalyze enforce analysis moduleName =
+getModulesToAnalyze :: CConfig -> Bool -> Analysis a -> String
+                    -> IO [(String,[String])]
+getModulesToAnalyze cconfig enforce analysis moduleName =
   if isSimpleAnalysis analysis
   then do
     ananewer <- isAnalysisFileNewer ananame moduleName
@@ -35,31 +36,34 @@ getModulesToAnalyze enforce analysis moduleName =
    valid <- isAnalysisValid ananame moduleName
    if valid && not enforce
     then do
-     debugMessage 3 ("Analysis file for '"++moduleName++"' up-to-date")
+     debugMessage dl 3 ("Analysis file for '"++moduleName++"' up-to-date")
      return []
     else do
-     moduleList <- getDependencyList [moduleName] []
-     debugMessage 3 ("Complete module list: "++ show moduleList)
+     moduleList <- getDependencyList cconfig [moduleName] []
+     debugMessage dl 3 ("Complete module list: "++ show moduleList)
      let impmods = map fst moduleList
-     storeImportModuleList moduleName impmods
+     storeImportModuleList dl moduleName impmods
      sourceTimeList <- mapM getSourceFileTime        impmods
      fcyTimeList    <- mapM getFlatCurryFileTime     impmods
      anaTimeList    <- mapM (getAnaFileTime ananame) impmods
      let (modulesToDo,modulesUpToDate) =
             findModulesToAnalyze moduleList
                                  anaTimeList sourceTimeList fcyTimeList ([],[])
-     --debugMessage 3 ("Modules up-to-date: "++ show modulesUpToDate)
-     withprelude <- getWithPrelude
-     let modulesToAnalyze = if enforce then moduleList else
-           if withprelude=="no"
-           then let reduced = reduceDependencies modulesToDo
-                                              (modulesUpToDate ++ ["Prelude"])
-                 in case reduced of (("Prelude",_):remaining) -> remaining
-                                    _ -> reduced
-           else reduceDependencies modulesToDo modulesUpToDate
-     debugMessage 3 ("Modules to analyze: " ++ show modulesToAnalyze)
+     --debugMessage dl 3 ("Modules up-to-date: "++ show modulesUpToDate)
+     let modulesToAnalyze =
+          if enforce
+            then moduleList
+            else
+              if withPrelude cconfig
+                then reduceDependencies modulesToDo modulesUpToDate
+                else let reduced = reduceDependencies modulesToDo
+                                     (modulesUpToDate ++ ["Prelude"])
+                     in case reduced of (("Prelude",_):remaining) -> remaining
+                                        _                         -> reduced
+     debugMessage dl 3 ("Modules to analyze: " ++ show modulesToAnalyze)
      return modulesToAnalyze
  where
+   dl = debugLevel cconfig
    ananame = analysisName analysis
 
 -- Checks whether the analysis file is up-to-date.
@@ -107,18 +111,19 @@ isAnalysisValid ananame modname =
 --- Gets the list of all modules required by the first module.
 --- The result is sorted according to their dependencies
 --- (Prelude first, main module last)
-getDependencyList :: [String] -> [(String,[String])]
+getDependencyList :: CConfig -> [String] -> [(String,[String])]
                   -> IO [(String,[String])]
-getDependencyList [] moddeps = return moddeps
-getDependencyList (mname:mods) moddeps =
+getDependencyList _  []           moddeps = return moddeps
+getDependencyList cc (mname:mods) moddeps =
   maybe (do --debugMessage 3 ("Getting imports of "++ mname)
             --debugMessage 3 ("Still to do: "++ show mods)
-            imports <- getImports mname
-            getDependencyList (addNewMods mods imports)
+            imports <- getImports dl mname
+            getDependencyList cc (addNewMods mods imports)
                               ((mname,imports):moddeps))
         (\ (newmoddeps,imps) ->
-              getDependencyList (addNewMods mods imps) newmoddeps)
+              getDependencyList cc (addNewMods mods imps) newmoddeps)
         (lookupAndReorder mname [] moddeps)
+ where dl = debugLevel cc
 
 -- add new modules if they are not already there:
 addNewMods :: [String] -> [String] -> [String]

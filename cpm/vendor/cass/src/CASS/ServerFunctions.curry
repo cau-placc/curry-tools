@@ -24,7 +24,7 @@ import Analysis.Logging   ( debugMessage )
 import Analysis.Types
 import Analysis.ProgInfo
 import CASS.Dependencies
-import CASS.Configuration ( waitTime )
+import CASS.Configuration ( CConfig, debugLevel, waitTime )
 
 data WorkerMessage = Task String String | ChangePath String | StopWorker
  deriving (Read, Show)
@@ -38,81 +38,85 @@ data WorkerMessage = Task String String | ChangePath String | StopWorker
 -- Argument 6: names of modules that are ready be to analyzed (since their
 --             imports are already analyzed)
 -- Result: Nothing (in case of successful work) or (Just <error>)
-masterLoop :: [Handle] -> [Handle] -> String -> String
+masterLoop :: CConfig -> [Handle] -> [Handle] -> String -> String
            -> [(String,[String])] -> [String] -> IO (Maybe String)
-masterLoop _ [] _ _ [] [] = do
-  debugMessage 2 "Master loop: terminated"
+masterLoop cc _ [] _ _ [] [] = do
+  debugMessage (debugLevel cc) 2 "Master loop: terminated"
   return Nothing
 
-masterLoop _ (b:busyWorker) ananame mainModule [] [] = do
-  debugMessage 2 "Master loop: waiting for worker result"
+masterLoop cc _ (b:busyWorker) ananame mainModule [] [] = do
+  debugMessage dl 2 "Master loop: waiting for worker result"
   inputHandle <- hWaitForInputs (b:busyWorker) waitTime
   if inputHandle/=0
     then return (Just "No input from any worker received")
     else do
       let handle =  b
       input <- hGetLine handle
-      debugMessage 2 ("Master loop: got message: "++input)
+      debugMessage dl 2 ("Master loop: got message: "++input)
       let Task ananame2 moduleName2 = read input
-      if ananame==ananame2 && moduleName2==mainModule
+      if ananame == ananame2 && moduleName2 == mainModule
         then return Nothing
         else return (Just "Received analysis does not match requested analysis")
+ where dl = debugLevel cc
 
-masterLoop idleWorker busyWorker ananame mainModule
+masterLoop cc idleWorker busyWorker ananame mainModule
            modulesToDo@(_:_) [] = do
-  debugMessage 3 ("Master loop: modules to do: " ++ show modulesToDo)
+  debugMessage dl 3 ("Master loop: modules to do: " ++ show modulesToDo)
   let modulesToDo2 = filter ((not . null) . snd) modulesToDo
       waitList     = map fst (filter (null . snd) modulesToDo)
   if null waitList
     then do
-      debugMessage 2 "Master loop: waiting for workers to finish"
+      debugMessage dl 2 "Master loop: waiting for workers to finish"
       inputHandle <- hWaitForInputs busyWorker waitTime
       if inputHandle<0
         then return (Just "No input from any worker received")
         else do
           let handle =  busyWorker !! inputHandle
           input <- hGetLine handle
-          debugMessage 2 ("Master loop: got message: "++input)
+          debugMessage dl 2 ("Master loop: got message: " ++ input)
           let Task ananame2 moduleName2 = read input
           if ananame==ananame2
             then do
               let modulesToDo3 = reduceDependencies modulesToDo2 [moduleName2]
                   busyWorker2= deleteIndex inputHandle busyWorker
-              masterLoop (handle:idleWorker) busyWorker2 ananame
+              masterLoop cc (handle:idleWorker) busyWorker2 ananame
                          mainModule modulesToDo3 waitList
             else
              return
               (Just "Received analysis does not match requested analysis type")
-    else masterLoop idleWorker busyWorker ananame mainModule modulesToDo2
+    else masterLoop cc idleWorker busyWorker ananame mainModule modulesToDo2
                     waitList
+ where dl = debugLevel cc
 
-masterLoop (handle:idleWorker) busyWorker ananame mainModule modulesToDo
+masterLoop cc (handle:idleWorker) busyWorker ananame mainModule modulesToDo
            (modName:waitList) = do
-  debugMessage 2 "Master loop: worker available, send task to a worker..."
+  debugMessage dl 2 "Master loop: worker available, send task to a worker..."
   let newTask = show (Task ananame modName)
   hPutStrLn handle newTask
   hFlush handle
-  debugMessage 2 ("Master loop: send message: "++newTask)
-  masterLoop idleWorker (handle:busyWorker) ananame mainModule
+  debugMessage dl 2 ("Master loop: send message: "++newTask)
+  masterLoop cc idleWorker (handle:busyWorker) ananame mainModule
              modulesToDo waitList
+ where dl = debugLevel cc
 
-masterLoop [] busyWorker ananame mainModule modulesToDo
+masterLoop cc [] busyWorker ananame mainModule modulesToDo
            waits@(modName:waitList) = do
-  debugMessage 2 $ "Waiting for worker to analyze modules: "++show waits
+  debugMessage dl 2 $ "Waiting for worker to analyze modules: "++show waits
   inputHandle <- hWaitForInputs busyWorker waitTime
-  if inputHandle<0
+  if inputHandle < 0
     then return (Just "No input from any worker received")
     else do
       let handle = busyWorker !! inputHandle
       input <- hGetLine handle
-      debugMessage 2 ("Master loop: got message: "++input)
+      debugMessage dl 2 ("Master loop: got message: "++input)
       let Task _ finishedmodule = read input
           newTask = show (Task ananame modName)
       hPutStrLn handle newTask
       hFlush handle
-      debugMessage 2 ("Master loop: send message: "++newTask)
+      debugMessage dl 2 ("Master loop: send message: "++newTask)
       let modulesToDo2 = reduceDependencies modulesToDo [finishedmodule]
-      masterLoop [] busyWorker ananame mainModule modulesToDo2 waitList
+      masterLoop cc [] busyWorker ananame mainModule modulesToDo2 waitList
+ where dl = debugLevel cc
 
 deleteIndex :: Int -> [a] -> [a]
 deleteIndex _ [] = []

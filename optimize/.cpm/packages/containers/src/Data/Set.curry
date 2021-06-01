@@ -4,7 +4,7 @@
 
 module Data.Set
   ( Set, null, size, fromList, empty, insert, member, delete
-  , union, toList, difference
+  , deleteAll, union, toList, difference
   ) where
 
 import qualified Data.Map as Map
@@ -37,6 +37,10 @@ insert k s = Map.insert k () s
 --- Deletes an element from a set.
 delete :: Ord key => key -> Set key -> Set key
 delete k s = Map.delete k s
+
+--- Deletes a list of elements from a set.
+deleteAll :: Ord key => [key] -> Set key -> Set key
+deleteAll ks s = Map.deleteAll ks s
 
 --- Computes the size of two sets.
 size :: Set key -> Int

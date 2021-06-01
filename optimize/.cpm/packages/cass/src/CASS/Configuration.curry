@@ -6,35 +6,36 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version February 2021
+--- @version April 2021
 --------------------------------------------------------------------------
 
 module CASS.Configuration
  ( systemBanner, baseDir, docDir, executableName
- , getServerAddress, updateRCFile, updateCurrentProperty
- , getFPMethod, getWithPrelude
- , storeServerPortNumber, removeServerPortNumber, getServerPortNumber
+ , CConfig, debugLevel, setDebugLevel
+ , getServerAddress, readRCFile, updateProperty
+ , fixpointMethod, withPrelude
+ , storeServerPortNumber, removeServerPortNumber
  , getDefaultPath, waitTime, numberOfWorkers
  ) where
 
+import Control.Monad               ( unless )
 import Curry.Compiler.Distribution ( curryCompiler )
-import Data.List           ( sort )
-import Numeric             ( readInt )
-import System.Environment  ( getEnv )
-import System.FilePath     ( FilePath, (</>), (<.>) )
+import Data.List                   ( sort )
+import Numeric                     ( readInt )
+import System.Environment          ( getEnv )
+import System.FilePath             ( FilePath, (</>), (<.>) )
 
 import System.Process
 import System.Directory
-import Global
 
-import Analysis.Logging   ( debugMessage, setDebugLevel )
+import Analysis.Logging   ( DLevel(..) )
 import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
 import Data.PropertyFile  ( readPropertyFile, updatePropertyFile )
 
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 04/02/2021 for " ++
+                   packageVersion ++ " of 16/04/2021 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
@@ -60,6 +61,59 @@ executableName = packageExecutable
 getServerAddress :: IO String
 getServerAddress = return "127.0.0.1" -- run only on local machine
 
+-- timeout for network message passing: -1 is wait time infinity
+waitTime :: Int
+waitTime = -1
+
+-- Default number of workers (if the number is not found in the
+-- configuration file).
+defaultWorkers :: Int
+defaultWorkers = 0
+
+--------------------------------------------------------------------------
+--- Configuration info used during execution of CASS.
+--- It contains the properties from the rc file and the current debug level.
+data CConfig = CConfig [(String,String)] DLevel
+
+--- Returns the debug level from the current configuration.
+debugLevel :: CConfig -> DLevel
+debugLevel (CConfig _ dl) = dl
+
+--- Returns the debug level from the current configuration.
+setDebugLevel :: Int -> CConfig -> CConfig
+setDebugLevel dl (CConfig ps _) = CConfig ps (toEnum dl)
+
+-- Returns the fixpoint computation method from Config file
+fixpointMethod :: CConfig -> String
+fixpointMethod (CConfig properties _) =
+  maybe "simple" id  (lookup "fixpoint" properties)
+
+-- Get the option to analyze also the prelude from Config file
+withPrelude :: CConfig -> Bool
+withPrelude (CConfig properties _) =
+  maybe True (/="no") (lookup "prelude" properties)
+
+--- Gets the default load path from the property file (added at the end
+--- of CURRYPATH).
+getDefaultPath :: CConfig -> IO String
+getDefaultPath (CConfig properties _) = do
+  currypath <- getEnv "CURRYPATH"
+  return $ case lookup "path" properties of
+    Just value -> if all isSpace value
+                    then currypath
+                    else if null currypath then value
+                                           else currypath ++ ':' : value
+    Nothing    -> currypath
+
+-- number of worker threads running at the same time
+numberOfWorkers :: CConfig -> Int
+numberOfWorkers (CConfig properties _) = do
+  case lookup "numberOfWorkers" properties of
+    Just value -> case readInt value of
+                    [(int,_)] -> int
+                    _         -> defaultWorkers
+    Nothing    -> defaultWorkers
+
 --------------------------------------------------------------------------
 -- Name of user property file:
 propertyFileName :: IO String
@@ -73,33 +127,35 @@ installPropertyFile :: IO ()
 installPropertyFile = do
   fname <- propertyFileName
   pfexists <- doesFileExist fname
-  if pfexists then return () else do
+  unless pfexists $ do
     copyFile defaultPropertyFileName fname
-    putStrLn ("New analysis configuration file '"++fname++"' installed.")
+    putStrLn $ "New analysis configuration file '" ++ fname ++ "' installed."
 
 --- Reads the rc file (and try to install a user copy of it if it does not
---- exist) and compares the definitions with the default property file
---- of the CASS distribution. If the set of variables is different,
---- update the rc file of the user with the distribution
---- but keep the user's definitions.
-updateRCFile :: IO ()
-updateRCFile = do
+--- exist) and returns its definition. Additionally, the definitions
+--- are compared with the default property file of the CASS distribution.
+--- If the set of variables is different, the rc file of the user is updated
+--- with the distribution but the user's definitions are kept.
+readRCFile :: IO CConfig
+readRCFile = do
   hashomedir <- getHomeDirectory >>= doesDirectoryExist
   if not hashomedir
-   then readPropertiesAndStoreLocally >> return ()
+   then readPropertiesAndStoreLocally
    else do
      installPropertyFile
-     userprops <- readPropertiesAndStoreLocally
+     CConfig userprops dl <- readPropertiesAndStoreLocally
      distprops <- readPropertyFile defaultPropertyFileName
-     if (rcKeys userprops == rcKeys distprops) then return () else do
-       rcName    <- propertyFileName
-       putStrLn $ "Updating \"" ++ rcName ++ "\"..."
+     unless (rcKeys userprops == rcKeys distprops) $ do
+       rcName <- propertyFileName
+       putStrLn $ "Updating '" ++ rcName ++ "'..."
        renameFile rcName $ rcName <.> "bak"
        copyFile defaultPropertyFileName rcName
        mapM_ (\ (n, v) -> maybe (return ())
-                 (\uv -> if uv==v then return () else updatePropertyFile rcName n uv)
+                 (\uv -> if uv == v then return ()
+                                    else updatePropertyFile rcName n uv)
                  (lookup n userprops))
-              distprops
+             distprops
+     return (CConfig userprops dl)
 
 rcKeys :: [(String, String)] -> [String]
 rcKeys = sort . map fst
@@ -107,49 +163,34 @@ rcKeys = sort . map fst
 --- Reads the user property file or, if it does not exist,
 --- the default property file of CASS,
 --- and store the properties in a global variable for next access.
-readPropertiesAndStoreLocally :: IO [(String,String)]
+readPropertiesAndStoreLocally :: IO CConfig
 readPropertiesAndStoreLocally = do
   userpfn    <- propertyFileName
   hasuserpfn <- doesFileExist userpfn
   props      <- readPropertyFile
-                   (if hasuserpfn then userpfn else defaultPropertyFileName)
-  writeGlobal currProps (Just props)
-  updateDebugLevel props
-  return props
-
---- Reads the user property file (which must be installed!)
---- and store the properties in a global variable for next access.
-getProperties :: IO [(String,String)]
-getProperties =
-  readGlobal currProps >>= maybe readPropertiesAndStoreLocally return
+                  (if hasuserpfn then userpfn else defaultPropertyFileName)
+  return $ updateDebugLevel (CConfig props Quiet)
 
 --- Updates the debug level from the current properties.
-updateDebugLevel :: [(String,String)] -> IO ()
-updateDebugLevel properties = do
-  let number = lookup "debugLevel" properties
-  case number of
-    Just value -> do
-      case readInt value of
-        [(dl,_)] -> setDebugLevel dl
-        _        -> return ()
-    Nothing -> return ()
+updateDebugLevel :: CConfig -> CConfig
+updateDebugLevel cc@(CConfig properties _) =
+  case lookup "debugLevel" properties of
+    Just value -> case readInt value of
+                    [(dl,_)] -> setDebugLevel dl cc
+                    _        -> cc
+    Nothing    -> cc
 
---- Global variable to store the current properties.
-currProps :: Global (Maybe [(String,String)])
-currProps = global Nothing Temporary
-
--- Updates a current property.
-updateCurrentProperty :: String -> String -> IO ()
-updateCurrentProperty pn pv = do
-  currprops <- getProperties
+-- Updates a property.
+updateProperty :: String -> String -> CConfig -> CConfig
+updateProperty pn pv (CConfig currprops dl) =
   let newprops = replaceKeyValue pn pv currprops
-  writeGlobal currProps (Just newprops)
-  updateDebugLevel newprops
+  in updateDebugLevel (CConfig newprops dl)
 
 replaceKeyValue :: Eq a => a -> b -> [(a,b)] -> [(a,b)]
-replaceKeyValue k v [] = [(k,v)]
+replaceKeyValue k v []            = [(k,v)]
 replaceKeyValue k v ((k1,v1):kvs) =
-  if k==k1 then (k,v):kvs else (k1,v1) : replaceKeyValue k v kvs
+  if k == k1 then (k,v) : kvs
+             else (k1,v1) : replaceKeyValue k v kvs
 
 
 --------------------------------------------------------------------------
@@ -175,83 +216,4 @@ removeServerPortNumber = getServerPortFileName >>= removeFile
 readServerPortPid :: IO (Int,Int)
 readServerPortPid = getServerPortFileName >>= readFile >>= return . read
 
---- Reads the current server port number. If the server is not running,
---- it is also started.
-getServerPortNumber :: IO Int
-getServerPortNumber = do
-  serverPortFileName <- getServerPortFileName
-  exfile <- doesFileExist serverPortFileName
-  if exfile
-   then do (portnum,pid) <- readServerPortPid
-           flag <- system ("ps -p "++show pid++" > /dev/null")
-           if flag==0
-            then return portnum
-            else do removeFile serverPortFileName
-                    getServerPortNumber
-   else do debugMessage 2 "Starting analysis server..."
-           tcmd <- getTerminalCommand
-           let serverCmd = baseDir++"/cass"
-           if all isSpace tcmd
-            then system ("\""++serverCmd++"\"  > /dev/null 2>&1 &")
-            else system (tcmd++" \""++baseDir++"/cass\" &")
-           sleep 1
-           waitForServerPort serverPortFileName
- where
-  waitForServerPort serverPortFileName = do
-    exfile <- doesFileExist serverPortFileName
-    if exfile
-     then readServerPortPid >>= return . fst
-     else do debugMessage 2 "Waiting for server start..."
-             sleep 1
-             waitForServerPort serverPortFileName
-
 --------------------------------------------------------------------------
--- Get terminalCommand from Config file
-getTerminalCommand :: IO String
-getTerminalCommand = do
-  properties <- getProperties
-  let tcmd = lookup "terminalCommand" properties
-  return (maybe "" id tcmd)
-
--- Get the fixpoint computation method from Config file
-getFPMethod :: IO String
-getFPMethod =
-  getProperties >>= return . maybe "simple" id . lookup "fixpoint"
-
--- Get the option to analyze also the prelude from Config file
-getWithPrelude :: IO String
-getWithPrelude =
-  getProperties >>= return . maybe "yes" id . lookup "prelude"
-
--- timeout for network message passing: -1 is wait time infinity
-waitTime :: Int
-waitTime = -1
-
--- Default number of workers (if the number is not found in the
--- configuration file).
-defaultWorkers :: Int
-defaultWorkers=0
-
---- Gets the default load path from the property file (added at the end
---- of CURRYPATH).
-getDefaultPath :: IO String
-getDefaultPath = do
-  currypath <- getEnv "CURRYPATH"
-  properties <- getProperties
-  let proppath = lookup "path" properties
-  return $ case proppath of
-    Just value -> if all isSpace value then currypath else
-                  if null currypath then value else currypath++':':value
-    Nothing -> currypath
-
--- number of worker threads running at the same time
-numberOfWorkers :: IO Int
-numberOfWorkers = do
-  properties <- getProperties
-  let number = lookup "numberOfWorkers" properties
-  case number of
-    Just value -> do
-      case readInt value of
-        [(int,_)] -> return int
-        _         -> return defaultWorkers
-    Nothing -> return defaultWorkers

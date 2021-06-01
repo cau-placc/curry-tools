@@ -7,10 +7,6 @@
    "dependencies": {
        "base" : ">= 3.0.0, < 4.0.0"
    },
-   "compilerCompatibility": {
-       "pakcs": ">= 3.0.0, < 4.0.0",
-       "kics2": ">= 3.0.0, < 4.0.0"
-   },
    "exportedModules": ["Boxes"],
    "source": {
        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/boxes.git",

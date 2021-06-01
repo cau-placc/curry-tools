@@ -39,6 +39,9 @@ Currently, this package contains the following modules:
 * `FlatCurry.Goodies`: This library provides selector operations, test and
   update operations as well as some useful auxiliary operations
   for FlatCurry data terms.
+* `FlatCurry.Normalize`: This module contains operations to transform
+  FlatCurry entities into some normalized form so that they can be easier
+  compared for equivalence.
 * `FlatCurry.Pretty`: This library provides pretty-printers for
   FlatCurry modules and all substructures (e.g., expressions).
 * `FlatCurry.Read`: This library defines operations to read FlatCurry programs

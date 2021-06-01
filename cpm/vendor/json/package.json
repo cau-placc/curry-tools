@@ -8,13 +8,9 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "dependencies": {
+        "base"     : ">= 3.0.0, < 4.0.0",
         "det-parse": ">= 3.0.0, < 4.0.0",
-        "wl-pprint": ">= 3.0.0, < 4.0.0",
-        "base"     : ">= 3.0.0, < 4.0.0"
-    },
-    "compilerCompatibility": {
-        "pakcs": ">= 3.0.0, < 4.0.0",
-        "kics2": ">= 3.0.0, < 4.0.0"
+        "wl-pprint": ">= 3.0.0, < 4.0.0"
     },
     "exportedModules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"],
     "testsuite": [

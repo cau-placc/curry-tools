@@ -2,7 +2,7 @@
 --- This module defines a datatype to represent the analysis information.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2019
+--- @version April 2021
 -----------------------------------------------------------------------
 
 module Analysis.ProgInfo
@@ -13,15 +13,15 @@ module Analysis.ProgInfo
   , readAnalysisFiles, readAnalysisPublicFile, writeAnalysisFiles
   ) where
 
-import Prelude hiding (empty, lookup)
-import System.Directory     (removeFile)
-import System.FilePath      ((<.>))
+import Prelude hiding   ( empty, lookup )
+import System.Directory ( removeFile )
+import System.FilePath  ( (<.>) )
 
 import Data.Map
 import FlatCurry.Types
 import XML
 
-import Analysis.Logging (debugMessage)
+import Analysis.Logging ( DLevel, debugMessage )
 
 --- Type to represent analysis information.
 --- The first component are public declarations, the second the private ones.
@@ -86,16 +86,16 @@ equalProgInfo (ProgInfo pi1p pi1v) (ProgInfo pi2p pi2v) =
    pi1p == pi2p && pi1v == pi2v
 
 --- Writes a ProgInfo into a file.
-writeAnalysisFiles :: Show a => String -> ProgInfo a -> IO ()
-writeAnalysisFiles basefname (ProgInfo pub priv) = do
-  debugMessage 3 $ "Writing analysis files '"++basefname++"'..."
+writeAnalysisFiles :: Show a => DLevel -> String -> ProgInfo a -> IO ()
+writeAnalysisFiles dl basefname (ProgInfo pub priv) = do
+  debugMessage dl 3 $ "Writing analysis files '"++basefname++"'..."
   writeFile (basefname <.> "priv") (show priv)
   writeFile (basefname <.> "pub")  (show pub)
 
 --- Reads a ProgInfo from the analysis files where the base file name is given.
-readAnalysisFiles :: Read a => String -> IO (ProgInfo a)
-readAnalysisFiles basefname = do
-  debugMessage 3 $ "Reading analysis files '"++basefname++"'..."
+readAnalysisFiles :: Read a => DLevel -> String -> IO (ProgInfo a)
+readAnalysisFiles dl basefname = do
+  debugMessage dl 3 $ "Reading analysis files '"++basefname++"'..."
   let pubcontfile  = basefname <.> "pub"
       privcontfile = basefname <.> "priv"
   pubcont  <- readFile pubcontfile
@@ -110,9 +110,9 @@ readAnalysisFiles basefname = do
            ioError err)
 
 --- Reads the public ProgInfo from the public analysis file.
-readAnalysisPublicFile :: Read a => String -> IO (ProgInfo a)
-readAnalysisPublicFile fname = do
-  debugMessage 3 $ "Reading public analysis file '"++fname++"'..."
+readAnalysisPublicFile :: Read a => DLevel -> String -> IO (ProgInfo a)
+readAnalysisPublicFile dl fname = do
+  debugMessage dl 3 $ "Reading public analysis file '"++fname++"'..."
   fcont <- readFile fname
   let pinfo = ProgInfo (read fcont) empty
   catch (return $!! pinfo)

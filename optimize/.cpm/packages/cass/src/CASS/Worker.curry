@@ -2,10 +2,10 @@
 --- Implementation of a worker client to analyze a module
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2021
+--- @version April 2021
 ------------------------------------------------------------------------
 
-module CASS.Worker(main, startWorker) where
+module CASS.Worker ( startWorker ) where
 
 import System.IO            ( Handle, hClose, hFlush, hWaitForInput
                             , hPutStrLn, hGetLine )
@@ -14,47 +14,42 @@ import System.Environment   ( getArgs, setEnv )
 import Analysis.Logging     ( debugMessage )
 import Network.Socket       ( connectToSocket )
 
-import CASS.Configuration   ( waitTime, getDefaultPath )
+import CASS.Configuration   ( CConfig, debugLevel, waitTime, getDefaultPath )
 import CASS.Registry        ( lookupRegAnaWorker )
 import CASS.ServerFunctions ( WorkerMessage(..) )
 
-main :: IO ()
-main = do
-  args <- getArgs
-  if length args /= 2
-   then error "Analysis worker program started with illegal arguments"
-   else startWorker (head args) (read (args!!1))
-
-startWorker :: String -> Int -> IO ()
-startWorker host port = do
-  debugMessage 2 ("start analysis worker on port " ++ show port)
-  getDefaultPath >>= setEnv "CURRYPATH"
+startWorker :: CConfig -> String -> Int -> IO ()
+startWorker cconfig host port = do
+  debugMessage dl 2 ("start analysis worker on port " ++ show port)
+  getDefaultPath cconfig >>= setEnv "CURRYPATH"
   handle <- connectToSocket host port
-  worker handle
+  worker cconfig handle
+ where dl = debugLevel cconfig
 
 -- communication loop
-worker :: Handle -> IO ()
-worker handle = do
+worker :: CConfig -> Handle -> IO ()
+worker cconfig handle = do
   gotInput <- hWaitForInput handle waitTime
   if gotInput
     then do
        input <- hGetLine handle
-       debugMessage 3 ("input: "++input)
+       debugMessage dl 3 ("input: "++input)
        case read input of
          Task ananame moduleName -> do
-           debugMessage 1 ("Start task: "++ananame++" for "++moduleName)
+           debugMessage dl 1 ("Start task: "++ananame++" for "++moduleName)
            -- Run the analysis worker for the given analysis and module:
-           (lookupRegAnaWorker ananame) [moduleName]
-           debugMessage 1 ("Finished task: "++ananame++" for "++moduleName)
-           debugMessage 3 ("Output: "++input)
+           (lookupRegAnaWorker ananame) cconfig [moduleName]
+           debugMessage dl 1 ("Finished task: "++ananame++" for "++moduleName)
+           debugMessage dl 3 ("Output: "++input)
            hPutStrLn handle input
            hFlush handle
-           worker handle
+           worker cconfig handle
          ChangePath path -> do
            setEnv "CURRYPATH" path
-           worker handle
+           worker cconfig handle
          StopWorker -> do
-           debugMessage 2 "Stop worker"
+           debugMessage dl 2 "Stop worker"
            hClose handle
            return ()
     else return ()
+ where dl = debugLevel cconfig

@@ -39,55 +39,57 @@ newProgInfoStoreRef = newIORef []
 -----------------------------------------------------------------------
 --- Analyze a list of modules (in the given order) with a given analysis.
 --- The analysis results are stored in the corresponding analysis result files.
-analysisClient :: (Eq a, Show a, Read a) => Analysis a -> [String] -> IO ()
-analysisClient analysis modnames = do
+analysisClient :: (Eq a, Show a, Read a) =>
+                  Analysis a -> CConfig -> [String] -> IO ()
+analysisClient analysis cconfig modnames = do
   store <- newIORef []
-  fpmethod <- getFPMethod
-  mapM_ (analysisClientWithStore store analysis fpmethod) modnames
+  let fpmethod = fixpointMethod cconfig
+  mapM_ (analysisClientWithStore cconfig store analysis fpmethod) modnames
 
 analysisClientWithStore :: (Eq a, Show a, Read a)
-                        => IORef (ProgInfoStore a) -> Analysis a -> String
-                        -> String -> IO ()
-analysisClientWithStore store analysis fpmethod moduleName = do
-  prog        <- readNewestFlatCurry moduleName
-  withprelude <- getWithPrelude
+                        => CConfig -> IORef (ProgInfoStore a) -> Analysis a
+                        -> String -> String -> IO ()
+analysisClientWithStore cconfig store analysis fpmethod moduleName = do
+  prog <- readNewestFlatCurry moduleName
   let progimports = progImports prog
-      importList  = if withprelude=="no" then filter (/="Prelude") progimports
-                                         else progimports
+      importList  = if withPrelude cconfig
+                      then progimports
+                      else filter (/="Prelude") progimports
       ananame     = analysisName analysis
   importInfos <-
     if isSimpleAnalysis analysis
-    then return emptyProgInfo
-    else getInterfaceInfosWS store (analysisName analysis) importList
-  debugString 1 $ "Analysis time for " ++ ananame ++ "/" ++ moduleName ++ ": "
+      then return emptyProgInfo
+      else getInterfaceInfosWS cconfig store (analysisName analysis) importList
+  debugString dl 1 $
+    "Analysis time for " ++ ananame ++ "/" ++ moduleName ++ ": "
   starttime <- getCPUTime
   startvals <- getStartValues analysis prog
   result <-
      if isCombinedAnalysis analysis
-     then execCombinedAnalysis analysis prog importInfos
-                                startvals moduleName fpmethod
-     else runAnalysis analysis prog importInfos startvals fpmethod
-  storeAnalysisResult ananame moduleName result
+       then execCombinedAnalysis cconfig analysis prog importInfos
+                                 startvals moduleName fpmethod
+       else runAnalysis cconfig analysis prog importInfos startvals fpmethod
+  storeAnalysisResult dl ananame moduleName result
   stoptime <- getCPUTime
-  debugMessage 1 $ show (stoptime-starttime) ++ " msecs"
+  debugMessage dl 1 $ show (stoptime - starttime) ++ " msecs"
   loadinfos <- readIORef store
   writeIORef store ((moduleName,publicProgInfo result):loadinfos)
-
+ where dl = debugLevel cconfig
 
 -- Loads analysis results for a list of modules where already read results
 -- are stored in an IORef.
-getInterfaceInfosWS :: Read a => IORef (ProgInfoStore a) -> String -> [String]
-                    -> IO (ProgInfo a)
-getInterfaceInfosWS _ _ [] = return emptyProgInfo
-getInterfaceInfosWS store anaName (mod:mods) = do
+getInterfaceInfosWS :: Read a => CConfig -> IORef (ProgInfoStore a) -> String
+                    -> [String] -> IO (ProgInfo a)
+getInterfaceInfosWS _  _     _       []         = return emptyProgInfo
+getInterfaceInfosWS cc store anaName (mod:mods) = do
   loadinfos <- readIORef store
   modInfo <- maybe (loadAndStoreAnalysis loadinfos) return
                    (Prelude.lookup mod loadinfos)
-  modsInfo <- getInterfaceInfosWS store anaName mods
+  modsInfo <- getInterfaceInfosWS cc store anaName mods
   return (combineProgInfo modInfo modsInfo)
  where
   loadAndStoreAnalysis loadinfos = do
-    info <- loadPublicAnalysis anaName mod
+    info <- loadPublicAnalysis (debugLevel cc) anaName mod
     writeIORef store ((mod,info):loadinfos)
     return info
 
@@ -152,35 +154,36 @@ updateValue (key1,newValue) ((key2,value2):list) =
 
 -----------------------------------------------------------------------
 execCombinedAnalysis ::
-  (Eq a, Read a) => Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
+  (Eq a, Read a) => CConfig -> Analysis a -> Prog -> ProgInfo a -> [(QName,a)]
                  -> String -> String -> IO (ProgInfo a)
-execCombinedAnalysis analysis prog importInfos startvals moduleName fpmethod =
+execCombinedAnalysis cc analysis prog importInfos startvals moduleName
+                     fpmethod =
  case analysis of
   CombinedSimpleFuncAnalysis _ ananame _ runWithBaseAna -> do
     anaFunc <- runWithBaseAna moduleName
-    runAnalysis (SimpleFuncAnalysis ananame anaFunc)
+    runAnalysis cc (SimpleFuncAnalysis ananame anaFunc)
                 prog importInfos startvals fpmethod
   CombinedSimpleTypeAnalysis _ ananame _ runWithBaseAna -> do
     anaFunc <- runWithBaseAna moduleName
-    runAnalysis (SimpleTypeAnalysis ananame anaFunc)
+    runAnalysis cc (SimpleTypeAnalysis ananame anaFunc)
                 prog importInfos startvals fpmethod
   CombinedDependencyFuncAnalysis _ ananame _ startval runWithBaseAna -> do
     anaFunc <- runWithBaseAna moduleName
-    runAnalysis (DependencyFuncAnalysis ananame startval anaFunc)
+    runAnalysis cc (DependencyFuncAnalysis ananame startval anaFunc)
                 prog importInfos startvals fpmethod
   CombinedDependencyTypeAnalysis _ ananame _ startval runWithBaseAna -> do
     anaFunc <- runWithBaseAna moduleName
-    runAnalysis (DependencyTypeAnalysis ananame startval anaFunc)
+    runAnalysis cc (DependencyTypeAnalysis ananame startval anaFunc)
                 prog importInfos startvals fpmethod
   _ -> error "Internal error in WorkerFunctions.execCombinedAnalysis"
 
 -----------------------------------------------------------------------
 --- Run an analysis but load default values (e.g., for external operations)
 --- before and do not analyse the operations or types for these defaults.
-runAnalysis :: (Eq a, Read a) => Analysis a -> Prog -> ProgInfo a
+runAnalysis :: (Eq a, Read a) => CConfig -> Analysis a -> Prog -> ProgInfo a
             -> [(QName,a)] -> String -> IO (ProgInfo a)
-runAnalysis analysis prog importInfos startvals fpmethod = do
-  deflts <- loadDefaultAnalysisValues (analysisName analysis) (progName prog)
+runAnalysis cconfig analysis prog importInfos startvals fpmethod = do
+  deflts <- loadDefaultAnalysisValues dl (analysisName analysis) (progName prog)
   let defaultFuncs =
         updProgFuncs (filter (\fd -> funcName fd `elem`    map fst deflts)) prog
       definedFuncs =
@@ -203,16 +206,17 @@ runAnalysis analysis prog importInfos startvals fpmethod = do
          (definedTypes, typeInfos2ProgInfo defaultTypes deflts)
         SimpleModuleAnalysis _ _ ->
          if Prelude.null deflts then (definedFuncs, emptyProgInfo)
-                        else error defaultNotEmptyError
+                                else error defaultNotEmptyError
         DependencyModuleAnalysis _ _ ->
          if Prelude.null deflts then (definedFuncs, emptyProgInfo)
-                        else error defaultNotEmptyError
+                                else error defaultNotEmptyError
         _ -> error "Internal error in WorkerFunctions.runAnalysis"
   let result = executeAnalysis analysis progWithoutDefaults
                                (combineProgInfo importInfos defaultproginfo)
                                startvals fpmethod
   return $ combineProgInfo defaultproginfo result
  where
+  dl = debugLevel cconfig
   defaultNotEmptyError = "Default analysis information for analysis '" ++
                          analysisName analysis ++ "' and module '" ++
                          progName prog ++ "' not empty!"
