@@ -81,11 +81,11 @@ orderOfFuncTypeArity orderMap functype arity =
   then
    case functype of
      FuncType _ _   -> HO
-     TVar (-42)     -> HO
+     TVar tv        -> if tv == (-42) then HO else FO
      TCons x (y:ys) -> hoOr (orderOfFuncTypeArity orderMap y 0)
                             (orderOfFuncTypeArity orderMap (TCons x ys) 0)
-     TCons tc [] -> fromMaybe FO (lookupProgInfo tc orderMap)
-     _ -> FO
+     TCons tc []    -> fromMaybe FO (lookupProgInfo tc orderMap)
+     _              -> FO
   else let (FuncType x y) = functype
         in hoOr (orderOfFuncTypeArity orderMap x 0)
                 (orderOfFuncTypeArity orderMap y (arity-1))

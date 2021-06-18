@@ -102,7 +102,7 @@ extraVarInExpr (Typed e _) = extraVarInExpr e
 -- It assigns to a function a flag which indicates whether is function
 -- might be non-deterministic, i.e., might reduce in different ways
 -- for given ground arguments.
--- If the non-determinism is encapsulated (set functions, AllSolutions),
+-- If the non-determinism is encapsulated (set functions, getAllValues),
 -- it is classified as deterministic.
 
 --- Data type to represent determinism information.
@@ -144,12 +144,17 @@ nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
       -- its called ND functions are not relevant:
       if null es then False -- this case should not occur
                  else any callsNDOp (tail es)
-    | mn == "AllSolutions" -- && fn `elem`== "getAllValues"
+    | isStrongEncapsOp qf
     = -- non-determinism of argument is encapsulated so that
       -- its called ND functions are not relevant:
       False
     | otherwise
     = maybe False (==NDet) (lookup qf calledFuncs) || any callsNDOp es
+
+-- Does the operation ensures the strong encapsulation of its argument?
+isStrongEncapsOp :: QName -> Bool
+isStrongEncapsOp (mn,_) =
+  mn `elem` ["Control.AllSolutions", "Control.AllValues"]
 
 ------------------------------------------------------------------------------
 --- Data type to represent information about non-deterministic dependencies.
@@ -236,7 +241,7 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
       -- its called ND functions are not relevant:
       if null es then [] -- this case should not occur
                  else concatMap calledNDFuncs (tail es)
-    | mn == "AllSolutions" -- && fn `elem`== "getAllValues"
+    | isStrongEncapsOp qf
     = -- non-determinism of argument is encapsulated so that
       -- its called ND functions are not relevant:
       []
