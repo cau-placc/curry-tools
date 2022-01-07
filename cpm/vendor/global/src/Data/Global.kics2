@@ -1,0 +1,94 @@
+import Data.IORef
+import System.IO
+import System.IO.Unsafe
+
+-- Implementation of Globals in Curry. We use Haskell's IORefs for temporary
+-- globals where Curry values are stored in the IORefs
+data C_GlobalT a
+     = Choice_C_GlobalT Cover ID (C_GlobalT a) (C_GlobalT a)
+     | Choices_C_GlobalT Cover ID ([C_GlobalT a])
+     | Fail_C_GlobalT Cover FailInfo
+     | Guard_C_GlobalT Cover Constraints (C_GlobalT a)
+     | C_GlobalT (IORef a)    -- a temporary global with a given (unique) name
+
+instance Show (C_GlobalT a) where
+  show = error "ERROR: no show for GlobalT"
+
+instance Read (C_GlobalT a) where
+  readsPrec = error "ERROR: no read for GlobalT"
+
+instance NonDet (C_GlobalT a) where
+  choiceCons = Choice_C_GlobalT
+  choicesCons = Choices_C_GlobalT
+  failCons = Fail_C_GlobalT
+  guardCons = Guard_C_GlobalT
+  try (Choice_C_GlobalT cd i x y) = tryChoice cd i x y
+  try (Choices_C_GlobalT cd i xs) = tryChoices cd i xs
+  try (Fail_C_GlobalT cd info) = Fail cd info
+  try (Guard_C_GlobalT cd c e) = Guard cd c e
+  try x = Val x
+  match choiceF _ _ _ _ _ (Choice_C_GlobalT cd i x y) = choiceF cd i x y
+  match _ narrF _ _ _ _   (Choices_C_GlobalT cd i@(NarrowedID _ _) xs)
+   = narrF cd i xs
+  match _ _ freeF _ _ _   (Choices_C_GlobalT cd i@(FreeID _ _) xs)
+   = freeF cd i xs
+  match _ _ _ failF _ _   (Fail_C_GlobalT cd info) = failF cd info
+  match _ _ _ _ guardF _  (Guard_C_GlobalT cd c e) = guardF cd c e
+  match _ _ _ _ _ valF    x                    = valF x
+
+instance Generable (C_GlobalT a) where
+  generate _ _ = error "ERROR: no generator for Global"
+
+instance NormalForm (C_GlobalT a) where
+  ($!!) cont g@(C_GlobalT _)             cd cs = cont g cd cs
+  ($!!) cont (Choice_C_GlobalT d i g1 g2) cd cs = nfChoice cont d i g1 g2 cd cs
+  ($!!) cont (Choices_C_GlobalT d i gs)   cd cs = nfChoices cont d i gs cd cs
+  ($!!) cont (Guard_C_GlobalT d c g)      cd cs = guardCons d c ((cont $!! g) cd
+                                                    $! (addCs c cs))
+  ($!!) _    (Fail_C_GlobalT d info)      _  _  = failCons d info
+  ($##) cont g@(C_GlobalT _)             cd cs = cont g cd cs
+  ($##) cont (Choice_C_GlobalT d i g1 g2) cd cs = gnfChoice cont d i g1 g2 cd cs
+  ($##) cont (Choices_C_GlobalT d i gs)   cd cs = gnfChoices cont d i gs cd cs
+  ($##) cont (Guard_C_GlobalT d c g)      cd cs = guardCons d c ((cont $## g) cd
+                                                    $!  (addCs c cs))
+  ($##) _    (Fail_C_GlobalT cd info)     _  _  = failCons cd info
+  searchNF _ cont g@(C_GlobalT _)              = cont g
+
+instance Unifiable (C_GlobalT a) where
+  (=.=) (C_GlobalT f1) (C_GlobalT f2) _ _
+    | f1 == f2  = C_True
+  (=.=) _ _ cd _ = Fail_C_Bool cd defFailInfo
+  (=.<=) = (=.=)
+  bind cd i (Choice_C_GlobalT d j l r)
+    = [(ConstraintChoice d j (bind cd i l) (bind cd i r))]
+  bind cd i (Choices_C_GlobalT d j@(FreeID _ _) xs) = bindOrNarrow cd i d j xs
+  bind cd i (Choices_C_GlobalT d j@(NarrowedID _ _) xs)
+    = [(ConstraintChoices d j (map (bind cd i) xs))]
+  bind _ _ (Fail_C_GlobalT _ info) = [Unsolvable info]
+  bind cd i (Guard_C_GlobalT _ cs e) = (getConstrList cs) ++ (bind cd i e)
+  lazyBind cd i (Choice_C_GlobalT d j l r)
+    = [(ConstraintChoice d j (lazyBind cd i l) (lazyBind cd i r))]
+  lazyBind cd i (Choices_C_GlobalT d j@(FreeID _ _) xs) = lazyBindOrNarrow cd i d j xs
+  lazyBind cd i (Choices_C_GlobalT d j@(NarrowedID _ _) xs)
+    = [(ConstraintChoices d j (map (lazyBind cd i) xs))]
+  lazyBind _ _ (Fail_C_GlobalT cd info) = [Unsolvable info]
+  lazyBind cd i (Guard_C_GlobalT _ cs e)
+    = (getConstrList cs) ++ [(i :=: (LazyBind (lazyBind cd i e)))]
+
+instance Curry_Prelude.Curry a => Curry_Prelude.Curry (C_GlobalT a)
+
+
+external_d_C_prim_globalT :: Curry_Prelude.Curry a =>
+     Curry_Prelude.OP_List Curry_Prelude.C_Char -> a -> Cover -> ConstStore
+                    -> C_GlobalT a
+external_d_C_prim_globalT _ val _ _ = ref `seq` (C_GlobalT ref)
+  where ref = unsafePerformIO (newIORef val)
+
+external_d_C_prim_readGlobalT :: Curry_Prelude.Curry a => C_GlobalT a -> Cover -> ConstStore
+                             -> Curry_Prelude.C_IO a
+external_d_C_prim_readGlobalT (C_GlobalT ref) _ _ = fromIO (readIORef ref)
+
+external_d_C_prim_writeGlobalT :: Curry_Prelude.Curry a => C_GlobalT a -> a
+                               -> Cover -> ConstStore -> Curry_Prelude.C_IO Curry_Prelude.OP_Unit
+external_d_C_prim_writeGlobalT (C_GlobalT ref) val _ _ =
+  toCurry (writeIORef ref val)

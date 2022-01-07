@@ -3,13 +3,13 @@
 --- used in Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version December 2020
+--- @version October 2021
 ------------------------------------------------------------------------------
 
 module System.CurryPath
   ( ModuleIdent
   , splitProgramName, splitValidProgramName, isValidModuleName
-  , runModuleAction
+  , runModuleAction, runModuleActionQuiet
   , splitModuleFileName, splitModuleIdentifiers  , joinModuleIdentifiers
   , stripCurrySuffix
   , ModulePath, modNameToPath
@@ -32,8 +32,7 @@ import System.Environment  ( getEnv )
 import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , dropFileName, joinPath, splitDirectories
                            , splitExtension, splitFileName, splitPath
-                           , splitSearchPath
-                           , takeFileName, takeExtension, dropExtension
+                           , splitSearchPath, takeExtension, dropExtension
                            )
 
 import Data.PropertyFile   ( getPropertyFromFile )
@@ -89,16 +88,38 @@ isValidModuleName = all isModId . split (=='.')
 
 --- Executes an I/O action, which is parameterized over a module name,
 --- for a given program name. If the program name is prefixed by a directory,
---- switch to this directory before executing the action.
+--- switch to this directory before executing the action, report
+--- this switch on stdout, and switch back after the action.
 --- A possible suffix like `.curry` or `.lcurry` is dropped from the
 --- module name passed to the action.
 --- An error is raised if the module name is not valid.
 runModuleAction :: (String -> IO a) -> String -> IO a
-runModuleAction modaction progname = do
+runModuleAction = runModuleActionWith False
+
+--- Executes an I/O action, which is parameterized over a module name,
+--- for a given program name. If the program name is prefixed by a directory,
+--- switch to this directory before executing the action and switch
+--- back after the action.
+--- A possible suffix like `.curry` or `.lcurry` is dropped from the
+--- module name passed to the action.
+--- An error is raised if the module name is not valid.
+runModuleActionQuiet :: (String -> IO a) -> String -> IO a
+runModuleActionQuiet = runModuleActionWith True
+
+--- Executes an I/O action, which is parameterized over a module name,
+--- for a given program name. If the program name is prefixed by a directory,
+--- switch to this directory before executing the action and switch
+--- back after the action.
+--- If the first argument is `True`, the directy switch is reported on stdout.
+--- A possible suffix like `.curry` or `.lcurry` is dropped from the
+--- module name passed to the action.
+--- An error is raised if the module name is not valid.
+runModuleActionWith :: Bool -> (String -> IO a) -> String -> IO a
+runModuleActionWith quiet modaction progname = do
   let (progdir,mname) = splitValidProgramName progname
   curdir <- getCurrentDirectory
   unless (progdir == ".") $ do
-    putStrLn $ "Switching to directory '" ++ progdir ++ "'..."
+    unless quiet $ putStrLn $ "Switching to directory '" ++ progdir ++ "'..."
     setCurrentDirectory progdir
   result <- modaction mname
   unless (progdir == ".") $ setCurrentDirectory curdir
@@ -216,7 +237,8 @@ getLoadPathForModule modpath = do
            (if null currypath then [] else splitSearchPath currypath) ++
            llib ++ sysLibPath
 
---- Returns a directory name and the actual source file name for a module
+--- Returns a directory name and the actual source file name for
+--- a given module name (where a possible `curry` suffix is stripped off)
 --- by looking up the module source in the current load path.
 --- If the module is hierarchical, the directory is the top directory
 --- of the hierarchy.
@@ -226,26 +248,32 @@ lookupModuleSourceInLoadPath modpath = do
   loadpath <- getLoadPathForModule modpath
   lookupModuleSource loadpath modpath
 
---- Returns a directory name and the actual source file name for a module
+--- Returns a directory name and the actual source file name for
+--- a given module name (where a possible `curry` suffix is stripped off)
 --- by looking up the module source in the load path provided as the
 --- first argument.
 --- If the module is hierarchical, the directory is the top directory
 --- of the hierarchy.
 --- Returns Nothing if there is no corresponding source file.
 lookupModuleSource :: [String] -> String -> IO (Maybe (String,String))
-lookupModuleSource loadpath mod = lookupSourceInPath loadpath
+lookupModuleSource loadpath mods =
+  if isValidModuleName mod
+    then lookupSourceInPath loadpath
+    else return Nothing
  where
-  fn       = takeFileName mod
-  fnlcurry = modNameToPath fn ++ ".lcurry"
-  fncurry  = modNameToPath fn ++ ".curry"
+  mod      = stripCurrySuffix mods
+  fnlcurry = modNameToPath mod ++ ".lcurry"
+  fncurry  = modNameToPath mod ++ ".curry"
 
   lookupSourceInPath [] = return Nothing
   lookupSourceInPath (dir:dirs) = do
     lcurryExists <- doesFileExist (dir </> fnlcurry)
-    if lcurryExists then return (Just (dir, dir </> fnlcurry)) else do
-     curryExists <- doesFileExist (dir </> fncurry)
-     if curryExists then return (Just (dir, dir </> fncurry))
-                    else lookupSourceInPath dirs
+    if lcurryExists
+      then return (Just (dir, dir </> fnlcurry))
+      else do
+        curryExists <- doesFileExist (dir </> fncurry)
+        if curryExists then return (Just (dir, dir </> fncurry))
+                       else lookupSourceInPath dirs
 
 ------------------------------------------------------------------------------
 --- The name of the file specifying resource configuration parameters of the

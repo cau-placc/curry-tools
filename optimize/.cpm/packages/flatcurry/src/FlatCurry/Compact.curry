@@ -5,14 +5,14 @@
 --- a set of main functions.
 ---
 --- @author Michael Hanus, Carsten Heine
---- @version December 2018
+--- @version September 2021
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
-
-module FlatCurry.Compact(generateCompactFlatCurryFile,computeCompactFlatCurry,
-                         Option(..),RequiredSpec,requires,alwaysRequired,
-                         defaultRequired) where
+module FlatCurry.Compact
+  ( generateCompactFlatCurryFile, computeCompactFlatCurry
+  , Option(..), RequiredSpec, requires, alwaysRequired
+  , defaultRequired
+  ) where
 
 import FlatCurry.Types
 import FlatCurry.Files
@@ -48,15 +48,16 @@ data Option =
   deriving Eq
 
 isMainOption :: Option -> Bool
-isMainOption o = case o of
-                   Main _ -> True
-                   _      -> False
+isMainOption o =
+  case o of Main _ -> True
+            _      -> False
 
 getMainFuncFromOptions :: [Option] -> String
 getMainFuncFromOptions (o:os) =
-   case o of
-     Main f -> f
-     _      -> getMainFuncFromOptions os
+   case o of Main f -> f
+             _      -> getMainFuncFromOptions os
+getMainFuncFromOptions [] =
+  error "FlatCurry.Compact.getMainFuncFromOptions: option missing"
 
 getRequiredFromOptions :: [Option] -> [RequiredSpec]
 getRequiredFromOptions options = concat [ fs | Required fs <- options ]
@@ -168,8 +169,8 @@ computeCompactFlatCurry orgoptions progname =
     putStr "CompactFlat: Searching relevant functions in module "
     prog <- readCurrentFlatCurry progname
     resultprog <- makeCompactFlatCurry prog options
-    putStrLn ("CompactFlat: Number of functions after optimization: " ++
-              show (length (moduleFuns resultprog)))
+    putStrLn $ "CompactFlat: Number of functions after optimization: " ++
+               show (length (moduleFuns resultprog))
     return resultprog
 
 --- Create the optimized program.
@@ -437,6 +438,7 @@ allTypesOfTExpr (FuncType texp1 texp2) =
    union (allTypesOfTExpr texp1) (allTypesOfTExpr texp2)
 allTypesOfTExpr (TCons tcons args) =
   union [tcons] (unionMap allTypesOfTExpr args)
+allTypesOfTExpr (ForallType _ texp) = allTypesOfTExpr texp
 
 unionMap :: Eq b => (a -> [b]) -> [a] -> [b]
 unionMap f = foldr union [] . map f
@@ -534,31 +536,36 @@ mergePrimSpecIntoModule trans (Prog name imps types funcs ops) =
 
 mergePrimSpecIntoFunc :: [(QName,QName)] -> FuncDecl -> [FuncDecl]
 mergePrimSpecIntoFunc trans (Func name ar vis tp rule) =
- let fname = lookup name trans in
- if fname==Nothing
- then [Func name ar vis tp rule]
- else let Just (lib,entry) = fname
-       in if null entry
-          then []
-          else [Func name ar vis tp (External (lib++' ':entry))]
-
+ maybe [Func name ar vis tp rule]
+       (\ (lib,entry) ->
+          if null entry
+            then []
+            else [Func name ar vis tp (External (lib++' ':entry))])
+       (lookup name trans)
 
 readPrimSpec :: String -> String -> IO [(QName,QName)]
 readPrimSpec mod xmlfilename = do
   existsXml <- doesFileExist xmlfilename
   if existsXml
-   then do --putStrLn $ "Reading specification '"++xmlfilename++"'..."
-           xmldoc <- readXmlFile xmlfilename
-           return (xml2primtrans mod xmldoc)
-   else return []
+    then do --putStrLn $ "Reading specification '" ++ xmlfilename ++ "'..."
+            xmldoc <- readXmlFile xmlfilename
+            return (xml2primtrans mod xmldoc)
+    else return []
 
 xml2primtrans :: String -> XmlExp -> [(QName,QName)]
-xml2primtrans mod (XElem "primitives" [] primitives) = map xml2prim primitives
+xml2primtrans mod xe = case xe of
+  XElem "primitives" [] primitives -> map xml2prim primitives
+  _ -> error $ "FlatCurry.Compact.xml2primtrans: unexpected document:\n" ++
+               showXmlDoc xe
  where
-   xml2prim (XElem "primitive" (("name",fname):_)
-                   [XElem "library" [] xlib, XElem "entry" [] xfun]) =
-       ((mod,fname),(textOfXml xlib,textOfXml xfun))
-   xml2prim (XElem "ignore" (("name",fname):_) []) = ((mod,fname),("",""))
-
+   xml2prim xelem = case xelem of
+     XElem "primitive" (("name",fname):_) [XElem "entry" [] xfun] ->
+       ((mod,fname), (mod, textOfXml xfun))
+     XElem "primitive" (("name",fname):_) -- old format
+           [XElem "library" [] xlib, XElem "entry" [] xfun] ->
+       ((mod,fname), (textOfXml xlib,textOfXml xfun))
+     XElem "ignore" (("name",fname):_) [] -> ((mod,fname), ("",""))
+     _ -> error $ "FlatCurry.Compact.xml2prim: unexpected document\n" ++
+                  showXmlDoc xelem
 
 -------------------------------------------------------------------------------

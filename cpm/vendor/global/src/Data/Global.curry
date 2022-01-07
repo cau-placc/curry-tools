@@ -35,6 +35,7 @@
 --- @author Michael Hanus
 --- @version June 2021
 ------------------------------------------------------------------------------
+{-# LANGUAGE CPP #-}
 
 module Data.Global
   ( GlobalT, globalT, readGlobalT, writeGlobalT
@@ -54,7 +55,11 @@ import System.Process   ( system )
 -- in a specific way, i.e., as constants rather than operations.
 
 --- The abstract type of a temporary global entity.
+#ifdef __KICS2__
+external data GlobalT _
+#else
 data GlobalT _ = GlobalT String
+#endif
 
 --- `globalT` is used only to declare a temporary global value
 --- as a top-level entity. It should not be used elsewhere.

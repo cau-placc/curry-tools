@@ -1,8 +1,10 @@
 ------------------------------------------------------------------------------
 --- This library supports meta-programming, i.e., the manipulation of
 --- Curry programs in Curry. For this purpose, the library contains
---- definitions of data types for the representation of
---- so-called FlatCurry programs.
+--- definitions of data types for the representation of Curry programs
+--- in the FlatCurry format where all function definitions are
+--- at the top-level and pattern matching is replaced by case expressions
+--- and disjunctions.
 ---
 --- @author Michael Hanus
 --- @version July 2016

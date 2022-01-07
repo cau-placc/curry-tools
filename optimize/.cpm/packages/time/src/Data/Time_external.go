@@ -1,18 +1,18 @@
-package DataTime
+package Data_DOT_Time
 
 import "gocurry"
 import "time"
 
-func ExternalData_Time_getClockTime(task *gocurry.Task){
+func ExternalDataDot_TimeDot_getClockTime(task *gocurry.Task){
     root := task.GetControl()
     
     // save unix time as IntLit
     cTime := gocurry.IntLitCreate(root.NewNode(), int(time.Now().Unix()))
     
-    gocurry.IOCreate(root, DataTime__CREATE_CTime(root.NewNode(), cTime))
+    gocurry.IOCreate(root, Data_DOT_Time__CREATE_CTime(root.NewNode(), cTime))
 }
 
-func ExternalData_Time_prim_toCalendarTime(task *gocurry.Task){
+func ExternalDataDot_TimeDot_primUs_toCalendarTime(task *gocurry.Task){
     root := task.GetControl()
     x1 := root.GetChild(0)
     
@@ -33,10 +33,10 @@ func ExternalData_Time_prim_toCalendarTime(task *gocurry.Task){
     zone := gocurry.IntLitCreate(root.NewNode(), timeZone)
     
     // return CalendarTime
-    gocurry.IOCreate(root, DataTime__CREATE_CalendarTime(root.NewNode(), year, month, day, hour, minute, second, zone))
+    gocurry.IOCreate(root, Data_DOT_Time__CREATE_CalendarTime(root.NewNode(), year, month, day, hour, minute, second, zone))
 }
 
-func ExternalData_Time_prim_toUTCTime(task *gocurry.Task){
+func ExternalDataDot_TimeDot_primUs_toUTCTime(task *gocurry.Task){
     root := task.GetControl()
     x1 := root.GetChild(0)
     
@@ -57,10 +57,10 @@ func ExternalData_Time_prim_toUTCTime(task *gocurry.Task){
     zone := gocurry.IntLitCreate(root.NewNode(), timeZone)
     
     // return CalendarTime
-    DataTime__CREATE_CalendarTime(root, year, month, day, hour, minute, second, zone)
+    Data_DOT_Time__CREATE_CalendarTime(root, year, month, day, hour, minute, second, zone)
 }
 
-func ExternalData_Time_prim_toClockTime(task *gocurry.Task){
+func ExternalDataDot_TimeDot_primUs_toClockTime(task *gocurry.Task){
     root := task.GetControl()
     x1 := root.GetChild(0)
     
@@ -80,5 +80,5 @@ func ExternalData_Time_prim_toClockTime(task *gocurry.Task){
     cTime := gocurry.IntLitCreate(root.NewNode(), int(calTime.Unix()))
     
     //return result
-    DataTime__CREATE_CTime(root, cTime)
+    Data_DOT_Time__CREATE_CTime(root, cTime)
 }
