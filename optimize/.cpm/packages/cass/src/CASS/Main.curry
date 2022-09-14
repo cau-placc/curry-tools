@@ -82,9 +82,13 @@ checkAnalysisName aname = case matchedNames of
   (_:_:_)  -> error $ "Analysis name `"++ aname ++ "' not unique " ++ tryCmt ++
                       ":\nPossible names are: " ++ unwords matchedNames
  where
-  matchedNames = filter (isPrefixOf (map toLower aname) . map toLower)
-                        registeredAnalysisNames
-  tryCmt       = "(try `-h' for help)"
+  laname        = map toLower aname
+  exactMatches  = filter ((== laname) . map toLower)
+                         registeredAnalysisNames
+  prefixMatches = filter (isPrefixOf laname . map toLower)
+                         registeredAnalysisNames
+  matchedNames  = if null exactMatches then prefixMatches else exactMatches
+  tryCmt        = "(try `-h' for help)"
 
 --------------------------------------------------------------------------
 -- Representation of command line options.

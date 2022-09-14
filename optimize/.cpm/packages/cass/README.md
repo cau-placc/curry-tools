@@ -55,4 +55,13 @@ Description of some Curry modules:
    dependency analyses, see option `fixpoint` in the configuration file,
    must be inserted here).
 
-Contact: [Michael Hanus](http://www.informatik.uni-kiel.de/~mh)
+Examples:
+---------
+
+The Curry program `UsingCass` in directory `examples` contains
+a simple program demonstrating the use of analysis results
+computed by CASS inside another Curry program.
+
+-----------------------------------------------------------------------
+
+Contact: [Michael Hanus](https://www.informatik.uni-kiel.de/~mh)

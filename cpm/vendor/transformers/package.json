@@ -16,7 +16,9 @@
      "Control.Monad.Trans.Cont",
      "Control.Monad.Trans.Except",
      "Control.Monad.Trans.Maybe",
-     "Control.Monad.Trans.State" ],
+     "Control.Monad.Trans.Reader",
+     "Control.Monad.Trans.State",
+     "Control.Monad.Trans.Writer" ],
   "source": {
       "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/transformers.git",
       "tag": "$version"

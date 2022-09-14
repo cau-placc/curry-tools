@@ -14,6 +14,9 @@ instance Monad m => Functor (StateT s m) where
 
 instance Monad m => Applicative (StateT s m) where
   pure x = StateT $ \ s -> return (x, s)
+  mf <*> m = StateT $ \ s -> do (f, s') <- runStateT mf s
+                                (x, s'') <- runStateT m s'
+                                return (f x, s'')
 
 instance Monad m => Monad (StateT s m) where
   return = pure
