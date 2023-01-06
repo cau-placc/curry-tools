@@ -70,7 +70,7 @@ cpmBanner = unlines [bannerLine, bannerText, bannerLine]
  where
   bannerText =
     "Curry Package Manager <curry-lang.org/tools/cpm> (Version " ++
-    packageVersion ++ ", 20/07/2022)"
+    packageVersion ++ ", 06/01/2023)"
   bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -1016,6 +1016,8 @@ execWithCurryPath o _ currypath = do
   liftIOEL $ unsetEnv "CURRYPATH"
   liftIOEL $ unless (ecode==0) (exitWith ecode)
 
+-- Compute the load path of the package as a string where
+-- the directory of the `base` package is removed.
 computePackageLoadPath :: Config -> String -> ErrorLogger String
 computePackageLoadPath cfg pkgdir = do
   logDebug "Computing load path for package..."
@@ -1257,7 +1259,8 @@ saveCurryPathToCache cfg pkgdir path = do
             (unlines [path, showCompilerVersion cfg, compilerBaseVersion cfg])
 
 --- Gets CURRYPATH of the given package (either from the local cache file
---- in the package dir or compute it).
+--- in the package dir or compute it). The directory of the `base` package
+--- is removed from the path since it is part of the Curry system libraries.
 getCurryLoadPath :: Config -> String -> ErrorLogger String
 getCurryLoadPath cfg pkgdir = do
   mbp <- loadCurryPathFromCache cfg pkgdir
