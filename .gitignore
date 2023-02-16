@@ -6,7 +6,7 @@ cpm/src/CPM/ConfigPackage.curry
 *.agdai
 *_cache
 *_CACHE
-optimize/.cpm/packages/cass-*
+optimize/.cpm/packages/cass-3*
 optimize/.cpm/packages/cass-analysis-*
 optimize/.cpm/packages/containers-*
 optimize/.cpm/packages/csv-*
