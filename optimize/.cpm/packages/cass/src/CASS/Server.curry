@@ -5,13 +5,14 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version April 2021
+--- @version February 2023
 --------------------------------------------------------------------------
 
 module CASS.Server
-  (mainServer, initializeAnalysisSystem, analyzeModuleAndPrint
+  ( mainServer, initializeAnalysisSystem
+  , analyzeModuleAndPrint, analyzeModuleAsText
   , analyzeModuleForBrowser, analyzeFunctionForBrowser
-  , analyzeGeneric, analyzePublic, analyzeInterface
+  , analyzeGeneric, analyzeGenericWithDebug, analyzePublic, analyzeInterface
   ) where
 
 import Numeric            ( readNat )
@@ -75,14 +76,27 @@ mainServer cconfig mbport = do
 
 --- Run the analysis system and print the analysis results in standard textual
 --- representation.
---- If the third argument is true, all operations are shown,
+--- If the fourth argument is true, all operations are shown,
 --- otherwise only the interface operations.
---- The fourth argument is a flag indicating whether the
+--- The fifth argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
 analyzeModuleAndPrint :: CConfig -> String -> String -> Bool -> Bool -> IO ()
 analyzeModuleAndPrint cconfig ananame mname optall enforce =
   analyzeProgram cconfig ananame enforce AText mname >>=
   putStrLn . formatResult mname "Text" Nothing (not optall)
+
+--- Run the analysis system and show the analysis results in standard textual
+--- representation.
+--- If the fourth argument is true, all operations are shown,
+--- otherwise only the interface operations.
+--- The fifth argument is a flag indicating whether the
+--- (re-)analysis should be enforced.
+--- Note that, before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
+analyzeModuleAsText :: CConfig -> String -> String -> Bool -> Bool -> IO String
+analyzeModuleAsText cconfig ananame mname optall enforce =
+  analyzeProgram cconfig ananame enforce AText mname >>=
+             return . formatResult mname "Text" Nothing (not optall)
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- The options are read from the rc file.
@@ -113,7 +127,7 @@ analyzeProgram cconfig ananame enforce aoutformat progname =
   runModuleAction (analyzeModule cconfig ananame enforce aoutformat) progname
 
 --- Analyze a complete module for a given analysis result format.
---- The second argument is a flag indicating whether the
+--- The third argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
 analyzeModule :: CConfig -> String -> Bool -> AOutFormat -> String
               -> IO (Either (ProgInfo String) String)
@@ -139,8 +153,21 @@ analyzeModule cconfig ananame enforce aoutformat modname = do
 --- Returns either the analysis information or an error message.
 analyzeGeneric :: (Read a, Show a)
                => Analysis a -> String -> IO (Either (ProgInfo a) String)
-analyzeGeneric analysis moduleName = do
-  cconfig <- readRCFile
+analyzeGeneric = analyzeGenericWithDebug Nothing
+
+--- Start the analysis system with a particular analysis and
+--- an optional debug level (first argument).
+--- The analysis must be a registered one if workers are used.
+--- If it is a combined analysis, the base analysis must be also
+--- a registered one. The options are read from the rc file.
+--- Returns either the analysis information or an error message.
+analyzeGenericWithDebug :: (Read a, Show a) =>
+  Maybe Int -> Analysis a -> String -> IO (Either (ProgInfo a) String)
+analyzeGenericWithDebug debuglevel analysis moduleName = do
+  configrc <- readRCFile
+  let cconfig = maybe configrc
+                      (\dl -> setDebugLevel dl configrc)
+                      debuglevel
   let (mdir,mname) = splitFileName moduleName
   getDefaultPath cconfig >>= setEnv "CURRYPATH"
   curdir <- getCurrentDirectory

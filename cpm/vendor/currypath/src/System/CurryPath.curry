@@ -3,7 +3,7 @@
 --- used in Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version October 2021
+--- @version January 2023
 ------------------------------------------------------------------------------
 
 module System.CurryPath
@@ -16,7 +16,7 @@ module System.CurryPath
   , currySubdir, inCurrySubdir, inCurrySubdirModule, addCurrySubdir
   , sysLibPath, getLoadPathForModule
   , lookupModuleSourceInLoadPath, lookupModuleSource
-  , curryrcFileName
+  , curryModulesInDirectory, curryrcFileName
   ) where
 
 import Control.Monad       ( unless )
@@ -26,7 +26,8 @@ import Curry.Compiler.Distribution
                            , curryCompilerRevisionVersion
                            , installDir )
 import Data.List           ( init, intercalate, last, split )
-import System.Directory    ( doesFileExist, getCurrentDirectory
+import System.Directory    ( doesDirectoryExist, doesFileExist
+                           , getCurrentDirectory, getDirectoryContents
                            , getHomeDirectory, setCurrentDirectory )
 import System.Environment  ( getEnv )
 import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
@@ -274,6 +275,26 @@ lookupModuleSource loadpath mods =
         curryExists <- doesFileExist (dir </> fncurry)
         if curryExists then return (Just (dir, dir </> fncurry))
                        else lookupSourceInPath dirs
+
+------------------------------------------------------------------------------
+--- Gets the names of all Curry modules contained in a given directory.
+--- Modules in subdirectories are returned as hierarchical module names.
+curryModulesInDirectory :: String -> IO [String]
+curryModulesInDirectory dir = getModules "" dir
+ where
+  getModules p d = do
+    exdir <- doesDirectoryExist d
+    entries <- if exdir then getDirectoryContents d else return []
+    let realentries = filter (\f -> length f >= 1 && head f /= '.') entries
+        newprogs    = filter isCurryFile realentries
+    subdirs <- mapM (\e -> do b <- doesDirectoryExist (d </> e)
+                              return $ if b then [e] else [])
+                    realentries
+               >>= return . concat
+    subdirentries <- mapM (\s -> getModules (p ++ s ++ ".") (d </> s)) subdirs
+    return $ map ((p ++) . stripCurrySuffix) newprogs ++ concat subdirentries
+
+  isCurryFile f = takeExtension f `elem` [".curry",".lcurry"]
 
 ------------------------------------------------------------------------------
 --- The name of the file specifying resource configuration parameters of the

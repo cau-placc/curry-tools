@@ -9,17 +9,12 @@ import Prelude hiding   ( (<|>) )
 import Data.Char        ( toLower )
 import Data.List        ( splitOn )
 
+import Language.Curry.Resources ( curryPackagesDocURL )
 import OptParse
 
 import CPM.Helpers      ( stripEnclosing )
 import CPM.Package      ( Version, readVersion )
 import CPM.ErrorLogger
-
-------------------------------------------------------------------------------
--- The default URL prefix where all repository packages are documented.
--- Can be overwritten with a doc command option.
-defaultBaseDocURL :: String
-defaultBaseDocURL = "https://www-ps.informatik.uni-kiel.de/~cpm/DOC"
 
 ------------------------------------------------------------------------------
 
@@ -68,12 +63,14 @@ data ConfigOptions = ConfigOptions
 
 data DepsOptions = DepsOptions
   { depsPath  :: Bool  -- show CURRYPATH only?
+  , depsFull  :: Bool  -- show full tree in textual representation?
   , depsGraph :: Bool  -- show dot graph instead of tree?
   , depsView  :: Bool  -- view dot graph with `dotviewcommand` of rc file?
   }
 
 data CheckOptions = CheckOptions
-  { chkInfo    :: Bool
+  { chkInfo    :: Bool  -- show more information
+  , chkSource  :: Bool  -- check source code with CurryCheck?
   }
 
 data CheckoutOptions = CheckoutOptions
@@ -182,12 +179,12 @@ configOpts s = case optCommand s of
 depsOpts :: Options -> DepsOptions
 depsOpts s = case optCommand s of
   Deps opts -> opts
-  _         -> DepsOptions False False False
+  _         -> DepsOptions False False False False
 
 checkOpts :: Options -> CheckOptions
 checkOpts s = case optCommand s of
   Check opts -> opts
-  _          -> CheckOptions False
+  _          -> CheckOptions False True
 
 checkoutOpts :: Options -> CheckoutOptions
 checkoutOpts s = case optCommand s of
@@ -257,7 +254,8 @@ execOpts s = case optCommand s of
 docOpts :: Options -> DocOptions
 docOpts s = case optCommand s of
   Doc opts -> opts
-  _        -> DocOptions Nothing Nothing True True True False defaultBaseDocURL
+  _        -> DocOptions Nothing Nothing True True True False
+                         curryPackagesDocURL
 
 testOpts :: Options -> TestOptions
 testOpts s = case optCommand s of
@@ -343,7 +341,7 @@ optionParser allargs = optParser
            (help "Load package spec and start Curry with correct dependencies.")
                  (\a -> Right $ a { optCommand = Compiler (execOpts a) })
                  curryArgs
-        <|> command "deps" (help "Calculate dependencies")
+        <|> command "deps" (help "Calculate and show dependencies")
                            (\a -> Right $ a { optCommand = Deps (depsOpts a) })
                            depsArgs
         <|> command "diff"
@@ -412,25 +410,37 @@ optionParser allargs = optParser
              <> help "Show value of CURRYPATH only"
              <> optional )
     <.> flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
-                                              { depsGraph = True } })
+                                                  { depsFull = True } })
+             (  short "f"
+             <> long "full"
+             <> help "Show full dependency tree (with repeated packages)"
+             <> optional )
+    <.> flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
+                                                  { depsGraph = True } })
              (  short "g"
              <> long "graph"
              <> help "Show dependencies as dot graph (in Graphviz format)"
              <> optional )
     <.> flag (\a -> Right $ a { optCommand = Deps (depsOpts a)
-                                              { depsView = True } })
+                                                  { depsView = True } })
              (  short "v"
              <> long "viewgraph"
              <> help "View dependency graph (with 'dotviewcommand')"
              <> optional )
 
   checkArgs =
-     flag (\a -> Right $ a { optCommand = Check (checkOpts a)
-                                                { chkInfo = True } })
-          (  short "i"
-          <> long "info"
-          <> help "Show more information about the package"
-          <> optional )
+        flag (\a -> Right $ a { optCommand = Check (checkOpts a)
+                                                   { chkInfo = True } })
+             (  short "i"
+             <> long "info"
+             <> help "Show more information about the package"
+             <> optional )
+    <.> flag (\a -> Right $ a { optCommand = Check (checkOpts a)
+                                                   { chkSource = False } })
+             (  short "n"
+             <> long "nosource"
+             <> help "Do not check modules sources"
+             <> optional )
 
   checkoutArgs cmd =
         arg (\s a -> Right $ a { optCommand = cmd (checkoutOpts a)
@@ -624,7 +634,7 @@ optionParser allargs = optParser
           (  long "url"
           <> short "u"
           <> help ("The URL prefix where all repository packages are " ++
-                   "documented. Default: " ++ defaultBaseDocURL)
+                   "documented. Default: " ++ curryPackagesDocURL)
           <> optional )
 
   testArgs =

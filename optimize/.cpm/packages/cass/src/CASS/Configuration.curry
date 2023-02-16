@@ -6,12 +6,12 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version April 2021
+--- @version February 2023
 --------------------------------------------------------------------------
 
 module CASS.Configuration
  ( systemBanner, baseDir, docDir, executableName
- , CConfig, debugLevel, setDebugLevel
+ , CConfig, defaultCConfig, debugLevel, setDebugLevel
  , getServerAddress, readRCFile, updateProperty
  , fixpointMethod, withPrelude
  , storeServerPortNumber, removeServerPortNumber
@@ -35,7 +35,7 @@ import Data.PropertyFile  ( readPropertyFile, updatePropertyFile )
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 16/04/2021 for " ++
+                   packageVersion ++ " of 03/02/2023 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
@@ -74,6 +74,9 @@ defaultWorkers = 0
 --- Configuration info used during execution of CASS.
 --- It contains the properties from the rc file and the current debug level.
 data CConfig = CConfig [(String,String)] DLevel
+
+defaultCConfig :: CConfig
+defaultCConfig = CConfig [] Quiet
 
 --- Returns the debug level from the current configuration.
 debugLevel :: CConfig -> DLevel

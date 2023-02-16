@@ -38,6 +38,7 @@ import Analysis.Deterministic
 import Analysis.Groundness
 import Analysis.HigherOrder
 import Analysis.Indeterministic
+import Analysis.NondetOps
 import Analysis.RequiredValue
 import qualified Analysis.RequiredValues as RVS
 import Analysis.RightLinearity
@@ -71,6 +72,7 @@ registeredAnalysis =
   ,cassAnalysis "Indeterministic operations" indetAnalysis    showIndet
   ,cassAnalysis "Demanded arguments"         demandAnalysis   showDemand
   ,cassAnalysis "Groundness"                 groundAnalysis   showGround
+  ,cassAnalysis "Non-deterministic operations" nondetOperations showNondet
   ,cassAnalysis "Non-determinism effects"    ndEffectAnalysis showNDEffect
   ,cassAnalysis "Higher-order datatypes"     hiOrdType        showOrder
   ,cassAnalysis "Higher-order constructors"  hiOrdCons        showOrder

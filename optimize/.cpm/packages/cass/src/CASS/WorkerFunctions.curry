@@ -60,8 +60,8 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
     if isSimpleAnalysis analysis
       then return emptyProgInfo
       else getInterfaceInfosWS cconfig store (analysisName analysis) importList
-  debugString dl 1 $
-    "Analysis time for " ++ ananame ++ "/" ++ moduleName ++ ": "
+  let anaModName = ananame ++ "/" ++ moduleName
+  debugMessage dl 1 $ "Starting analysis for " ++ anaModName ++ "..."
   starttime <- getCPUTime
   startvals <- getStartValues analysis prog
   result <-
@@ -71,7 +71,8 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
        else runAnalysis cconfig analysis prog importInfos startvals fpmethod
   storeAnalysisResult dl ananame moduleName result
   stoptime <- getCPUTime
-  debugMessage dl 1 $ show (stoptime - starttime) ++ " msecs"
+  debugMessage dl 1 $ "Analysis time for " ++ anaModName ++ ": " ++
+                      show (stoptime - starttime) ++ " msecs"
   loadinfos <- readIORef store
   writeIORef store ((moduleName,publicProgInfo result):loadinfos)
  where dl = debugLevel cconfig

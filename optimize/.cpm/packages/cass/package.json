@@ -20,6 +20,7 @@
         "redblacktree"  : ">= 3.0.0, < 4.0.0",
         "scc"           : ">= 3.0.0, < 4.0.0",
         "socket"        : ">= 3.0.0, < 4.0.0",
+        "time"          : ">= 3.0.0, < 4.0.0",
         "xml"           : ">= 3.0.0, < 4.0.0"
     },
     "configModule": "CASS.PackageConfig",

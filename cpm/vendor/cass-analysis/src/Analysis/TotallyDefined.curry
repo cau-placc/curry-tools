@@ -6,19 +6,22 @@
 --- constructor terms
 ---
 --- @author Johannes Koj, Michael Hanus
---- @version April 2018
+--- @version June 2022
 -----------------------------------------------------------------------------
 
 module Analysis.TotallyDefined
-  ( siblingCons, showSibling, Completeness(..), showComplete, showTotally
-  , patCompAnalysis, totalAnalysis
+  ( siblingCons, showSibling
+  , siblingConsAndDecl, showSiblingAndDecl
+  , Completeness(..), showComplete, showTotally, showTotalFunc
+  , patCompAnalysis, totalAnalysis, totalFuncAnalysis
   ) where
 
 import Analysis.ProgInfo
 import Analysis.Types
+import Analysis.Deterministic ( isNondetDefined )
 import FlatCurry.Types
 import FlatCurry.Goodies
-import Data.List         (delete)
+import Data.List              ( delete )
 
 -----------------------------------------------------------------------
 --- An analysis to compute the sibling constructors (belonging to the
@@ -39,6 +42,29 @@ siblingCons = simpleConstructorAnalysis "SiblingCons" consNamesArOfType
   consNamesArOfType _ (TypeSyn _ _ _ _) = []
   consNamesArOfType _ (TypeNew _ _ _ _) = []
 
+-----------------------------------------------------------------------
+--- An analysis to compute the sibling constructors (belonging to the
+--- same data type) and type declaration for a data constructor.
+
+--- Shows the result of the sibling constructors analysis, i.e.,
+--- shows a tuple of a type declaration and a list of constructor
+--- names together with their arities.
+showSiblingAndDecl :: AOutFormat -> (TypeDecl, [(QName,Int)]) -> String
+showSiblingAndDecl _ = show
+
+siblingConsAndDecl :: Analysis (TypeDecl, [(QName,Int)])
+siblingConsAndDecl =
+  simpleConstructorAnalysis "SiblingConsAndDecl" consNamesArOfType
+ where
+  -- get all constructor names and arities of a datatype declaration
+  consNamesArOfType cdecl t = (t, cs)
+    where cs = case t of
+            Type _ _ _ consDecls ->
+              map (\cd -> (consName cd, consArity cd))
+                (filter (\cd -> consName cd /= consName cdecl) consDecls)
+            TypeSyn _ _ _ _ -> []
+            TypeNew _ _ _ _ -> []
+
 ------------------------------------------------------------------------------
 -- The completeness analysis assigns to an operation a flag indicating
 -- whether this operation is completely defined on its input types,
@@ -51,24 +77,6 @@ data Completeness =
    | InCompleteOr   -- incompletely defined in each branch of an "Or"
  deriving (Eq, Show, Read)
 
---- A function is totally defined if it is pattern complete and depends
---- only on totally defined functions.
-totalAnalysis :: Analysis Bool
-totalAnalysis =
-  combinedDependencyFuncAnalysis "Total" patCompAnalysis True analyseTotally
-
-analyseTotally :: ProgInfo Completeness -> FuncDecl -> [(QName,Bool)] -> Bool
-analyseTotally pcinfo fdecl calledfuncs =
-  (maybe False (\c->c==Complete) (lookupProgInfo (funcName fdecl) pcinfo))
-  && all snd calledfuncs
-
--- Shows the result of the totally-defined analysis.
-showTotally :: AOutFormat -> Bool -> String
-showTotally AText True  = "totally defined"
-showTotally ANote True  = ""
-showTotally _     False = "partially defined"
-
-------------------------------------------------------------------------------
 --- Pattern completeness analysis
 patCompAnalysis :: Analysis Completeness
 patCompAnalysis =
@@ -137,3 +145,49 @@ combineAndResults Complete     InCompleteOr = InCompleteOr
 combineAndResults InCompleteOr Complete     = InCompleteOr
 combineAndResults InCompleteOr InComplete   = InComplete
 combineAndResults InCompleteOr InCompleteOr = InCompleteOr
+
+------------------------------------------------------------------------------
+--- An operation is totally defined if it is pattern complete and depends
+--- only on totally defined functions.
+totalAnalysis :: Analysis Bool
+totalAnalysis =
+  combinedDependencyFuncAnalysis "Total" patCompAnalysis True analyseTotally
+
+analyseTotally :: ProgInfo Completeness -> FuncDecl -> [(QName,Bool)] -> Bool
+analyseTotally pcinfo fdecl calledfuncs =
+  (maybe False (== Complete) (lookupProgInfo (funcName fdecl) pcinfo))
+  && all snd calledfuncs
+
+-- Shows the result of the totally-defined analysis.
+showTotally :: AOutFormat -> Bool -> String
+showTotally AText True  = "totally defined"
+showTotally ANote True  = ""
+showTotally _     False = "partially defined"
+
+------------------------------------------------------------------------------
+-- The completeness analysis assigns to an operation a flag indicating
+-- whether this operation is completely defined on its input types,
+-- i.e., reducible for all ground data terms.
+
+-- Shows the result of the totally-defined function analysis.
+showTotalFunc :: AOutFormat -> Bool -> String
+showTotalFunc AText True  = "totally and functionally defined"
+showTotalFunc ANote True  = ""
+showTotalFunc AText False = "partially or non-deterministically defined"
+showTotalFunc ANote False = "partial/non-deterministic"
+
+--- An operation is totally and functionally defined if it is totally defined
+--- and functionally defined (see `Analysis.Deterministic`).
+--- Thus, it is defined without any pattern failures in the sense
+--- of purely functional programming.
+totalFuncAnalysis :: Analysis Bool
+totalFuncAnalysis =
+  combinedDependencyFuncAnalysis "TotalFunc" totalAnalysis True analyseTotalFunc
+
+analyseTotalFunc :: ProgInfo Bool -> FuncDecl -> [(QName,Bool)] -> Bool
+analyseTotalFunc pcinfo fdecl calledfuncs =
+  (maybe False id (lookupProgInfo (funcName fdecl) pcinfo))
+  && not (isNondetDefined fdecl)
+  && all snd calledfuncs
+
+------------------------------------------------------------------------------

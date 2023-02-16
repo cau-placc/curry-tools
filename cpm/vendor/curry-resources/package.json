@@ -1,0 +1,17 @@
+{
+    "name": "curry-resources",
+    "version": "1.0.0",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Library defining various URLs related to Curry",
+    "category": [ "Documentation" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base" : ">= 1.0.0"
+    },
+    "exportedModules": [ "Language.Curry.Resources" ],
+    "source": {
+        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/curry-resources.git",
+        "tag": "$version"
+    }
+}

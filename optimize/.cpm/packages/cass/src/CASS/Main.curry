@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version April 2021
+--- @version January 2023
 --------------------------------------------------------------------------
 
 module CASS.Main ( main ) where
@@ -130,7 +130,7 @@ options =
             "verbosity/debug level:\n0: quiet (same as `-q')\n1: show worker activity, e.g., timings\n2: show server communication\n3: ...and show read/store information\n4: ...show also stored/computed analysis data\n(default: see debugLevel in ~/.curryanalysisrc)"
   , Option "a" ["all"]
            (NoArg (\opts -> opts { optAll = True }))
-           "show-analysis results for all operations\n(i.e., also for non-exported operations)"
+           "show analysis results for all operations\n(i.e., also for non-exported operations)"
   , Option "r" ["reanalyze"]
            (NoArg (\opts -> opts { optReAna = True }))
            "force re-analysis \n(i.e., ignore old analysis information)"

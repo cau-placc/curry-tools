@@ -5,12 +5,12 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version June 2022
 ------------------------------------------------------------------------------
 
 module Analysis.Deterministic
   ( overlapAnalysis, showOverlap, showDet
-  , functionalAnalysis, showFunctional
+  , functionalAnalysis, showFunctional, isNondetDefined
   , Deterministic(..),nondetAnalysis
   , showNonDetDeps, nondetDepAnalysis, nondetDepAllAnalysis
   ) where
@@ -71,7 +71,7 @@ showFunctional ANote False = ""
 -- it depends only on functionally defined operations.
 isFuncDefined :: FuncDecl -> [(QName,Bool)] -> Bool
 isFuncDefined func calledFuncs =
-  not (isNondetDefined func) && and (map snd calledFuncs)
+  not (isNondetDefined func) && all snd calledFuncs
 
 -- Is a function f defined to be potentially non-deterministic, i.e.,
 -- is the rule non-deterministic or does it contain extra variables?

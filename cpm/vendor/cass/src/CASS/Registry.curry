@@ -38,6 +38,7 @@ import Analysis.Deterministic
 import Analysis.Groundness
 import Analysis.HigherOrder
 import Analysis.Indeterministic
+import Analysis.NondetOps
 import Analysis.RequiredValue
 import qualified Analysis.RequiredValues as RVS
 import Analysis.RightLinearity
@@ -66,9 +67,12 @@ registeredAnalysis =
   ,cassAnalysis "Solution completeness"      solcompAnalysis  showSolComplete
   ,cassAnalysis "Pattern completeness"       patCompAnalysis  showComplete
   ,cassAnalysis "Totally defined operations" totalAnalysis    showTotally
+  ,cassAnalysis "Totally and functionally defined operations"
+                                             totalFuncAnalysis showTotalFunc
   ,cassAnalysis "Indeterministic operations" indetAnalysis    showIndet
   ,cassAnalysis "Demanded arguments"         demandAnalysis   showDemand
   ,cassAnalysis "Groundness"                 groundAnalysis   showGround
+  ,cassAnalysis "Non-deterministic operations" nondetOperations showNondet
   ,cassAnalysis "Non-determinism effects"    ndEffectAnalysis showNDEffect
   ,cassAnalysis "Higher-order datatypes"     hiOrdType        showOrder
   ,cassAnalysis "Higher-order constructors"  hiOrdCons        showOrder
@@ -76,6 +80,8 @@ registeredAnalysis =
   ,cassAnalysis "Productive operations"    productivityAnalysis showProductivity
   ,cassAnalysis "Sensible types"             sensibleType     showSensible
   ,cassAnalysis "Sibling constructors"       siblingCons      showSibling
+  ,cassAnalysis "Sibling constructors with corresponding type declaration"
+                                             siblingConsAndDecl showSiblingAndDecl
   ,cassAnalysis "Required value"             reqValueAnalysis showAFType
   ,cassAnalysis "Required value sets"        RVS.reqValueAnalysis RVS.showAFType
   ,cassAnalysis "Residuating operations"     residuationAnalysis showResInfo

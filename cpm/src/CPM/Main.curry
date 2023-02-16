@@ -9,7 +9,7 @@ import Curry.Compiler.Distribution ( installDir )
 import Control.Monad       ( when, unless )
 import Data.List           ( (\\), delete, groupBy, intercalate, isPrefixOf
                            , isSuffixOf, nub, split, sortBy )
-import Data.Maybe          ( isJust )
+import Data.Maybe          ( isJust, isNothing )
 import Data.Time           ( calendarTimeToString, getLocalTime )
 import FlatCurry.Files     ( readFlatCurryInt )
 import FlatCurry.Goodies   ( progImports )
@@ -28,12 +28,14 @@ import System.IOExts       ( evalCmd, readCompleteFile )
 import Boxes               ( table, render )
 import Data.GraphViz       ( showDotGraph, viewDotGraph )
 import OptParse            ( parse, printUsage )
-import System.CurryPath    ( addCurrySubdir, stripCurrySuffix, sysLibPath )
+import System.CurryPath    ( addCurrySubdir, curryModulesInDirectory
+                           , stripCurrySuffix, sysLibPath )
 import System.Path         ( fileInPath, getFileInPath )
 import Text.CSV            ( readCSV, showCSV, writeCSVFile )
 
 import CPM.ErrorLogger
-import CPM.Executables     ( checkRequiredExecutables )
+import CPM.Executables     ( checkRequiredExecutables, getCurryCheck
+                           , getCurryDoc )
 import CPM.FileUtil ( cleanTempDir, getRealPath, ifFileExists, joinSearchPath
                     , safeReadFile, whenFileExists, writeFileIfNotExists
                     , inDirectory, recreateDirectory
@@ -50,7 +52,7 @@ import CPM.PackageCache.Global ( acquireAndInstallPackage
 import CPM.Package
 import CPM.Package.Helpers ( cleanPackage, getLocalPackageSpec
                            , renderPackageInfo, installPackageSourceTo )
-import CPM.Resolution ( isCompatibleToCompiler, showResult
+import CPM.Resolution ( isCompatibleToCompiler, showResult, showShortResult
                       , dependenciesAsGraph )
 import CPM.Repository ( Repository, findVersion, listPackages
                       , findAllVersions, findLatestVersion
@@ -64,20 +66,26 @@ import CPM.Diff.API as APIDiff
 import qualified CPM.Diff.Behavior as BDiff
 import CPM.ConfigPackage        ( packagePath, packageVersion )
 
+-- Date of current version:
+cpmDate :: String
+cpmDate = "15/02/2023"
+
 -- Banner of this tool:
 cpmBanner :: String
 cpmBanner = unlines [bannerLine, bannerText, bannerLine]
  where
   bannerText =
     "Curry Package Manager <curry-lang.org/tools/cpm> (Version " ++
-    packageVersion ++ ", 06/01/2023)"
+    packageVersion ++ ", " ++ cpmDate ++ ")"
   bannerLine = take (length bannerText) (repeat '-')
+
 
 main :: IO ()
 main = do
   args <- getArgs
   if "-V" `elem` args || "--version" `elem` args
-    then putStrLn $ "Curry Package Manager, version " ++ packageVersion
+    then putStrLn $ "Curry Package Manager, version " ++ packageVersion ++
+                    " (" ++ cpmDate ++ ")"
     else do
       parseResult <- return $ parse (unwords args) (optionParser args) "cypm"
       case parseResult of
@@ -182,8 +190,8 @@ depsCmd opts cfg = do
         maybe printFailure
               (liftIOEL . viewDotGraph)
               (dependenciesAsGraph result)
-      unless (depsGraph opts || depsView opts) $
-        putStrLnELM (showResult result)
+      unless (depsGraph opts || depsView opts) $ putStrLnELM $
+        (if depsFull opts then showResult else showShortResult) result
  where
   printFailure = putStrLnELM "Dependency resolution failed."
 
@@ -228,14 +236,26 @@ checkCmd chkopts cfg = do
   pkg     <- loadPackageSpec specDir
   checkCompiler cfg pkg
   aspecdir  <- liftIOEL $ getRealPath specDir
-  checkCompleteDependencies chkopts cfg aspecdir pkg
+  srcmods <- checkCompleteDependencies chkopts cfg aspecdir pkg
+  getCurryCheck cfg >>= maybe
+    (logInfo
+       "Executable 'curry-check' not found! No further source code checks...")
+    (\cc -> do
+       lvl <- getLogLevel
+       let cmd = unwords $
+                   [cc] ++ (if levelGte Debug lvl then [] else ["-q"]) ++
+                   ["--noprop", "--nospec", "--nodet", "--noproof"] ++
+                   srcmods
+       when (chkSource chkopts) $ do
+         logInfo "Checking all source modules of package..."
+         execWithPkgDir (ExecOptions cmd) cfg aspecdir)
 
 -- Check whether the source modules of the given package imports
 -- only modules from the direct dependencies or the base libraries.
 -- Additionally, warnings about unused packages are issued.
 checkCompleteDependencies :: CheckOptions -> Config -> String -> Package
-                          -> ErrorLogger ()
-checkCompleteDependencies (CheckOptions chkinfo) cfg aspecdir pkg = do
+                          -> ErrorLogger [String]
+checkCompleteDependencies chkopts cfg aspecdir pkg = do
   let deps    = map (\ (Dependency p _) -> p) (dependencies pkg)
       pkgsdir = aspecdir </> ".cpm" </> "packages"
   -- get the complete load path for this package:
@@ -244,7 +264,7 @@ checkCompleteDependencies (CheckOptions chkinfo) cfg aspecdir pkg = do
   -- filter load path w.r.t. the packages in the dependency list:
   let dloadpath = filter (isDepsDir pkgsdir deps) aloadpath
   logDebug $ unlines ("Source and dependency directories:" : dloadpath)
-  allmods <- mapM (\d -> liftIOEL (curryModulesInDir d) >>=
+  allmods <- mapM (\d -> liftIOEL (curryModulesInDirectory d) >>=
                            return . map (\m -> (m,d)))
                   (dloadpath ++ sysLibPath)
                >>= return . concat
@@ -252,7 +272,7 @@ checkCompleteDependencies (CheckOptions chkinfo) cfg aspecdir pkg = do
   -- compute the names of all source modules:
   allsrcmods <- getSourceModulesOfPkg aspecdir pkg
   let realsrcmods = filter (isNotHierarchical allsrcmods) allsrcmods
-  when chkinfo $ logInfo $
+  when (chkInfo chkopts) $ liftIOEL $ putStrLn $
     "Package source contains " ++ show (length realsrcmods) ++
     " Curry modules:\n" ++ unwords realsrcmods
   -- check all source modules:
@@ -267,6 +287,7 @@ checkCompleteDependencies (CheckOptions chkinfo) cfg aspecdir pkg = do
   mapM_ (\p -> logInfo $ "Warning: Package dependency '" ++ p ++
                          "' not used in source code.")
         unusedpkgs
+  return realsrcmods
  where
   isDepsDir pkgsdir depsnames dir =
     not (pkgsdir `isPrefixOf` dir) ||
@@ -287,7 +308,7 @@ checkCompleteDependencies (CheckOptions chkinfo) cfg aspecdir pkg = do
   isNotHierarchical mods m = all (\n -> not (('.':n) `isSuffixOf` m)) mods
 
   checkImports allowedimports mname = do
-    logInfo $ "Checking source module: " ++ mname
+    logInfo $ "Checking interface of " ++ mname
     imps <- liftIOEL (readFlatCurryInt mname) >>= return . progImports
     logDebug $ "Imports: " ++ unwords imps
     let addimports  = imps \\ map fst allowedimports
@@ -605,7 +626,7 @@ addDependencyCmd pkgname force config = do
                            (dependencies pkgSpec)
         newpkg    = pkgSpec { dependencies = newdeps }
     if force || not depexists
-      then do liftIOEL $ writePackageSpec newpkg (pkgdir </> "package.json")
+      then do liftIOEL $ writePackageSpec newpkg (pkgdir </> packageSpecFile)
               logInfo $ "Dependency '" ++ pkgname ++ " >= " ++
                             showVersion vers ++
                             "' added to package '" ++ pkgdir ++ "'"
@@ -756,22 +777,11 @@ genDocForPrograms opts cfg docdir specDir pkg = do
  where
   apititle = "\"Package " ++ name pkg ++ "\""
 
-  getCurryDoc = do
-    mbf <- liftIOEL $ getFileInPath cdbin
-    maybe (do let cpmcurrydoc = binInstallDir cfg </> cdbin
-              cdex <- liftIOEL $ doesFileExist cpmcurrydoc
-              if cdex then return cpmcurrydoc
-                      else fail $ "Executable '" ++ cdbin ++ "' not found!"
-          )
-          return
-          mbf
-   where cdbin = "curry-doc"
-
   docModule currypath uses mod =
     runDocCmd currypath uses ["--noindexhtml", docdir, mod]
 
   runDocCmd currypath uses docparams = do
-    currydoc <- getCurryDoc
+    currydoc <- getCurryDoc cfg
     let useopts = if docGenImports opts
                     then []
                     else map (\ (d,u) -> "--use "++d++"@"++u) uses
@@ -804,7 +814,10 @@ testCmd opts cfg = do
   checkCompiler cfg pkg
   aspecDir  <- liftIOEL $ getRealPath specDir
   mainprogs <- getSourceModulesOfPkg aspecDir pkg
-  mbcc      <- if testCompile opts then return Nothing else getCurryCheck
+  mbcc      <- if testCompile opts then return Nothing
+                                   else getCurryCheck cfg
+  when (isNothing mbcc) $ logInfo $
+    "Executable 'curry-check' not found! No tests, just compiling..."
   let pkg'  = maybe (pkg { testSuite = Nothing }) (const pkg) mbcc
       tests = testSuites pkg' mainprogs
   stats <- if null tests
@@ -814,21 +827,6 @@ testCmd opts cfg = do
   unless (null (testFile opts)) $ liftIOEL $
     combineCSVStatsOfPkg (packageId pkg) (concat stats) (testFile opts)
  where
-  ccbin = "curry-check"
-
-  getCurryCheck = do
-    mbf <- liftIOEL $ getFileInPath ccbin
-    maybe (do let cpmcurrycheck = binInstallDir cfg </> ccbin
-              ccex <- liftIOEL $ doesFileExist cpmcurrycheck
-              if ccex
-                then return $ Just cpmcurrycheck
-                else do logInfo $ "Executable '" ++ ccbin ++
-                                  "' not found! No tests, just compiling..."
-                        return Nothing
-          )
-          (return . Just)
-          mbf
-
   execTest Nothing apkgdir (PackageTest dir mods _ _) = do
     logInfo $ "Compiling modules:" ++ concatMap (' ':) mods
     let cmpcmd = unwords $ [curryExec cfg] ++
@@ -903,31 +901,13 @@ combineCSVStatsOfPkg pkgid csvs outfile = do
     (header, map (uncurry (+)) (zip nums1 nums2), mods1 ++ " " ++ mods2)
 
 ------------------------------------------------------------------------------
---- Get the names of all Curry modules contained in a directory.
---- Modules in subdirectories are returned as hierarchical modules.
-curryModulesInDir :: String -> IO [String]
-curryModulesInDir dir = getModules "" dir
- where
-  getModules p d = do
-    exdir <- doesDirectoryExist d
-    entries <- if exdir then getDirectoryContents d else return []
-    let realentries = filter (\f -> length f >= 1 && head f /= '.') entries
-        newprogs    = filter isCurryFile realentries
-    subdirs <- mapM (\e -> do b <- doesDirectoryExist (d </> e)
-                              return $ if b then [e] else [])
-                    realentries
-               >>= return . concat
-    subdirentries <- mapM (\s -> getModules (p ++ s ++ ".") (d </> s)) subdirs
-    return $ map ((p ++) . stripCurrySuffix) newprogs ++ concat subdirentries
-
-  isCurryFile f = takeExtension f `elem` [".curry",".lcurry"]
-
 -- Returns the names of all Curry modules in the source dirs of an
 -- installed package.
 -- The first argument is the installation directory of the package.
 getSourceModulesOfPkg :: String -> Package -> ErrorLogger [String]
 getSourceModulesOfPkg specdir pkg =
-  mapM (liftIOEL . curryModulesInDir) (map (specdir </>) (sourceDirsOf pkg))
+  mapM (liftIOEL . curryModulesInDirectory)
+       (map (specdir </>) (sourceDirsOf pkg))
     >>= return . concat
 
 ------------------------------------------------------------------------------
@@ -1037,12 +1017,11 @@ computePackageLoadPath cfg pkgdir = do
 initCmd :: ErrorLogger ()
 initCmd = do
   pname <- liftIOEL $ (getCurrentDirectory >>= return . takeFileName)
-  let pkgSpecFile = "package.json"
-  pkgexists <- liftIOEL $ doesFileExist pkgSpecFile
+  pkgexists <- liftIOEL $ doesFileExist packageSpecFile
   if pkgexists
     then do
       logError $
-        "There is already a package specification file '" ++ pkgSpecFile ++
+        "There is already a package specification file '" ++ packageSpecFile ++
         "'.\nI cannot initialize a new package!"
       liftIOEL $ exitWith 1
     else liftIOEL $ initPackage pname $
@@ -1063,7 +1042,7 @@ initPackage pname outheader = do
                              , license         = Just "BSD-3-Clause"
                              , licenseFile     = Just "LICENSE"
                              }
-  writePackageSpec pkgSpec "package.json"
+  writePackageSpec pkgSpec packageSpecFile
   let licenseFile  = "LICENSE"
       licenseTFile = packagePath </> "templates" </> licenseFile
   whenFileExists licenseTFile $
@@ -1082,7 +1061,7 @@ initPackage pname outheader = do
   gitignore = unlines ["*~", ".cpm", ".curry"]
 
   todo =
-    [ "edit the file 'package.json':"
+    [ "edit the file '" ++ packageSpecFile ++ "':"
     , "- enter correct values for the fields 'author', 'synopsis', 'category'"
     , "- add dependencies in the field 'dependencies'"
     , "- add further fields (e.g., 'description')"
@@ -1150,7 +1129,7 @@ uploadCmd opts cfg = do
       logInfo "Uploading package to global repository..."
       -- remove package possibly existing in global package cache:
       liftIOEL $ removeDirectoryComplete (installedPackageDir cfg pkg)
-      uploadPackageSpec (instdir </> pkgid </> "package.json")
+      uploadPackageSpec (instdir </> pkgid </> packageSpecFile)
       addPackageToRepo pkgrepodir (instdir </> pkgid) pkg
       liftIOEL $ cleanTempDir
       logInfo $ "Package '" ++ pkgid ++ "' uploaded"
@@ -1161,7 +1140,7 @@ uploadCmd opts cfg = do
     logInfo $ "Create directory: " ++ pkgrepodir
     liftIOEL $ do
       createDirectoryIfMissing True pkgrepodir
-      copyFile (pkgdir </> "package.json") (pkgrepodir </> "package.json")
+      copyFile (pkgdir </> packageSpecFile) (pkgrepodir </> packageSpecFile)
     if exrepodir then updatePackageInRepositoryCache cfg pkg
                  else addPackageToRepositoryCache    cfg pkg
 
@@ -1276,7 +1255,7 @@ loadCurryPathFromCache cfg pkgdir = do
   if excache
     then do
       cftime <- liftIOEL $ getModificationTime cachefile
-      pftime <- liftIOEL $ getModificationTime (pkgdir </> "package.json")
+      pftime <- liftIOEL $ getModificationTime (pkgdir </> packageSpecFile)
       if cftime > pftime
         then do cnt <- liftIOEL $ safeReadFile cachefile
                 let ls = either (const []) lines cnt
