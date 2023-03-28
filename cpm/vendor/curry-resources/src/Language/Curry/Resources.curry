@@ -20,7 +20,7 @@ cpmHomeURL = "http://www.curry-lang.org/tools/cpm"
 --- The URL of the documentation of all published packages.
 --- It contains the overview and index of all published Curry packages.
 curryPackagesURL :: String
-curryPackagesURL = "https://cpm.informatik.uni-kiel.de/"
+curryPackagesURL = "https://cpm.curry-lang.org/"
 
 --- The base URL of the documentation of individual published packages.
 ---
