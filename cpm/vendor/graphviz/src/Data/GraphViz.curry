@@ -1,4 +1,4 @@
---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 --- A simple library for graph visualization with
 --- [Graphviz](http://www.graphviz.org/).
 --- It provides a data structure to represent graphs and operations
@@ -10,17 +10,18 @@
 --- in the rc file (e.g., `~/.pakcsrc` in case of PAKCS) should be
 --- correctly defined. Here are some reasonable settings of this field:
 --- 
----     dotviewcommand=dot -Tpdf > /tmp/dotxxx.pdf && evince /tmp/dotxxx.pdf
----     dotviewcommand=neato -Tpdf > /tmp/dotxxx.pdf && evince /tmp/dotxxx.pdf
----     dotviewcommand=circo -Tpdf > /tmp/dotxxx.pdf && evince /tmp/dotxxx.pdf
----     dotviewcommand=fdp -Tpdf > /tmp/dotxxx.pdf && evince /tmp/dotxxx.pdf
+---     dotviewcommand=dot -Tpdf > /tmp/dotxxx.pdf && xdg-open /tmp/dotxxx.pdf
+---     dotviewcommand=neato -Tpdf > /tmp/dotxxx.pdf && xdg-open /tmp/dotxxx.pdf
+---     dotviewcommand=circo -Tpdf > /tmp/dotxxx.pdf && xdg-open /tmp/dotxxx.pdf
+---     dotviewcommand=fdp -Tpdf > /tmp/dotxxx.pdf && xdg-open /tmp/dotxxx.pdf
 ---
 --- @author Michael Hanus
---- @version January 2021
---------------------------------------------------------------------------
+--- @version May 2023
+------------------------------------------------------------------------------
 
 module Data.GraphViz
-  ( DotGraph, dgraph, ugraph, Node(..), Edge(..)
+  ( DotGraph, dgraph, dgraphWithAttrs, ugraph, ugraphWithAttrs
+  , Node(..), Edge(..)
   , viewDotGraph, showDotGraph, showDotGraphWithAttrs
   , getDotViewCmd, setDotViewCmd )
  where
@@ -32,21 +33,36 @@ import Data.PropertyFile ( getPropertyFromFile, updatePropertyFile )
 import System.CurryPath  ( curryrcFileName )
 import System.IOExts     ( connectToCommand )
 
---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Data types for graphs.
 
---- A Dot graph consists of a name and a list of nodes and edges.
+--- A Dot graph consists of a name, a list of graph attributes,
+--- and lists of nodes and edges.
 --- It can be either directed (`DGraph`) or undirected (`UGraph`).
-data DotGraph = DGraph String [Node] [Edge]
-              | UGraph String [Node] [Edge]
+data DotGraph = DGraph String [(String,String)] [Node] [Edge]
+              | UGraph String [(String,String)] [Node] [Edge]
 
 --- Constructs a directed graph from a name and a list of nodes and edges.
 dgraph :: String -> [Node] -> [Edge] -> DotGraph
-dgraph name nodes edges = DGraph name nodes edges
+dgraph name nodes edges = DGraph name [] nodes edges
+
+--- Constructs a directed graph from a name, a list of attributes,
+--- and lists of nodes and edges.
+--- The attributes are graph attributes of the DOT language, e.g.,
+--- `[("ordering","out"), ("fontsize","10")]`.
+dgraphWithAttrs :: String -> [(String,String)] -> [Node] -> [Edge] -> DotGraph
+dgraphWithAttrs = DGraph
 
 --- Constructs an undirected graph from a name and a list of nodes and edges.
 ugraph :: String -> [Node] -> [Edge] -> DotGraph
-ugraph name nodes edges = UGraph name nodes edges
+ugraph name nodes edges = UGraph name [] nodes edges
+
+--- Constructs an undirected graph from a name, a list of attributes,
+--- and lists of nodes and edges.
+--- The attributes are graph attributes of the DOT language, e.g.,
+--- `[("ordering","out"), ("fontsize","10")]`.
+ugraphWithAttrs :: String -> [(String,String)] -> [Node] -> [Edge] -> DotGraph
+ugraphWithAttrs = UGraph
 
 --- A node of a dot graph consists of a name and a list of attributes
 --- for this node.
@@ -56,30 +72,38 @@ data Node = Node String [(String,String)]
 --- and a list of attributes for this edge.
 data Edge = Edge String String [(String,String)]
 
---------------------------------------------------------------------------
---- Visualize a DOT graph with the `dotviewcommand` specified in
---- the rc file of the Curry system.
-viewDotGraph :: DotGraph -> IO ()
-viewDotGraph = viewDot . showDotGraph
-
+------------------------------------------------------------------------------
 --- Shows a Dot graph as a string of the DOT language.
 showDotGraph :: DotGraph -> String
-showDotGraph g = showDotGraphWithAttrs "" g
-
---- Shows a Dot graph as a string of the DOT language.
---- The second argument contains a string of graph attributes
---- of the DOT languages, e.g., `ordering=out;'.
-showDotGraphWithAttrs :: String -> DotGraph -> String
-showDotGraphWithAttrs attrs (DGraph name nodes edges) =
+showDotGraph (DGraph name attrs nodes edges) =
   "digraph \"" ++ name ++ "\"" ++ graphbody2dot True attrs nodes edges
-showDotGraphWithAttrs attrs (UGraph name nodes edges) =
+showDotGraph (UGraph name attrs nodes edges) =
   "graph \"" ++ name ++ "\"" ++ graphbody2dot False attrs nodes edges
 
-graphbody2dot :: Bool -> String -> [Node] -> [Edge] -> String
+graphbody2dot :: Bool -> [(String,String)] -> [Node] -> [Edge] -> String
 graphbody2dot directed attrs nodes edges =
-  "{\n" ++ (if null attrs then "" else attrs ++ "\n")
+  "{\n" ++ concatMap attr2dot attrs
         ++ concatMap node2dot nodes
         ++ concatMap (edge2dot directed) edges ++ "}\n"
+
+--- Deprecated. Use `dgraphWithAttrs` or `ugraphWithAttrs` to construct
+--- graphs with attributes.
+showDotGraphWithAttrs :: String -> DotGraph -> String
+showDotGraphWithAttrs oldattrs dotgraph = case dotgraph of
+  DGraph name attrs nodes edges ->
+    "digraph \"" ++ name ++ "\"" ++ attrsbody2dot True attrs nodes edges
+  UGraph name attrs nodes edges ->
+    "graph \"" ++ name ++ "\"" ++ attrsbody2dot False attrs nodes edges
+ where
+  attrsbody2dot directed attrs nodes edges =
+    "{\n" ++ (if null oldattrs then "" else oldattrs ++ "\n")
+          ++ concatMap attr2dot attrs
+          ++ concatMap node2dot nodes
+          ++ concatMap (edge2dot directed) edges ++ "}\n"
+
+attr2dot :: (String,String) -> String
+attr2dot (name,value) =
+  showDotID name ++ "=" ++ showDotID value ++ ";\n"
 
 node2dot :: Node -> String
 node2dot (Node nname attrs) =
@@ -113,6 +137,12 @@ showDotID s | all isAlphaNum s = s
  where
   escapeDQ c = if c=='"' then "\\\"" else [c]
 
+------------------------------------------------------------------------------
+--- Visualize a DOT graph with the `dotviewcommand` specified in
+--- the rc file of the Curry system.
+viewDotGraph :: DotGraph -> IO ()
+viewDotGraph = viewDot . showDotGraph
+
 --- Visualize a string of the DOT langugage with the `dotviewcommand`
 --- from the rc file of the Curry system.
 viewDot :: String -> IO ()
@@ -126,7 +156,7 @@ viewDot dottxt = do
         hPutStr dotstr dottxt
         hClose dotstr
 
--------------------------------------------------------------------------
+------------------------------------------------------------------------------
 --- Read the command for viewing dot files from the rc file of the
 --- Curry system.
 getDotViewCmd :: IO String
@@ -141,4 +171,4 @@ setDotViewCmd dvcmd = do
   rcfile <- curryrcFileName
   updatePropertyFile rcfile "dotviewcommand" dvcmd
 
--------------------------------------------------------------------------
+------------------------------------------------------------------------------

@@ -7,23 +7,27 @@ module CPM.Main ( main )
 
 import Curry.Compiler.Distribution ( installDir )
 import Control.Monad       ( when, unless )
-import Data.List           ( (\\), delete, groupBy, intercalate, isPrefixOf
-                           , isSuffixOf, nub, split, sortBy )
+import Data.List           ( (\\), delete, findIndex, groupBy, init
+                           , intercalate, isPrefixOf, isSuffixOf, nub, replace
+                           , split, sortBy )
 import Data.Maybe          ( isJust, isNothing )
 import Data.Time           ( calendarTimeToString, getLocalTime )
 import FlatCurry.Files     ( readFlatCurryInt )
 import FlatCurry.Goodies   ( progImports )
+import JSON.Data
+import JSON.Parser         ( parseJSON )
+import JSON.Pretty         ( ppJSON )
 import System.Directory    ( doesFileExist, doesDirectoryExist
                            , copyFile, createDirectory, createDirectoryIfMissing
                            , getCurrentDirectory, getDirectoryContents
                            , getModificationTime
                            , renameFile, removeFile, setCurrentDirectory )
-import System.FilePath     ( (</>), splitDirectories, splitSearchPath
+import System.FilePath     ( (</>), joinPath, splitDirectories, splitSearchPath
                            , replaceExtension, takeExtension, takeFileName
                            , pathSeparator, isPathSeparator )
 import System.Environment  ( getArgs, getEnv, setEnv, unsetEnv )
 import System.Process      ( exitWith, getPID )
-import System.IOExts       ( evalCmd, readCompleteFile )
+import System.IOExts       ( evalCmd, readCompleteFile, updateFile )
 
 import Boxes               ( table, render )
 import Data.GraphViz       ( showDotGraph, viewDotGraph )
@@ -68,7 +72,7 @@ import CPM.ConfigPackage        ( packagePath, packageVersion )
 
 -- Date of current version:
 cpmDate :: String
-cpmDate = "15/02/2023"
+cpmDate = "31/05/2023"
 
 -- Banner of this tool:
 cpmBanner :: String
@@ -178,22 +182,27 @@ depsCmd opts cfg = do
   specDir <- getLocalPackageSpec cfg "."
   pkg     <- loadPackageSpec specDir
   checkCompiler cfg pkg
+  when (depsVSCode opts) $ -- set full path in VSCode settings?
+    setVSCodeImportPath cfg specDir
+  when (depsLangServer opts) $ -- set full path for language server?
+    setLanguageServerImportPath cfg specDir
   if depsPath opts -- show CURRYPATH only?
     then getCurryLoadPath cfg specDir >>= putStrLnELM
-    else do
-      result <- resolveDependencies cfg specDir
-      when (depsGraph opts) $ -- show dot graph?
-        maybe printFailure
-              (putStrLnELM . showDotGraph)
-              (dependenciesAsGraph result)
-      when (depsView opts) $ -- view dot graph?
-        maybe printFailure
-              (liftIOEL . viewDotGraph)
-              (dependenciesAsGraph result)
-      unless (depsGraph opts || depsView opts) $ putStrLnELM $
-        (if depsFull opts then showResult else showShortResult) result
+    else unless (depsVSCode opts || depsLangServer opts) $ showDeps specDir
  where
-  printFailure = putStrLnELM "Dependency resolution failed."
+  showDeps specDir = do
+    let printFailure = putStrLnELM "Dependency resolution failed."
+    result <- resolveDependencies cfg specDir
+    when (depsGraph opts) $ -- show dot graph?
+      maybe printFailure
+            (putStrLnELM . showDotGraph)
+            (dependenciesAsGraph result)
+    when (depsView opts) $ -- view dot graph?
+      maybe printFailure
+            (liftIOEL . viewDotGraph)
+            (dependenciesAsGraph result)
+    unless (depsGraph opts || depsView opts) $ putStrLnELM $
+      (if depsFull opts then showResult else showShortResult) result
 
 ------------------------------------------------------------------------------
 -- `info` command:
@@ -238,8 +247,7 @@ checkCmd chkopts cfg = do
   aspecdir  <- liftIOEL $ getRealPath specDir
   srcmods <- checkCompleteDependencies chkopts cfg aspecdir pkg
   getCurryCheck cfg >>= maybe
-    (logInfo
-       "Executable 'curry-check' not found! No further source code checks...")
+    (logInfo "No further source code checks...")
     (\cc -> do
        lvl <- getLogLevel
        let cmd = unwords $
@@ -816,8 +824,7 @@ testCmd opts cfg = do
   mainprogs <- getSourceModulesOfPkg aspecDir pkg
   mbcc      <- if testCompile opts then return Nothing
                                    else getCurryCheck cfg
-  when (isNothing mbcc) $ logInfo $
-    "Executable 'curry-check' not found! No tests, just compiling..."
+  when (isNothing mbcc) $ logInfo "No tests, just compiling..."
   let pkg'  = maybe (pkg { testSuite = Nothing }) (const pkg) mbcc
       tests = testSuites pkg' mainprogs
   stats <- if null tests
@@ -1244,6 +1251,65 @@ getCurryLoadPath :: Config -> String -> ErrorLogger String
 getCurryLoadPath cfg pkgdir = do
   mbp <- loadCurryPathFromCache cfg pkgdir
   maybe (computePackageLoadPath cfg pkgdir) return mbp
+
+--- Writes the full load path in JSON format (i.e., an array of strings)
+--- into the file `.vscode/settings.json` (or update an existing file)
+--- so that the Curry Language Server has access to all imported modules.
+--- The directory of the `base` package is removed from the path
+--- and replaced by the libraries of the current Curry system.
+setVSCodeImportPath :: Config -> String -> ErrorLogger ()
+setVSCodeImportPath cfg pkgdir = do
+  mbp <- loadCurryPathFromCache cfg pkgdir
+  loadpath <- maybe (computePackageLoadPath cfg pkgdir) return mbp
+  let jdirs = JArray (map JString (splitSearchPath loadpath ++ sysLibPath))
+  updateVSCodeSettings jdirs
+ where
+  pathkey = "curry.languageServer.importPaths"
+
+  vssettingsFile = ".vscode" </> "settings.json"
+
+  updateVSCodeSettings jdirs = do
+    vssetexists <- liftIOEL $ doesFileExist vssettingsFile
+    if vssetexists
+      then do
+        liftIOEL $ updateFile
+          (\s -> ppJSON (maybe (JObject [(pathkey,jdirs)])
+                               (updateJObjectKey pathkey jdirs)
+                               (parseJSON s)))
+          vssettingsFile
+        logInfo $ "File '" ++ vssettingsFile ++ "' updated."
+      else do
+        liftIOEL $ createDirectoryIfMissing True
+          (joinPath (init (splitDirectories vssettingsFile)))
+        liftIOEL $ writeFile vssettingsFile (ppJSON (JObject [(pathkey,jdirs)]))
+        logInfo $ "File '" ++ vssettingsFile ++ "' created."
+
+--- Replaces a key-value pair in a given JSON object. If the given JSON value
+--- is not an object, returns a JSON object with this key-value pair.
+updateJObjectKey :: String -> JValue -> JValue -> JValue
+updateJObjectKey key val jobject = case jobject of
+  JObject keyvals -> maybe (JObject $ keyvals ++ [(key,val)])
+                           (\i -> JObject (replace (key,val) i keyvals))
+                           (findIndex ((==key) . fst) keyvals)
+  _               -> JObject [(key,val)]
+
+--- Writes the full load path in JSON format (i.e., an array of strings)
+--- into the file `.curry/language-server/paths.json` so that
+--- the Curry Language Server has access to all imported modules.
+--- The directory of the `base` package is removed from the path
+--- and replaced by the libraries of the current Curry system.
+setLanguageServerImportPath :: Config -> String -> ErrorLogger ()
+setLanguageServerImportPath cfg pkgdir = do
+  mbp <- loadCurryPathFromCache cfg pkgdir
+  loadpath <- maybe (computePackageLoadPath cfg pkgdir) return mbp
+  let jdirs = JArray (map JString (splitSearchPath loadpath ++ sysLibPath))
+  liftIOEL $ do
+    createDirectoryIfMissing True lspDir
+    writeFile lspFile (ppJSON jdirs)
+  logInfo $ "File '" ++ lspFile ++ "' written."
+ where
+  lspDir  = ".curry" </> "language-server"
+  lspFile = lspDir </> "paths.json"
 
 --- Restores package CURRYPATH from local cache file in the given package dir,
 --- if it is still up-to-date, i.e., it exists and is newer than the package
