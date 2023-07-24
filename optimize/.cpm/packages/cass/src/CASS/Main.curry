@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version January 2023
+--- @version June 2023
 --------------------------------------------------------------------------
 
 module CASS.Main ( main ) where
