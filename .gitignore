@@ -1,35 +1,12 @@
 # intermediate files
 *~
 .curry
+.cpm
 Curry_Main_Goal.curry
 cpm/src/CPM/ConfigPackage.curry
 *.agdai
 *_cache
 *_CACHE
-optimize/.cpm/packages/cass-3*
-optimize/.cpm/packages/cass-analysis-*
-optimize/.cpm/packages/containers-*
-optimize/.cpm/packages/csv-*
-optimize/.cpm/packages/currypath-*
-optimize/.cpm/packages/directory-*
-optimize/.cpm/packages/distribution-*
-optimize/.cpm/packages/filepath-*
-optimize/.cpm/packages/flatcurry-*
-optimize/.cpm/packages/frontend-exec-*
-optimize/.cpm/packages/global-*
-optimize/.cpm/packages/io-extra-*
-optimize/.cpm/packages/process-*
-optimize/.cpm/packages/propertyfile-*
-optimize/.cpm/packages/queue-*
-optimize/.cpm/packages/random-*
-optimize/.cpm/packages/read-legacy-*
-optimize/.cpm/packages/redblacktree-*
-optimize/.cpm/packages/scc-*
-optimize/.cpm/packages/socket-*
-optimize/.cpm/packages/time-*
-optimize/.cpm/packages/transformers-*
-optimize/.cpm/packages/wl-pprint-*
-optimize/.cpm/packages/xml-*
 
 # executables
 cpm/src/CPM.Main
