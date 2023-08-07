@@ -84,7 +84,7 @@ data AFType = EmptyFunc | AFType [([AType],AType)]
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String
-showAFType _ EmptyFunc = "EmptyFunc"
+showAFType _   EmptyFunc    = "EmptyFunc"
 showAFType aof (AFType fts) = intercalate " | " (map showFType fts)
  where
   showFType (targs,tres) =
@@ -93,7 +93,7 @@ showAFType aof (AFType fts) = intercalate " | " (map showFType fts)
 
 showCalledFuncs :: [(QName,AFType)] -> String
 showCalledFuncs =
-  intercalate "|" . map (\ ((_,f),at) -> f++"::"++showAFType _ at)
+  intercalate "|" . map (\ ((_,f),at) -> f ++ "::" ++ showAFType ANote at)
 
 ------------------------------------------------------------------------------
 --- An abstract environments used in the analysis of a function associates
