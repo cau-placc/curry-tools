@@ -31,7 +31,7 @@ BindingOpt: $(DEPS)
 # Clean intermediate files:
 .PHONY: clean
 clean: 
-	$(CLEANCURRY) -r
+	/bin/rm -rf src/.curry .cpm/packages/*/src/.curry
 
 .PHONY: uninstall
 uninstall: clean
