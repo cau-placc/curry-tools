@@ -6,12 +6,12 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version February 2023
+--- @version October 2023
 --------------------------------------------------------------------------
 
 module CASS.Configuration
  ( systemBanner, baseDir, docDir, executableName
- , CConfig, defaultCConfig, debugLevel, setDebugLevel
+ , CConfig, debugLevel, setDebugLevel
  , getServerAddress, readRCFile, updateProperty
  , fixpointMethod, withPrelude
  , storeServerPortNumber, removeServerPortNumber
@@ -35,7 +35,7 @@ import Data.PropertyFile  ( readPropertyFile, updatePropertyFile )
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 26/06/2023 for " ++
+                   packageVersion ++ " of 23/10/2023 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine

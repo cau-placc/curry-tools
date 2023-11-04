@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version June 2023
+--- @version October 2023
 --------------------------------------------------------------------
 
 module CASS.Registry
@@ -43,7 +43,6 @@ import Analysis.RequiredValue
 import qualified Analysis.RequiredValues as RVS
 import Analysis.RightLinearity
 import Analysis.Residuation
-import Analysis.Values
 import Analysis.RootReplaced
 import Analysis.SensibleTypes
 import Analysis.SolutionCompleteness
@@ -51,6 +50,7 @@ import Analysis.Termination
 import Analysis.TotallyDefined
 import Analysis.TypeUsage
 import Analysis.UnsafeModule
+import Analysis.Values
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -86,7 +86,9 @@ registeredAnalysis =
   ,cassAnalysis "Required value"             reqValueAnalysis showAFType
   ,cassAnalysis "Required value sets"        RVS.reqValueAnalysis RVS.showAFType
   ,cassAnalysis "Result values (top constructors)"
-                resultValueAnalysis showResultValue
+                resultValueAnalysisTop showValue
+  ,cassAnalysis "Result values (up to depth 2)" resultValueAnalysis2 showValue
+  ,cassAnalysis "Result values (up to depth 5)" resultValueAnalysis5 showValue
   ,cassAnalysis "Residuating operations"     residuationAnalysis showResInfo
   ,cassAnalysis "Root cyclic replacements"   rootCyclicAnalysis showRootCyclic
   ,cassAnalysis "Root replacements"          rootReplAnalysis showRootRepl
@@ -94,7 +96,6 @@ registeredAnalysis =
   ,cassAnalysis "Types in values"            typesInValuesAnalysis showTypeNames
   ,cassAnalysis "Unsafe module"              unsafeModuleAnalysis  showUnsafe
   ]
-
 
 --------------------------------------------------------------------
 -- Static part of this module follows below
@@ -167,7 +168,7 @@ lookupRegAna aname (ra@(RegAna raname _ _ _ _) : ras) =
 -- Look up a registered analysis server with a given analysis name.
 lookupRegAnaServer :: String
                    -> (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
-                       -> IO (Either (ProgInfo String) String))
+                   -> IO (Either (ProgInfo String) String))
 lookupRegAnaServer aname =
   maybe (\_ _ _ _ _ -> return (Right $ "unknown analysis: " ++ aname))
         regAnaServer

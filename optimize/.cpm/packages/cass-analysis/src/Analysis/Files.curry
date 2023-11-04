@@ -3,24 +3,23 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version April 2021
+--- @version September 2023
 --------------------------------------------------------------------------
 
 module Analysis.Files where
 
-import Curry.Compiler.Distribution ( curryCompiler, curryCompilerMajorVersion
-                                   , curryCompilerMinorVersion
-                                   , curryCompilerRevisionVersion, installDir )
-import System.Directory
-import System.FilePath
-import Data.List           ( intercalate, isPrefixOf, isSuffixOf )
-import Data.Time           ( ClockTime )
+import Curry.Compiler.Distribution ( installDir )
 import Control.Monad       ( when, unless )
+import Data.List           ( isPrefixOf, isSuffixOf )
 
+import Data.Time           ( ClockTime )
 import FlatCurry.Files
 import FlatCurry.Goodies   ( progImports )
 import FlatCurry.Types     ( Prog, QName )
-import System.CurryPath    ( lookupModuleSourceInLoadPath, stripCurrySuffix )
+import System.CurryPath    ( currySubdir, lookupModuleSourceInLoadPath
+                           , stripCurrySuffix )
+import System.Directory
+import System.FilePath
 
 import Analysis.Logging    ( DLevel, debugMessage )
 import Analysis.ProgInfo
@@ -50,13 +49,8 @@ getAnalysisDirectory = do
   homedir <- getHomeDirectory
   hashomedir <- doesDirectoryExist homedir
   let cassStoreDir = if hashomedir then homedir else installDir
-  return $ cassStoreDir </> ".curryanalysis_cache" </> syspath
- where
-  syspath = curryCompiler ++ "-" ++
-            intercalate "."
-              (map show [ curryCompilerMajorVersion
-                        , curryCompilerMinorVersion
-                        , curryCompilerRevisionVersion ])
+  return $ cassStoreDir </> ".curryanalysis_cache" </>
+           joinPath (tail (splitDirectories currySubdir))
 
 -- loads analysis results for a list of modules
 getInterfaceInfos :: Read a => DLevel -> String -> [String] -> IO (ProgInfo a)

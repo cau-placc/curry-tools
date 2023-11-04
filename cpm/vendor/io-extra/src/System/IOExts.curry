@@ -52,9 +52,9 @@ prim_evalCmd external
 #else
 evalCmd cmd args input = do
   pid <- getPID
-  let tmpfile = "/tmp/PAKCS_evalCMD"++show pid
+  let tmpfile = "/tmp/PAKCS_evalCMD" ++ show pid
   (hi,ho,he) <- execCmd (unwords (map wrapArg (cmd:args)) ++
-                         " ; (echo $? > "++tmpfile++")")
+                         " ; (echo $? > " ++ tmpfile ++ ")")
   unless (null input) (hPutStrLn hi input)
   hClose hi
   outs <- hGetContents ho
@@ -126,7 +126,7 @@ updateFile f file = do
 --- @return the result of the execution of the action
 exclusiveIO :: String -> IO a -> IO a
 exclusiveIO lockfile action = do
-  system ("lockfile-create --lock-name "++lockfile)
+  system $ "lockfile-create --lock-name " ++ lockfile
   catch (do actionResult <- action
             deleteLockFile
             return actionResult )

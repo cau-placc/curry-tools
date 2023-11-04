@@ -212,7 +212,8 @@ ppExpr o p (Free    vs e)
                               <+> text "free"
                             , text "in" </> ppExp o e
                             ]
-ppExpr o p (Let     ds e) = parensIf (p > 0) $ sep
+ppExpr o p (Let     ds e) = parensIf (p > 0) $
+                            (if length ds > 1 then vsep else sep)
                             [ text "let" <+> ppDecls o ds
                             , text "in"  <+> ppExp   o e
                             ]

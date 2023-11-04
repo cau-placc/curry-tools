@@ -17,8 +17,8 @@ getProcessInfos :: IO [(C_ProcessInfo, Int)]
 #if __GLASGOW_HASKELL__ > 802
 getProcessInfos = do
   stats <- getRTSStats
-  return [ (C_RunTime           , fromIntegral (mutator_cpu_ns      stats * 1000))
-         , (C_ElapsedTime       , fromIntegral (mutator_elapsed_ns  stats * 1000))
+  return [ (C_RunTime           , fromIntegral (mutator_cpu_ns      stats `div` (10^6)))
+         , (C_ElapsedTime       , fromIntegral (mutator_elapsed_ns  stats `div` (10^6)))
          , (C_Heap              , fromIntegral (max_live_bytes      stats))
          , (C_Memory            , fromIntegral (max_live_bytes      stats))
          , (C_GarbageCollections, fromIntegral (gcs                 stats))
