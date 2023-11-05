@@ -6,7 +6,7 @@
 --- and domains of depth-bounded constructor terms.
 ---
 --- @author Michael Hanus
---- @version October 2023
+--- @version November 2023
 ------------------------------------------------------------------------------
 
 module Analysis.TermDomain
@@ -269,6 +269,7 @@ instance TermDomain DType5 where
 pre :: String -> QName
 pre n = ("Prelude",n)
 
+aTrue, aFalse, aFalseTrue, aNothing, aJustTrue, aJustFalse :: DType
 aTrue  = dCons 2 (pre "True") []
 aFalse = dCons 2 (pre "False") []
 aFalseTrue = DCons [(pre "False", []), (pre "True", [])]
@@ -276,13 +277,14 @@ aNothing   = dCons 2 (pre "Nothing") []
 aJustTrue  = dCons 2 (pre "Just") [aTrue]
 aJustFalse = dCons 2 (pre "Just") [aFalse]
 
+cutDType'test1, cutDType'test2, cutDType'test3 :: Prop
 cutDType'test1 = cutDType 0 aTrue -=- anyDType
 cutDType'test2 = cutDType 1 aTrue -=- aTrue
 cutDType'test3 = cutDType 1 aJustTrue -=- DCons [(pre "Just",[DAny])]
 
+lub'test1, lub'test2, join'test1, join'test2 :: Prop
 lub'test1 = lubDType aTrue aTrue -=- aTrue
 lub'test2 = lubDType aTrue aFalse -=- aFalseTrue
-
 join'test1 = joinDType aJustTrue aJustFalse -=- emptyDType
 join'test2 = joinDType aJustTrue aJustTrue  -=- aJustTrue
 
