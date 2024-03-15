@@ -14,7 +14,7 @@
     },
     "exportedModules": [ "System.CurryPath" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/currypath.git",
+      "git": "https://github.com/curry-packages/currypath.git",
       "tag": "$version"
     }
 }

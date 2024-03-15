@@ -3,7 +3,7 @@
 --- used in Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version January 2023
+--- @version November 2023
 ------------------------------------------------------------------------------
 
 module System.CurryPath
@@ -216,6 +216,7 @@ addCurrySubdir dir = dir </> currySubdir
 --- system libraries.
 sysLibPath :: [String]
 sysLibPath = case curryCompiler of
+  "kmcc"  -> [installDir </> "libs" </> "src"]
   "kics"  -> [installDir </> "src" </> "lib"]
   _       -> [installDir </> "lib"]
 

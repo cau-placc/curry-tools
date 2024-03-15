@@ -21,7 +21,7 @@
     },
     "exportedModules": [ "System.FrontendExec" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/frontend-exec.git",
+      "git": "https://github.com/curry-packages/frontend-exec.git",
       "tag": "$version"
     }
 }

@@ -19,7 +19,7 @@
          "ReadShowTerm"
   ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/read-legacy.git",
+      "git": "https://github.com/curry-packages/read-legacy.git",
       "tag": "$version"
     }
 }

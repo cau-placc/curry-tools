@@ -13,7 +13,7 @@
     },
     "exportedModules": [ "System.Path" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/execpath.git",
+      "git": "https://github.com/curry-packages/execpath.git",
       "tag": "$version"
     }
 }

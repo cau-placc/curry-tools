@@ -14,7 +14,7 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/xml.git",
+      "git": "https://github.com/curry-packages/xml.git",
       "tag": "$version"
     },
     "testsuite": [

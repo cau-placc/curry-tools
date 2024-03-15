@@ -17,7 +17,7 @@
       "modules": [ "TestFilePath" ]
   },
   "source": {
-    "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/filepath.git",
+    "git": "https://github.com/curry-packages/filepath.git",
     "tag": "$version"
   }
 }

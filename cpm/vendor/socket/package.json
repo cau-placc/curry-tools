@@ -17,7 +17,7 @@
     },
     "exportedModules": [ "Network.Socket" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/socket.git",
+      "git": "https://github.com/curry-packages/socket.git",
       "tag": "$version"
     }
 }

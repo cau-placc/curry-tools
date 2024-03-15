@@ -4,9 +4,10 @@
 --- @author Michael Hanus
 ------------------------------------------------------------------------------
 
+import Control.Monad  ( when )
 import Data.Global
+import System.Directory
 import System.IO
-import System.Process ( system )
 import Test.Prop
 
 ------------------------------------------------------------------------------
@@ -14,9 +15,12 @@ import Test.Prop
 myHandle :: GlobalT (Maybe Handle)
 myHandle = globalT "TestGlobalHandles.myHandle" Nothing
 
+tmpFile :: String
+tmpFile = "XXXOUT"
+
 setOutHandle :: IO ()
 setOutHandle = do
-  h <- openFile "XXXOUT" WriteMode
+  h <- openFile tmpFile WriteMode
   writeGlobalT myHandle (Just h)
 
 writeMyFile :: IO ()
@@ -29,7 +33,7 @@ closeMyFile =
 
 setInHandle :: IO ()
 setInHandle = do
-  h <- openFile "XXXOUT" ReadMode
+  h <- openFile tmpFile ReadMode
   writeGlobalT myHandle (Just h)
 
 readMyFile :: IO String
@@ -43,6 +47,7 @@ testGlobalHandles =
 
 -- finalize: clean
 testCleanUp :: PropIO
-testCleanUp = (system "rm -f XXXOUT") `returns` 0
+testCleanUp =
+  (doesFileExist tmpFile >>= \exf -> when exf (removeFile tmpFile)) `returns` ()
 
 ------------------------------------------------------------------------------

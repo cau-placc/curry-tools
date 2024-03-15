@@ -25,7 +25,7 @@
         "modules":  [ "TestConnect" ]
     },
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/io-extra.git",
+      "git": "https://github.com/curry-packages/io-extra.git",
       "tag": "$version"
     }
 }

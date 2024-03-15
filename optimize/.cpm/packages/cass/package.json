@@ -33,7 +33,7 @@
         "main": "main.tex"
     },
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/cass.git",
+        "git": "https://github.com/curry-packages/cass.git",
         "tag": "$version"
     }
 }

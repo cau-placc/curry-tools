@@ -25,7 +25,7 @@
                          "FlatCurry.Show", "FlatCurry.Types",
                          "FlatCurry.XML" ],
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/flatcurry.git",
+        "git": "https://github.com/curry-packages/flatcurry.git",
         "tag": "$version"
     },
     "testsuite": {

@@ -18,7 +18,7 @@
         "xml"        : ">= 3.0.0, < 4.0.0"
     },
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/cass-analysis.git",
+        "git": "https://github.com/curry-packages/cass-analysis.git",
         "tag": "$version"
     }
 }

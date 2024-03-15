@@ -1,7 +1,7 @@
 {
   "name": "transformers",
   "version": "3.0.0",
-  "author": "Kai-Oliver Prott <stu126209@mail.uni-kiel.de>",
+  "author": "Kai-Oliver Prott <kpr@informatik.uni-kiel.de>",
   "synopsis": "A portable library of functor and monad transformers",
   "category": [ "Control" ],
   "description": "A portable library of functor and monad transformers, inspired by https://hackage.haskell.org/package/transformers",
@@ -20,7 +20,7 @@
      "Control.Monad.Trans.State",
      "Control.Monad.Trans.Writer" ],
   "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/transformers.git",
+      "git": "https://github.com/curry-packages/transformers.git",
       "tag": "$version"
   }
 }

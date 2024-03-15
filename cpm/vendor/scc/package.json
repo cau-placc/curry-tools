@@ -13,7 +13,7 @@
     },
     "exportedModules": [ "Data.SCC" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/scc.git",
+      "git": "https://github.com/curry-packages/scc.git",
       "tag": "$version"
     }
 }

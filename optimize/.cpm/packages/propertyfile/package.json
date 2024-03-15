@@ -12,7 +12,7 @@
     },
     "exportedModules": [ "Data.PropertyFile" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/propertyfile.git",
+      "git": "https://github.com/curry-packages/propertyfile.git",
       "tag": "$version"
     }
 }

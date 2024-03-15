@@ -20,7 +20,7 @@
         }
     ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/containers.git",
+      "git": "https://github.com/curry-packages/containers.git",
       "tag": "$version"
     }
 }

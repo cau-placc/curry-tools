@@ -33,20 +33,21 @@
 --- (the file is created and initialized with `v` if it does not exist).
 ---
 --- @author Michael Hanus
---- @version June 2021
+--- @version December 2023
 ------------------------------------------------------------------------------
 {-# LANGUAGE CPP #-}
 
 module Data.Global
   ( GlobalT, globalT, readGlobalT, writeGlobalT
-  , GlobalP, globalP, globalPersistent, readGlobalP, safeReadGlobalP, writeGlobalP
+  , GlobalP, globalP, globalPersistent
+  , readGlobalP, safeReadGlobalP, writeGlobalP
   ) where
 
 import Control.Monad    ( unless )
 import System.Directory ( doesFileExist )
 import System.IO
+import System.IOExts    ( exclusiveIO )
 import System.IO.Unsafe ( unsafePerformIO )
-import System.Process   ( system )
 
 ------------------------------------------------------------------------------
 -- Implementation of temporary global entities.
@@ -116,8 +117,12 @@ globalPersistent = globalP
 
 --- Reads the current value of a persistent global entity.
 readGlobalP :: Read a => GlobalP a -> IO a
-readGlobalP (GlobalP f) = exclusiveIO (f ++ ".LOCK") $
-  openFile f ReadMode >>= hGetContents >>= return . read
+readGlobalP (GlobalP f) = exclusiveIO (f ++ ".LOCK") $ do
+  cnt <- openFile f ReadMode >>= hGetContents
+  case reads cnt of
+    [(x,_)] -> return x
+    _       -> error $ "Cannot read persistent global entity in file: " ++ f ++
+                       "\nFile contents:\n" ++ cnt
 
 --- Safely reads the current value of a global.
 --- If `readGlobalP` fails (e.g., due to a corrupted persistent storage),
@@ -125,29 +130,14 @@ readGlobalP (GlobalP f) = exclusiveIO (f ++ ".LOCK") $
 --- the second argument.
 safeReadGlobalP :: (Read a, Show a) => GlobalP a -> a -> IO a
 safeReadGlobalP g dflt =
-  catch (readGlobalP g) (\_ -> writeGlobalP g dflt >> return dflt)
+  catch (readGlobalP g)
+        (\err -> do hPutStrLn stderr $ "Error caught in 'safeReadGlobalP':\n" ++
+                                       show err
+                    writeGlobalP g dflt >> return dflt )
 
 --- Updates the value of a persistent global entity.
 writeGlobalP :: Show a => GlobalP a -> a -> IO ()
 writeGlobalP (GlobalP f) v =
   exclusiveIO (f ++ ".LOCK") $ writeFile f (show v ++ "\n")
-
-------------------------------------------------------------------------
---- Forces the exclusive execution of an action via a lock file.
---- For instance, (exclusiveIO "myaction.lock" act) ensures that
---- the action "act" is not executed by two processes on the same
---- system at the same time.
---- @param lockfile - the name of a global lock file
---- @param action - the action to be exclusively executed
---- @return the result of the execution of the action
-exclusiveIO :: String -> IO a -> IO a
-exclusiveIO lockfile action = do
-  system ("lockfile-create --lock-name "++lockfile)
-  catch (do actionResult <- action
-            deleteLockFile
-            return actionResult )
-        (\e -> deleteLockFile >> ioError e)
- where
-  deleteLockFile = system $ "lockfile-remove --lock-name " ++ lockfile
 
 ------------------------------------------------------------------------

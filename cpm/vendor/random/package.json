@@ -13,7 +13,7 @@
     },
     "exportedModules": [ "System.Random" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/random.git",
+      "git": "https://github.com/curry-packages/random.git",
       "tag": "$version"
     }
 }

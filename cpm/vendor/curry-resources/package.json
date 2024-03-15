@@ -11,7 +11,7 @@
     },
     "exportedModules": [ "Language.Curry.Resources" ],
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/curry-resources.git",
+        "git": "https://github.com/curry-packages/curry-resources.git",
         "tag": "$version"
     }
 }

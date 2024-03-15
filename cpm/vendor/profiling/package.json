@@ -17,7 +17,7 @@
     },
     "exportedModules": [ "Debug.Profile" ],
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/profiling.git",
+        "git": "https://github.com/curry-packages/profiling.git",
         "tag": "$version"
     }
 }

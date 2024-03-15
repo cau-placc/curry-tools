@@ -7,8 +7,9 @@
 --- @author Michael Hanus
 ------------------------------------------------------------------------------
 
+import Control.Monad ( when )
 import Data.Global
-import System.Process ( system )
+import System.Directory
 import Test.Prop
 
 ------------------------------------------------------------------------------
@@ -69,8 +70,11 @@ testReadWriteTwoTemporaryGlobals = rwglobals `returns` [0,42,0,99,100,99]
 
 ------------------------------------------------------------------------------
 -- Testing a simple integer persistent global entity:
+pointsStore :: String
+pointsStore = "pointsstore"
+
 ppoints :: GlobalP Int
-ppoints = globalPersistent "pointsstore" (3+4)
+ppoints = globalPersistent pointsStore (3+4)
 
 rwglobalp :: IO (Int,Int)
 rwglobalp = do
@@ -84,4 +88,6 @@ testPersistentIntReadGlobalWriteGlobal = rwglobalp `returns` (7,42)
 
 -- finalize: clean
 testCleanUp :: PropIO
-testCleanUp = (system "rm -r pointsstore*") `returns` 0
+testCleanUp =
+  (do exf <- doesFileExist pointsStore
+      when exf (removeFile pointsStore) ) `returns` ()

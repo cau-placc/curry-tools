@@ -4,12 +4,14 @@
    "author": "Jonas Oberschweiber <jonas@oberschweiber.com>",
    "category": [ "Printing" ],
    "synopsis": "A pretty printer for boxes",
+   "license": "BSD-3-Clause",
+   "licenseFile": "LICENSE",
    "dependencies": {
        "base" : ">= 3.0.0, < 4.0.0"
    },
    "exportedModules": ["Boxes"],
    "source": {
-       "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/boxes.git",
+       "git": "https://github.com/curry-packages/boxes.git",
        "tag": "$version"
    }
 }

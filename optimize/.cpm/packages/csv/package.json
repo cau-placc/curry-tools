@@ -11,7 +11,7 @@
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/csv.git",
+        "git": "https://github.com/curry-packages/csv.git",
         "tag": "$version"
     }
 }

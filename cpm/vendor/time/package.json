@@ -21,7 +21,7 @@
       "modules": [ "TestTime" ]
   },
   "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/time.git",
+        "git": "https://github.com/curry-packages/time.git",
         "tag": "$version"
   }
 }

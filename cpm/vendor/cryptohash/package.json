@@ -13,7 +13,7 @@
     },
     "exportedModules": [ "Crypto.Hash" ],
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/cryptohash.git",
+      "git": "https://github.com/curry-packages/cryptohash.git",
       "tag": "$version"
     }
 }

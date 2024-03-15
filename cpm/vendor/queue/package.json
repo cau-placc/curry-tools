@@ -16,7 +16,7 @@
         "modules": [ "TestQueue" ]
     },
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/queue.git",
+      "git": "https://github.com/curry-packages/queue.git",
       "tag": "$version"
     }
 }

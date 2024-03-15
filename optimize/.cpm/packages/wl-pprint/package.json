@@ -13,7 +13,7 @@
   },
   "exportedModules": [ "Text.Pretty" ],
   "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/wl-pprint.git",
+      "git": "https://github.com/curry-packages/wl-pprint.git",
       "tag": "$version"
   }
 }

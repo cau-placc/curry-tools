@@ -16,7 +16,7 @@
         "modules": [ "TestRedBlackTree" ]
     },
     "source": {
-      "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/redblacktree.git",
+      "git": "https://github.com/curry-packages/redblacktree.git",
       "tag": "$version"
     }
 }
