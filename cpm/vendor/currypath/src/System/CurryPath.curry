@@ -3,7 +3,7 @@
 --- used in Curry system.
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version November 2023
+--- @version March 2024
 ------------------------------------------------------------------------------
 
 module System.CurryPath
@@ -17,9 +17,10 @@ module System.CurryPath
   , sysLibPath, getLoadPathForModule
   , lookupModuleSourceInLoadPath, lookupModuleSource
   , curryModulesInDirectory, curryrcFileName
+  , setCurryPath
   ) where
 
-import Control.Monad       ( unless )
+import Control.Monad       ( unless, when )
 import Curry.Compiler.Distribution
                            ( curryCompiler, curryCompilerMajorVersion
                            , curryCompilerMinorVersion
@@ -29,12 +30,14 @@ import Data.List           ( init, intercalate, last, split )
 import System.Directory    ( doesDirectoryExist, doesFileExist
                            , getCurrentDirectory, getDirectoryContents
                            , getHomeDirectory, setCurrentDirectory )
-import System.Environment  ( getEnv )
+import System.Environment  ( getEnv, setEnv )
 import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , dropFileName, joinPath, splitDirectories
                            , splitExtension, splitFileName, splitPath
                            , splitSearchPath, takeExtension, dropExtension
                            )
+import System.IOExts       ( evalCmd )
+import System.Path         ( getFileInPath )
 
 import Data.PropertyFile   ( getPropertyFromFile )
 
@@ -87,6 +90,7 @@ isValidModuleName = all isModId . split (=='.')
   isModId []     = False
   isModId (c:cs) = isAlpha c && all (\x -> isAlphaNum x || x `elem` "_'") cs
 
+------------------------------------------------------------------------------
 --- Executes an I/O action, which is parameterized over a module name,
 --- for a given program name. If the program name is prefixed by a directory,
 --- switch to this directory before executing the action, report
@@ -126,6 +130,7 @@ runModuleActionWith quiet modaction progname = do
   unless (progdir == ".") $ setCurrentDirectory curdir
   return result
 
+------------------------------------------------------------------------------
 --- Split the `FilePath` of a module into the directory prefix and the
 --- `FilePath` corresponding to the module name.
 --- For instance, the call `splitModuleFileName "Data.Set" "lib/Data/Set.curry"`
@@ -304,5 +309,34 @@ curryModulesInDirectory dir = getModules "" dir
 curryrcFileName :: IO FilePath
 curryrcFileName = getHomeDirectory >>= return . (</> rcFile)
   where rcFile = '.' : curryCompiler ++ "rc"
+
+------------------------------------------------------------------------------
+
+--- If the environment variable `CURRYPATH` is not already set
+--- (i.e., not null), set it to the value computed by `cypm deps --path`
+--- in order to allow invoking tools without `cypm exec ...`.
+--- If the first argument is `False`, the computed path value is printed.
+--- If the second argument is not null, its value is taken as the executable
+--- for CPM, otherwise the executable `cypm` is searched in the current path
+--- (environment variable `PATH`).
+setCurryPath :: Bool -> String -> IO ()
+setCurryPath quiet cpmexec = do
+  cp <- getEnv "CURRYPATH"
+  when (null cp) $
+    (if null cpmexec then getFileInPath "cypm" else return (Just cpmexec)) >>=
+    maybe (return ())
+          (\cpm -> do
+            unless quiet $ putStrLn $
+              "Computing CURRYPATH with '" ++ cpm ++ "'..."
+            (rc,out,err) <- evalCmd cpm ["deps","--path"] ""
+            if rc==0
+              then do let cpath = strip out
+                      unless quiet $ putStrLn $ "CURRYPATH=" ++ cpath
+                      setEnv "CURRYPATH" cpath
+              else putStrLn $ "ERROR during computing CURRYPATH with 'cypm':\n"
+                              ++ out ++ err )
+ where
+  -- Remove leading and trailing whitespace
+  strip = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 ------------------------------------------------------------------------------
