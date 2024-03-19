@@ -1,0 +1,19 @@
+{
+    "name": "execpath",
+    "version": "3.0.0",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Operations related to the program execution path",
+    "category": [ "System" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"     : ">= 3.0.0, < 4.0.0",
+        "directory": ">= 3.0.0, < 4.0.0",
+        "filepath" : ">= 3.0.0, < 4.0.0"
+    },
+    "exportedModules": [ "System.Path" ],
+    "source": {
+      "git": "https://github.com/curry-packages/execpath.git",
+      "tag": "$version"
+    }
+}
