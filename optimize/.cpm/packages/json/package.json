@@ -1,0 +1,28 @@
+{
+    "name": "json",
+    "version": "3.0.0",
+    "author": "Jonas Oberschweiber <jonas@oberschweiber.com>",
+    "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "A JSON library for Curry",
+    "category": [ "Data", "Web" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"     : ">= 3.0.0, < 4.0.0",
+        "det-parse": ">= 3.0.0, < 4.0.0",
+        "wl-pprint": ">= 3.0.0, < 4.0.0"
+    },
+    "exportedModules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"],
+    "testsuite": [
+        { "src-dir": "src",
+          "modules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"]
+        },
+        { "src-dir": "examples",
+          "modules": [ "SimpleTest" ]
+        }
+    ],
+    "source": {
+        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/json.git",
+        "tag": "$version"
+    }
+}

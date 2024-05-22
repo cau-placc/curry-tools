@@ -76,6 +76,9 @@ cd .cpm/packages
  PKGV=`ls -d io-extra-*`
  mv $PKGV io-extra
  ln -s io-extra $PKGV
+ PKGV=`ls -d json-*`
+ mv $PKGV json
+ ln -s json $PKGV
  PKGV=`ls -d process-*`
  mv $PKGV process
  ln -s process $PKGV
