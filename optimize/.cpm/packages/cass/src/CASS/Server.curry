@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version February 2023
+--- @version April 2024
 --------------------------------------------------------------------------
 
 module CASS.Server
@@ -16,7 +16,7 @@ module CASS.Server
   ) where
 
 import Numeric            ( readNat )
-import Data.Char          ( isSpace )
+import Data.Char          ( isSpace, toLower )
 import Control.Monad      ( unless )
 import System.CurryPath   ( runModuleAction )
 import System.Directory
@@ -35,13 +35,13 @@ import Network.Socket     ( Socket(..), listenOn, listenOnFresh
 import CASS.Configuration
 import CASS.Registry
 import CASS.ServerFormats
-import CASS.ServerFunctions(WorkerMessage(..))
+import CASS.ServerFunctions ( WorkerMessage(..) )
 
 -- Messages to communicate with the analysis server from external programs.
 data AnalysisServerMessage =
     GetAnalysis
-  | AnalyzeModule    String String String Bool
-  | AnalyzeEntity  String String String String
+  | AnalyzeModule  String OutputFormat String Bool
+  | AnalyzeEntity  String OutputFormat String String
   | StopServer
   | SetCurryPath String
   | ParseError
@@ -80,10 +80,14 @@ mainServer cconfig mbport = do
 --- otherwise only the interface operations.
 --- The fifth argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
-analyzeModuleAndPrint :: CConfig -> String -> String -> Bool -> Bool -> IO ()
-analyzeModuleAndPrint cconfig ananame mname optall enforce =
-  analyzeProgram cconfig ananame enforce AText mname >>=
-  putStrLn . formatResult mname "Text" Nothing (not optall)
+analyzeModuleAndPrint :: CConfig -> String -> String -> Bool -> OutputFormat
+                      -> Bool -> IO ()
+analyzeModuleAndPrint cconfig ananame mname optall format enforce =
+  analyzeProgram cconfig ananame enforce format (format2AOut format) mname >>=
+  putStr . formatResult mname format Nothing (not optall)
+
+format2AOut :: OutputFormat -> AOutFormat
+format2AOut format = if format == FormatShort then ANote else AText
 
 --- Run the analysis system and show the analysis results in standard textual
 --- representation.
@@ -95,43 +99,43 @@ analyzeModuleAndPrint cconfig ananame mname optall enforce =
 --- by 'initializeAnalysisSystem'.
 analyzeModuleAsText :: CConfig -> String -> String -> Bool -> Bool -> IO String
 analyzeModuleAsText cconfig ananame mname optall enforce =
-  analyzeProgram cconfig ananame enforce AText mname >>=
-             return . formatResult mname "Text" Nothing (not optall)
+  analyzeProgram cconfig ananame enforce FormatText AText mname >>=
+  return . formatResult mname FormatText Nothing (not optall)
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- The options are read from the rc file.
 analyzeModuleForBrowser :: String -> String -> AOutFormat -> IO [(QName,String)]
 analyzeModuleForBrowser ananame mname aoutformat = do
   cconfig <- readRCFile
-  analyzeProgram cconfig ananame False aoutformat mname >>=
+  analyzeProgram cconfig ananame False FormatText aoutformat mname >>=
     return . either pinfo2list (const [])
  where
    pinfo2list pinfo = let (pubinfo,privinfo) = progInfo2Lists pinfo
-                       in pubinfo++privinfo
+                      in pubinfo ++ privinfo
 
 --- Run the analysis system to show the analysis result of a single function
 --- in the BrowserGUI. The options are read from the rc file.
 analyzeFunctionForBrowser :: String -> QName -> AOutFormat -> IO String
 analyzeFunctionForBrowser ananame qn@(mname,_) aoutformat = do
   cconfig <- readRCFile
-  analyzeProgram cconfig ananame False aoutformat mname >>=
+  analyzeProgram cconfig ananame False FormatText aoutformat mname >>=
     return . either (maybe "" id . lookupProgInfo qn) (const "")
 
 --- Analyze a given program (i.e., a module possibly prefixed with a
 --- directory name) for a given analysis result format.
 --- The third argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
-analyzeProgram :: CConfig -> String -> Bool -> AOutFormat -> String
-               -> IO (Either (ProgInfo String) String)
-analyzeProgram cconfig ananame enforce aoutformat progname =
-  runModuleAction (analyzeModule cconfig ananame enforce aoutformat) progname
+analyzeProgram :: CConfig -> String -> Bool -> OutputFormat -> AOutFormat
+               -> String -> IO (Either (ProgInfo String) String)
+analyzeProgram cconfig ananame enforce outformat aoutformat progname =
+  runModuleAction (analyzeModule cconfig ananame enforce outformat aoutformat) progname
 
 --- Analyze a complete module for a given analysis result format.
 --- The third argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
-analyzeModule :: CConfig -> String -> Bool -> AOutFormat -> String
-              -> IO (Either (ProgInfo String) String)
-analyzeModule cconfig ananame enforce aoutformat modname = do
+analyzeModule :: CConfig -> String -> Bool -> OutputFormat -> AOutFormat
+              -> String -> IO (Either (ProgInfo String) String)
+analyzeModule cconfig ananame enforce outformat aoutformat modname = do
   getDefaultPath cconfig >>= setEnv "CURRYPATH"
   let numworkers = numberOfWorkers cconfig
   if numworkers > 0
@@ -139,12 +143,13 @@ analyzeModule cconfig ananame enforce aoutformat modname = do
      serveraddress <- getServerAddress
      (port,socket) <- listenOnFresh
      handles <- startWorkers cconfig numworkers socket serveraddress port []
-     result <- runAnalysisWithWorkers cconfig ananame aoutformat enforce
-                                      handles modname
+     result <- runAnalysisWithWorkers cconfig ananame outformat aoutformat
+                                      enforce handles modname
      stopWorkers handles
      close socket
      return result
-    else runAnalysisWithWorkers cconfig ananame aoutformat enforce [] modname
+    else runAnalysisWithWorkers cconfig ananame outformat aoutformat enforce
+                                [] modname
 
 --- Start the analysis system with a particular analysis.
 --- The analysis must be a registered one if workers are used.
@@ -287,16 +292,16 @@ serverLoopOnHandle cconfig socket1 whandles handle = do
        GetAnalysis -> do
          sendServerResult handle showAnalysisNamesAndFormats
          serverLoopOnHandle cconfig socket1 whandles handle
-       AnalyzeModule ananame outForm modname public ->
-         catch (runAnalysisWithWorkers cconfig ananame AText force whandles
-                                       modname >>=
-                return . formatResult modname outForm Nothing public >>=
+       AnalyzeModule ananame outform modname public ->
+         catch (runAnalysisWithWorkers cconfig ananame outform
+                 (format2AOut outform) force whandles modname >>=
+                return . formatResult modname outform Nothing public >>=
                 sendResult)
                sendAnalysisError
-       AnalyzeEntity ananame outForm modname functionName ->
-         catch (runAnalysisWithWorkers cconfig ananame AText force whandles
-                                       modname >>=
-                return . formatResult modname outForm
+       AnalyzeEntity ananame outform modname functionName ->
+         catch (runAnalysisWithWorkers cconfig ananame outform
+                 (format2AOut outform) force whandles modname >>=
+                return . formatResult modname outform
                                       (Just functionName) False >>= sendResult)
                sendAnalysisError
        SetCurryPath path -> do
@@ -353,19 +358,19 @@ parseServerMessage message = case words message of
   w:ws -> case w of
     "GetAnalysis" -> GetAnalysis
     "AnalyzeModule" -> case ws of
-      s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 False
+      s1:s2:s3:[] -> checkFormat s2 $ \f -> AnalyzeModule s1 f s3 False
       _ -> ParseError
     "AnalyzeInterface" -> case ws of
-      s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 True
+      s1:s2:s3:[] -> checkFormat s2 $ \f -> AnalyzeModule s1 f s3 True
       _ -> ParseError
     "AnalyzeFunction" -> case ws of
-      s1:s2:s3:s4:[] -> checkFormat s2 $ AnalyzeEntity s1 s2 s3 s4
+      s1:s2:s3:s4:[] -> checkFormat s2 $ \f -> AnalyzeEntity s1 f s3 s4
       _ -> ParseError
     "AnalyzeTypeConstructor" -> case ws of
-      s1:s2:s3:s4:[] -> checkFormat s2 $ AnalyzeEntity s1 s2 s3 s4
+      s1:s2:s3:s4:[] -> checkFormat s2 $ \f -> AnalyzeEntity s1 f s3 s4
       _ -> ParseError
     "AnalyzeDataConstructor" -> case ws of
-      s1:s2:s3:s4:[] -> checkFormat s2 $ AnalyzeEntity s1 s2 s3 s4
+      s1:s2:s3:s4:[] -> checkFormat s2 $ \f -> AnalyzeEntity s1 f s3 s4
       _ -> ParseError
     "SetCurryPath" -> case ws of
       s:[] -> SetCurryPath s
@@ -373,10 +378,11 @@ parseServerMessage message = case words message of
     "StopServer" -> StopServer
     _ -> ParseError
  where
-  checkFormat fmt msg = if fmt `elem` serverFormats then msg else ParseError
+  checkFormat fmt fmsg =
+    maybe ParseError fmsg (lookup (map toLower fmt) serverFormatNames)
 
 --- Show all analysis names and formats.
 showAnalysisNamesAndFormats :: String
 showAnalysisNamesAndFormats =
-  unlines (concatMap (\an -> map ((an++" ")++) serverFormats)
+  unlines (concatMap (\an -> map ((an++" ") ++) (map fst serverFormatNames))
                      registeredAnalysisNames)

@@ -2,25 +2,29 @@
 --- Defining and processing tool options of CASS.
 ---
 --- @author Michael Hanus
---- @version October 2023
+--- @version April 2024
 --------------------------------------------------------------------------
 
 module CASS.Options where
 
-import System.Console.GetOpt
+import Data.Char             ( toLower )
 import Numeric               ( readNat )
+import System.Console.GetOpt
+
+import CASS.ServerFormats
 
 --------------------------------------------------------------------------
 -- Representation of command line options.
 data Options = Options
-  { optHelp    :: Bool     -- print help?
-  , optVerb    :: Int      -- verbosity level
-  , optServer  :: Bool     -- start CASS in server mode?
-  , optWorker  :: Bool     -- start CASS in worker mode?
-  , optPort    :: Int      -- port number (if used in server mode)
-  , optAll     :: Bool     -- show analysis results for all operations?
-  , optReAna   :: Bool     -- force re-analysis?
-  , optDelete  :: Bool     -- delete analysis files?
+  { optHelp    :: Bool         -- print help?
+  , optVerb    :: Int          -- verbosity level
+  , optServer  :: Bool         -- start CASS in server mode?
+  , optWorker  :: Bool         -- start CASS in worker mode?
+  , optPort    :: Int          -- port number (if used in server mode)
+  , optAll     :: Bool         -- show analysis results for all operations?
+  , optFormat  :: OutputFormat -- output format
+  , optReAna   :: Bool         -- force re-analysis?
+  , optDelete  :: Bool         -- delete analysis files?
   , optProp    :: [(String,String)] -- property (of ~/.curryanalsisrc) to be set
   }
 
@@ -33,6 +37,7 @@ defaultOptions = Options
   , optWorker  = False
   , optPort    = 0
   , optAll     = False
+  , optFormat  = FormatText
   , optReAna   = False
   , optDelete  = False
   , optProp    = []
@@ -51,6 +56,9 @@ options =
   , Option "a" ["all"]
            (NoArg (\opts -> opts { optAll = True }))
            "show analysis results for all operations\n(i.e., also for non-exported operations)"
+  , Option "f" ["format"]
+           (ReqArg checkFormat "<f>")
+           "output format (default: Text):\nText|Short|CurryTerm|JSON|JSONTerm|XML"
   , Option "r" ["reanalyze"]
            (NoArg (\opts -> opts { optReAna = True }))
            "force re-analysis \n(i.e., ignore old analysis information)"
@@ -76,8 +84,13 @@ options =
      _        -> error "Illegal number argument (try `-h' for help)"
 
   checkVerb n opts = if n>=0 && n<5
-                     then opts { optVerb = n }
-                     else error "Illegal verbosity level (try `-h' for help)"
+                       then opts { optVerb = n }
+                       else error "Illegal verbosity level (try `-h' for help)"
+
+  checkFormat s opts =
+    maybe (error $ "Illegal format value: " ++ s)
+          (\f -> opts { optFormat = f })
+          (lookup (map toLower s) serverFormatNames)
 
   checkSetProperty s opts =
     let (key,eqvalue) = break (=='=') s

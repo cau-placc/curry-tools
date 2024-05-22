@@ -7,7 +7,7 @@
 
 module Analysis.ProgInfo
   ( ProgInfo, emptyProgInfo, lookupProgInfo, combineProgInfo
-  , lists2ProgInfo, publicListFromProgInfo, progInfo2Lists, progInfo2XML
+  , lists2ProgInfo, publicListFromProgInfo, progInfo2Lists
   , mapProgInfo, publicProgInfo
   , showProgInfo, equalProgInfo
   , readAnalysisFiles, readAnalysisPublicFile, writeAnalysisFiles
@@ -54,19 +54,11 @@ publicListFromProgInfo (ProgInfo fm1 _) = toList fm1
 --- Transforms a program information into a pair of lists
 --- containing the information about public and private entities.
 progInfo2Lists :: ProgInfo a -> ([(QName,a)],[(QName,a)])
-progInfo2Lists (ProgInfo map1 map2)= (toList map1,toList map2)
+progInfo2Lists (ProgInfo map1 map2) = (toList map1, toList map2)
 
---- Transforms analysis information into XML format.
-progInfo2XML :: ProgInfo String -> ([XmlExp],[XmlExp])
-progInfo2XML (ProgInfo map1 map2) =
-  (foldrWithKey entry2xml [] map1, foldrWithKey entry2xml [] map2)
- where
-  entry2xml (mname,name) value xmlList =
-    (xml "operation" [xml "module" [xtxt mname],
-                      xml "name"   [xtxt name],
-                      xml "result" [xtxt value]]) : xmlList
-
-mapProgInfo:: (a->b) -> ProgInfo a -> ProgInfo b
+--- Transforms a program information by applying a function to all
+--- information entities.
+mapProgInfo:: (a -> b) -> ProgInfo a -> ProgInfo b
 mapProgInfo func (ProgInfo map1 map2) =
   ProgInfo (mapWithKey (\_ b->func b) map1) (mapWithKey (\_ b->func b) map2)
 

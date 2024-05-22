@@ -26,6 +26,7 @@ import Analysis.ProgInfo
 import Analysis.Types
 import CASS.Configuration   ( CConfig, debugLevel, numberOfWorkers )
 import CASS.Dependencies    ( getModulesToAnalyze )
+import CASS.ServerFormats   ( OutputFormat(..) )
 import CASS.ServerFunctions ( masterLoop )
 import CASS.WorkerFunctions ( analysisClient )
 
@@ -127,7 +128,8 @@ data RegisteredAnalysis =
   RegAna String
          Bool
          String
-         (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
+         (CConfig -> String -> Bool -> [Handle]
+                  -> OutputFormat -> Maybe AOutFormat
                   -> IO (Either (ProgInfo String) String))
          (CConfig -> [String] -> IO ())
 
@@ -141,8 +143,8 @@ regAnaFunc :: RegisteredAnalysis -> Bool
 regAnaFunc (RegAna _ fa _ _ _) = fa
 
 regAnaServer :: RegisteredAnalysis
-             -> (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
-                 -> IO (Either (ProgInfo String) String))
+             -> (CConfig -> String -> Bool -> [Handle] -> OutputFormat
+             -> Maybe AOutFormat -> IO (Either (ProgInfo String) String))
 regAnaServer (RegAna _ _ _ a _) = a
 
 regAnaWorker :: RegisteredAnalysis -> (CConfig -> [String] -> IO ())
@@ -167,10 +169,11 @@ lookupRegAna aname (ra@(RegAna raname _ _ _ _) : ras) =
 
 -- Look up a registered analysis server with a given analysis name.
 lookupRegAnaServer :: String
-                   -> (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
+                   -> (CConfig -> String -> Bool -> [Handle] -> OutputFormat
+                   -> Maybe AOutFormat
                    -> IO (Either (ProgInfo String) String))
 lookupRegAnaServer aname =
-  maybe (\_ _ _ _ _ -> return (Right $ "unknown analysis: " ++ aname))
+  maybe (\_ _ _ _ _ _ -> return (Right $ "unknown analysis: " ++ aname))
         regAnaServer
         (lookupRegAna aname registeredAnalysis)
 
@@ -184,16 +187,20 @@ lookupRegAnaWorker aname =
 --------------------------------------------------------------------
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles and return the analysis results.
-runAnalysisWithWorkers :: CConfig -> String -> AOutFormat -> Bool -> [Handle]
+runAnalysisWithWorkers :: CConfig -> String -> OutputFormat -> AOutFormat
+                       -> Bool -> [Handle]
                        -> String -> IO (Either (ProgInfo String) String)
-runAnalysisWithWorkers cc ananame aoutformat enforce handles moduleName =
-  (lookupRegAnaServer ananame) cc moduleName enforce handles (Just aoutformat)
+runAnalysisWithWorkers cc ananame outformat aoutformat enforce handles
+                       moduleName =
+  (lookupRegAnaServer ananame)
+    cc moduleName enforce handles outformat (Just aoutformat)
 
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles but do not load analysis results.
 runAnalysisWithWorkersNoLoad :: CConfig -> String -> [Handle] -> String -> IO ()
 runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
-  () <$ (lookupRegAnaServer ananame) cc moduleName False handles Nothing
+  () <$ (lookupRegAnaServer ananame)
+          cc moduleName False handles FormatText Nothing
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the show operation for analysis results,
@@ -206,15 +213,19 @@ runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
 --- An error occurred during the analysis is returned as `(Right ...)`.
 analyzeAsString :: (Read a, Show a)
                 => Analysis a -> (AOutFormat -> a -> String) -> CConfig
-                -> String -> Bool -> [Handle] -> Maybe AOutFormat
+                -> String -> Bool -> [Handle]
+                -> OutputFormat -> Maybe AOutFormat
                 -> IO (Either (ProgInfo String) String)
 analyzeAsString analysis showres cconfig
-                modname enforce handles mbaoutformat = do
+                modname enforce handles outformat mbaoutformat = do
   analyzeMain cconfig analysis modname handles enforce
               (mbaoutformat /= Nothing) >>=
-    return . either (Left . mapProgInfo (showres aoutformat)) Right
+    return . either (Left . mapProgInfo showResult) Right
  where
-  aoutformat = maybe AText id mbaoutformat
+  showResult x = case outformat of
+    FormatTerm     -> show x
+    FormatJSONTerm -> show x
+    _              -> showres (maybe AText id mbaoutformat) x
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the name of the main module
