@@ -2,7 +2,7 @@
 --- Defining and processing tool options of CASS.
 ---
 --- @author Michael Hanus
---- @version April 2024
+--- @version July 2024
 --------------------------------------------------------------------------
 
 module CASS.Options where
@@ -52,7 +52,7 @@ options =
            "run quietly (no output)"
   , Option "v" ["verbosity"]
             (ReqArg (safeReadNat checkVerb) "<n>")
-            "verbosity/debug level:\n0: quiet (same as `-q')\n1: show worker activity, e.g., timings\n2: show server communication\n3: ...and show read/store information\n4: ...show also stored/computed analysis data\n(default: see debugLevel in ~/.curryanalysisrc)"
+            "verbosity/debug level:\n0: quiet (default; same as `-q')\n1: show worker activity, e.g., timings\n2: show server communication\n3: ...and show read/store information\n4: ...show also stored/computed analysis data\n(default: see debugLevel in ~/.curryanalysisrc)"
   , Option "a" ["all"]
            (NoArg (\opts -> opts { optAll = True }))
            "show analysis results for all operations\n(i.e., also for non-exported operations)"

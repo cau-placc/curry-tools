@@ -7,7 +7,7 @@
 --- the operation.
 ---
 --- @author Michael Hanus
---- @version February 2017
+--- @version July 2024
 ------------------------------------------------------------------------------
 
 module Analysis.Termination
@@ -15,16 +15,17 @@ module Analysis.Termination
   , productivityAnalysis, showProductivity, Productivity(..)
   ) where
 
+import Data.Char (isDigit)
+import Data.List
+import Data.SCC (scc)
+import FlatCurry.Types
+import FlatCurry.Goodies
+import RW.Base
+import System.IO
+
 import Analysis.Types
 import Analysis.ProgInfo
 import Analysis.RootReplaced (rootCyclicAnalysis)
-
-import Data.Char (isDigit)
-import Data.List
-import FlatCurry.Types
-import FlatCurry.Goodies
-
-import Data.SCC (scc)
 
 ------------------------------------------------------------------------------
 -- The termination analysis is a global function dependency analysis.
@@ -196,5 +197,31 @@ isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
                    else case prodinfo of
                           DCalls _ -> DCalls []
                           _        -> prodinfo
+
+-------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite Productivity where
+  readRW strs ('0' : r0) = (NoInfo,r0)
+  readRW strs ('1' : r0) = (Terminating,r0)
+  readRW strs ('2' : r0) = (DCalls a',r1)
+    where
+      (a',r1) = readRW strs r0
+  readRW strs ('3' : r0) = (Looping,r0)
+
+  showRW params strs0 NoInfo = (strs0,showChar '0')
+  showRW params strs0 Terminating = (strs0,showChar '1')
+  showRW params strs0 (DCalls a') = (strs1,showChar '2' . show1)
+    where
+      (strs1,show1) = showRW params strs0 a'
+  showRW params strs0 Looping = (strs0,showChar '3')
+
+  writeRW params h NoInfo strs = hPutChar h '0' >> return strs
+  writeRW params h Terminating strs = hPutChar h '1' >> return strs
+  writeRW params h (DCalls a') strs =
+    hPutChar h '2' >> writeRW params h a' strs
+  writeRW params h Looping strs = hPutChar h '3' >> return strs
+
+  typeOf _ = monoRWType "Productivity"
 
 ------------------------------------------------------------------------------

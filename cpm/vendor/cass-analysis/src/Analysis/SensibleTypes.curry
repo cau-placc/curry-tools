@@ -1,4 +1,4 @@
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 --- A type is sensible if there exists at least one value of this type.
 --- This module contains an analysis which associates to each type
 --- constructor the following information:
@@ -6,18 +6,22 @@
 --- * parametric sensible, i.e., it is sensible of all type arguments
 ---   are instantiated with sensible types
 --- * not sensible, i.e., maybe not sensible
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 module Analysis.SensibleTypes
   ( Sensible(..), showSensible, sensibleType )
  where
 
-import Analysis.Types
-import Analysis.ProgInfo
+import Data.Maybe
 import FlatCurry.Types
 import FlatCurry.Goodies
-import Data.Maybe
+import RW.Base
+import System.IO
 
+import Analysis.Types
+import Analysis.ProgInfo
+
+------------------------------------------------------------------------------
 --- Datatype to represent sensible type information.
 data Sensible = NotSensible | PSensible | Sensible
   deriving (Show, Read, Eq)
@@ -79,4 +83,22 @@ sensOfTypeExpr usedtypes (TCons tc typeExprs)
   senstargs = map (sensOfTypeExpr usedtypes) typeExprs
 sensOfTypeExpr usedtypes (ForallType _ texp) = sensOfTypeExpr usedtypes texp
 
------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite Sensible where
+  readRW strs ('0' : r0) = (NotSensible,r0)
+  readRW strs ('1' : r0) = (PSensible,r0)
+  readRW strs ('2' : r0) = (Sensible,r0)
+
+  showRW params strs0 NotSensible = (strs0,showChar '0')
+  showRW params strs0 PSensible = (strs0,showChar '1')
+  showRW params strs0 Sensible = (strs0,showChar '2')
+
+  writeRW params h NotSensible strs = hPutChar h '0' >> return strs
+  writeRW params h PSensible strs = hPutChar h '1' >> return strs
+  writeRW params h Sensible strs = hPutChar h '2' >> return strs
+
+  typeOf _ = monoRWType "Sensible"
+
+------------------------------------------------------------------------------

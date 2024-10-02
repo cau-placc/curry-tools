@@ -6,7 +6,7 @@
 --- constructor terms
 ---
 --- @author Johannes Koj, Michael Hanus
---- @version June 2022
+--- @version July 2024
 -----------------------------------------------------------------------------
 
 module Analysis.TotallyDefined
@@ -16,12 +16,15 @@ module Analysis.TotallyDefined
   , patCompAnalysis, totalAnalysis, totalFuncAnalysis
   ) where
 
-import Analysis.ProgInfo
-import Analysis.Types
-import Analysis.Deterministic ( isNondetDefined )
 import FlatCurry.Types
 import FlatCurry.Goodies
 import Data.List              ( delete )
+import RW.Base
+import System.IO
+
+import Analysis.ProgInfo
+import Analysis.Types
+import Analysis.Deterministic ( isNondetDefined )
 
 -----------------------------------------------------------------------
 --- An analysis to compute the sibling constructors (belonging to the
@@ -99,10 +102,11 @@ analysePatComplete consinfo fdecl = anaFun fdecl
 isComplete :: ProgInfo [(QName,Int)] -> Expr -> Completeness
 isComplete _ (Var _)      = Complete
 isComplete _ (Lit _)      = Complete
-isComplete consinfo (Comb _ f es) =
-  if f==("Prelude","commit") && length es == 1
-  then isComplete consinfo (head es)
-  else Complete
+isComplete consinfo (Comb _ f es)
+  -- branches with Prelude.failed as right-hand side are incomplete:
+  | f == ("Prelude","failed")                   = InComplete
+  | f == ("Prelude","commit") && length es == 1 = isComplete consinfo (head es)
+  | otherwise                                   = Complete
 isComplete _ (Free _ _) = Complete
 isComplete _ (Let _ _) = Complete
 isComplete consinfo (Or e1 e2) =
@@ -189,5 +193,23 @@ analyseTotalFunc pcinfo fdecl calledfuncs =
   (maybe False id (lookupProgInfo (funcName fdecl) pcinfo))
   && not (isNondetDefined fdecl)
   && all snd calledfuncs
+
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite Completeness where
+  readRW strs ('0' : r0) = (Complete,r0)
+  readRW strs ('1' : r0) = (InComplete,r0)
+  readRW strs ('2' : r0) = (InCompleteOr,r0)
+
+  showRW params strs0 Complete = (strs0,showChar '0')
+  showRW params strs0 InComplete = (strs0,showChar '1')
+  showRW params strs0 InCompleteOr = (strs0,showChar '2')
+
+  writeRW params h Complete strs = hPutChar h '0' >> return strs
+  writeRW params h InComplete strs = hPutChar h '1' >> return strs
+  writeRW params h InCompleteOr strs = hPutChar h '2' >> return strs
+
+  typeOf _ = monoRWType "Completeness"
 
 ------------------------------------------------------------------------------

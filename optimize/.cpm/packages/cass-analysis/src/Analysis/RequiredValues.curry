@@ -9,20 +9,22 @@
 --- the argument `True` to compute the result `False`.
 ---
 --- @author Michael Hanus
---- @version April 2018
+--- @version July 2024
 -----------------------------------------------------------------------------
 
 module Analysis.RequiredValues
   (AType(..), showAType, AFType(..), showAFType, lubAType, reqValueAnalysis)
  where
 
-import Analysis.Types
-import Analysis.ProgInfo
-import Analysis.TotallyDefined(siblingCons)
-
 import FlatCurry.Types
 import FlatCurry.Goodies
 import Data.List         hiding (union,intersect)
+import RW.Base
+import System.IO
+
+import Analysis.Types
+import Analysis.ProgInfo
+import Analysis.TotallyDefined(siblingCons)
 
 ------------------------------------------------------------------------------
 -- Our abstract (non-standard) type domain.
@@ -316,5 +318,44 @@ intersect (_:_)  []     = []
 intersect (x:xs) (y:ys) | x==y      = x : intersect xs ys
                         | x<y       = intersect xs (y:ys)
                         | otherwise = intersect (x:xs) ys
+
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite AType where
+  readRW strs ('0' : r0) = (Cons a',r1)
+    where
+      (a',r1) = readRW strs r0
+  readRW strs ('1' : r0) = (AnyC,r0)
+  readRW strs ('2' : r0) = (Any,r0)
+
+  showRW params strs0 (Cons a') = (strs1,showChar '0' . show1)
+    where
+      (strs1,show1) = showRW params strs0 a'
+  showRW params strs0 AnyC = (strs0,showChar '1')
+  showRW params strs0 Any = (strs0,showChar '2')
+
+  writeRW params h (Cons a') strs = hPutChar h '0' >> writeRW params h a' strs
+  writeRW params h AnyC strs = hPutChar h '1' >> return strs
+  writeRW params h Any strs = hPutChar h '2' >> return strs
+
+  typeOf _ = monoRWType "AType"
+
+instance ReadWrite AFType where
+  readRW strs ('0' : r0) = (EmptyFunc,r0)
+  readRW strs ('1' : r0) = (AFType a',r1)
+    where
+      (a',r1) = readRW strs r0
+
+  showRW params strs0 EmptyFunc = (strs0,showChar '0')
+  showRW params strs0 (AFType a') = (strs1,showChar '1' . show1)
+    where
+      (strs1,show1) = showRW params strs0 a'
+
+  writeRW params h EmptyFunc strs = hPutChar h '0' >> return strs
+  writeRW params h (AFType a') strs =
+    hPutChar h '1' >> writeRW params h a' strs
+
+  typeOf _ = monoRWType "AFType"
 
 ------------------------------------------------------------------------------

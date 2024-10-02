@@ -1,6 +1,6 @@
 {
     "name": "cass-analysis",
-    "version": "3.0.1",
+    "version": "4.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Libraries with various compile-time analyses for Curry",
     "category": [ "Analysis" ],
@@ -12,10 +12,11 @@
         "containers" : ">= 3.0.0, < 4.0.0",
         "directory"  : ">= 3.0.0, < 4.0.0",
         "filepath"   : ">= 3.0.0, < 4.0.0",
-        "flatcurry"  : ">= 3.0.0, < 4.0.0",
+        "flatcurry"  : ">= 3.0.0, < 5.0.0",
+        "profiling"  : ">= 3.0.0, < 4.0.0",
+        "rw-data"    : ">= 1.0.0",
         "scc"        : ">= 3.0.0, < 4.0.0",
-        "time"       : ">= 3.0.0, < 4.0.0",
-        "xml"        : ">= 3.0.0, < 4.0.0"
+        "time"       : ">= 3.0.0, < 4.0.0"
     },
     "source": {
         "git": "https://github.com/curry-packages/cass-analysis.git",

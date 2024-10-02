@@ -22,7 +22,7 @@
         }
     ],
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/json.git",
+        "git": "https://github.com/curry-packages/json.git",
         "tag": "$version"
     }
 }

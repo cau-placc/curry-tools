@@ -1,0 +1,16 @@
+{
+    "name": "det-parse",
+    "version": "3.0.0",
+    "synopsis": "Deterministic parser combinators",
+    "category": [ "Parsing" ],
+    "author": "Jonas Oberschweiber",
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base" : ">= 3.0.0, < 4.0.0"
+    },
+    "source": {
+        "git": "https://github.com/curry-packages/det-parse.git",
+        "tag": "$version"
+    }
+}

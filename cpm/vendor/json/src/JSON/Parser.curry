@@ -1,3 +1,12 @@
+------------------------------------------------------------------------------
+--- This library contains the implementation of a parser for JSON values,
+--- i.e., an operation `parseJSON` which reads a textual JSON representation
+--- and returns a `Maybe` value of type `JValue`.
+---
+--- @author Jonas Oberschweiber
+--- @version September 2024
+------------------------------------------------------------------------------
+
 module JSON.Parser (parseJSON) where
 
 import JSON.Data
@@ -23,14 +32,20 @@ pJValue =   pTrue
         <|> pObject
 
 pObject :: Parser JValue
-pObject =   JObject <$> (char '{' *> pWhitespace *> pObject' <* pWhitespace <* char '}' <* pWhitespace)
-        <|> JObject <$> (char '{' *> pWhitespace *> char '}' *> yield [])
+pObject =
+      JObject <$>
+        (char '{' *> pWhitespace *> pObject' <* pWhitespace <* char '}'
+           <* pWhitespace)
+  <|> JObject <$> (char '{' *> pWhitespace *> char '}' *> yield [])
 
 pObject' :: Parser [(String, JValue)]
-pObject' = (:) <$> (pWhitespace *> pKeyValuePair) <*> (pWhitespace *> char ',' *> pObject' <|> yield [])
+pObject' =
+  (:) <$> (pWhitespace *> pKeyValuePair) <*>
+  (pWhitespace *> char ',' *> pObject' <|> yield [])
 
 pKeyValuePair :: Parser (String, JValue)
-pKeyValuePair = (,) <$> pString <*> (pWhitespace *> char ':' *> pWhitespace *> pJValue)
+pKeyValuePair =
+  (,) <$> pString <*> (pWhitespace *> char ':' *> pWhitespace *> pJValue)
 
 test_pObject_empty :: Prop
 test_pObject_empty = parse pObject "{}" -=- Just (JObject [])
@@ -89,27 +104,31 @@ pString :: Parser String
 pString = char '"' *> pCharSequence <* char '"'
 
 pCharSequence :: Parser String
-pCharSequence =   (++) <$> (char '\\' *> pEscaped) <*> pCharSequence
-              <|> (:) <$> check (\c -> c /= '"' && c /= '\\') anyChar <*> pCharSequence
-              <|> yield ""
+pCharSequence =
+      (++) <$> (char '\\' *> (pEscaped <!> failure)) <*> pCharSequence
+  <!> (:) <$> check (\c -> c /= '"' && c /= '\\') anyChar <*> pCharSequence
+  <!> yield ""
 
 pEscaped :: Parser String
-pEscaped =   char '"' *> yield "\""
+pEscaped =   char '"'  *> yield "\""
          <|> char '\\' *> yield "\\"
-         <|> char '/' *> yield "/"
-         <|> char 'b' *> yield "\b"
-         <|> char 'f' *> yield "\f"
-         <|> char 'n' *> yield "\n"
-         <|> char 'r' *> yield "\r"
-         <|> char 't' *> yield "\t"
+         <|> char '/'  *> yield "/"
+         <|> char 'b'  *> yield "\b"
+         <|> char 'f'  *> yield "\f"
+         <|> char 'n'  *> yield "\n"
+         <|> char 'r'  *> yield "\r"
+         <|> char 't'  *> yield "\t"
          <|> ((:[]) . chr) <$> (char 'u' *> pTwoByteHex)
 
 pTwoByteHex :: Parser Int
-pTwoByteHex = hexToInt <$> ((:) <$> pHexDigit <*> ((:) <$> pHexDigit <*> ((:) <$> pHexDigit <*> ((:[]) <$> pHexDigit))))
-  where pHexDigit = check isHexDigit anyChar
+pTwoByteHex =
+  hexToInt <$>
+  ((:) <$> pHexDigit <*> ((:) <$> pHexDigit <*> ((:)
+       <$> pHexDigit <*> ((:[]) <$> pHexDigit))))
+ where pHexDigit = check isHexDigit anyChar
 
 hexToInt :: String -> Int
-hexToInt s = foldl1 ((+).(16*)) (map digitToInt s)
+hexToInt s = foldl1 ((+) . (16*)) (map digitToInt s)
 
 test_pCharSequence_simple :: Prop
 test_pCharSequence_simple = parse pCharSequence "test" -=- Just "test"
@@ -169,23 +188,27 @@ pNumber =   (0-) <$> (char '-' *> pPositiveFloat)
 -- number without decimal point, decimal digits, base 10 exponent
 toFloat :: Int -> Int -> Int -> Float
 toFloat n d e = (fromInt n) * (exp 10 (d + e))
-  where exp x y = if y < 0 then 1 / (x ^ (0 - y)) else (x ^ y)
+ where exp x y = if y < 0 then 1 / (x ^ (0 - y)) else (x ^ y)
 
 pPositiveFloat :: Parser Float
 pPositiveFloat = (uncurry toFloat) <$> pWithDecimalPoint <*> pExponent
 
 pExponent :: Parser Int
-pExponent =   (char 'e' <|> char 'E') *> (char '-' *> yield negate <|> char '+' *> yield id <|> yield id) <*> pInt
-          <!> yield 0
+pExponent =
+      (char 'e' <|> char 'E') *>
+       (char '-' *> yield negate <|> char '+' *> yield id <|> yield id) <*> pInt
+  <!> yield 0
 
 pWithDecimalPoint :: Parser (Int, Int)
-pWithDecimalPoint = combine <$> some pDigit <*> (char '.' *> some pDigit <|> yield "")
-  where
-    s2i cs = foldl1 ((+).(10*)) (map (\c' -> ord c' - ord '0') cs)
-    combine n d = (s2i (n ++ d), negate $ length d)
+pWithDecimalPoint =
+  combine <$> some pDigit <*> (char '.' *> some pDigit <|> yield "")
+ where
+  s2i cs = foldl1 ((+).(10*)) (map (\c' -> ord c' - ord '0') cs)
+  combine n d = (s2i (n ++ d), negate $ length d)
 
 pInt :: Parser Int
-pInt = (\cs -> foldl1 ((+).(10*)) (map (\c' -> ord c' - ord '0') cs)) <$> some pDigit
+pInt =
+  (\cs -> foldl1 ((+).(10*)) (map (\c' -> ord c' - ord '0') cs)) <$> some pDigit
 
 pDigit :: Parser Char
 pDigit = check isDigit anyChar

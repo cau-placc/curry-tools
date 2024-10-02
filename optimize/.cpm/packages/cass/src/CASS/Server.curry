@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version April 2024
+--- @version July 2024
 --------------------------------------------------------------------------
 
 module CASS.Server
@@ -18,6 +18,7 @@ module CASS.Server
 import Numeric            ( readNat )
 import Data.Char          ( isSpace, toLower )
 import Control.Monad      ( unless )
+import RW.Base
 import System.CurryPath   ( runModuleAction )
 import System.Directory
 import System.FilePath
@@ -156,7 +157,7 @@ analyzeModule cconfig ananame enforce outformat aoutformat modname = do
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one. The options are read from the rc file.
 --- Returns either the analysis information or an error message.
-analyzeGeneric :: (Read a, Show a)
+analyzeGeneric :: (Read a, Show a, ReadWrite a)
                => Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric = analyzeGenericWithDebug Nothing
 
@@ -166,7 +167,7 @@ analyzeGeneric = analyzeGenericWithDebug Nothing
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one. The options are read from the rc file.
 --- Returns either the analysis information or an error message.
-analyzeGenericWithDebug :: (Read a, Show a) =>
+analyzeGenericWithDebug :: (Read a, Show a, ReadWrite a) =>
   Maybe Int -> Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGenericWithDebug debuglevel analysis moduleName = do
   configrc <- readRCFile
@@ -199,7 +200,7 @@ analyzeGenericWithDebug debuglevel analysis moduleName = do
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
 --- Returns either the analysis information or an error message.
-analyzePublic :: (Read a, Show a)
+analyzePublic :: (Read a, Show a, ReadWrite a)
               => Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzePublic analysis moduleName =
   analyzeGeneric analysis moduleName
@@ -210,7 +211,7 @@ analyzePublic analysis moduleName =
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
-analyzeInterface :: (Read a, Show a)
+analyzeInterface :: (Read a, Show a, ReadWrite a)
                  => Analysis a -> String -> IO (Either [(QName,a)] String)
 analyzeInterface analysis moduleName =
   analyzeGeneric analysis moduleName

@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version October 2023
+--- @version July 2024
 --------------------------------------------------------------------
 
 module CASS.Registry
@@ -14,7 +14,9 @@ module CASS.Registry
  ) where
 
 import FlatCurry.Types
-import FlatCurry.Goodies(progImports)
+import FlatCurry.TypesRW
+import FlatCurry.Goodies    ( progImports )
+import RW.Base
 import System.IO
 import System.IOExts
 import Control.Monad
@@ -106,7 +108,7 @@ registeredAnalysis =
 --- by the server/client analysis tool from a given analysis and
 --- analysis show function. The first argument is a short title for the
 --- analysis.
-cassAnalysis :: (Read a, Show a, Eq a)
+cassAnalysis :: (Eq a, Read a, Show a, ReadWrite a)
              => String -> Analysis a -> (AOutFormat -> a -> String)
              -> RegisteredAnalysis
 cassAnalysis title analysis showres =
@@ -211,7 +213,7 @@ runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeAsString :: (Read a, Show a)
+analyzeAsString :: (Read a, Show a, ReadWrite a)
                 => Analysis a -> (AOutFormat -> a -> String) -> CConfig
                 -> String -> Bool -> [Handle]
                 -> OutputFormat -> Maybe AOutFormat
@@ -235,7 +237,7 @@ analyzeAsString analysis showres cconfig
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeMain :: (Read a, Show a)
+analyzeMain :: (Read a, Show a, ReadWrite a)
             => CConfig -> Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
 analyzeMain cconfig analysis modname handles enforce load = do

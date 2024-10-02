@@ -5,7 +5,7 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version June 2022
+--- @version July 2024
 ------------------------------------------------------------------------------
 
 module Analysis.Deterministic
@@ -15,11 +15,14 @@ module Analysis.Deterministic
   , showNonDetDeps, nondetDepAnalysis, nondetDepAllAnalysis
   ) where
 
-import Analysis.Types
+import Data.Char         (isDigit)
+import Data.List
 import FlatCurry.Types
 import FlatCurry.Goodies
-import Data.List
-import Data.Char         (isDigit)
+import RW.Base
+import System.IO
+
+import Analysis.Types
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual functions.
@@ -252,5 +255,20 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
 
 pre :: String -> QName
 pre n = ("Prelude",n)
+
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite Deterministic where
+  readRW _ ('0' : r0) = (NDet,r0)
+  readRW _ ('1' : r0) = (Det,r0)
+
+  showRW _ strs0 NDet = (strs0,showChar '0')
+  showRW _ strs0 Det  = (strs0,showChar '1')
+
+  writeRW _ h NDet strs = hPutChar h '0' >> return strs
+  writeRW _ h Det strs  = hPutChar h '1' >> return strs
+
+  typeOf _ = monoRWType "Deterministic"
 
 ------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
-flatcurry
-=========
+FlatCurry: An intermediate language for Curry programs
+======================================================
 
 This package contains libraries to deal with *FlatCurry programs*.
 FlatCurry is an intermediate language to represent Curry programs
@@ -10,6 +10,32 @@ are represented in FlatCurry by a single rule containing
 case expressions and disjunctions in its right-hand side.
 The precise structure of FlatCurry is defined in the
 module `FlatCurry.Types`.
+
+Usage of FlatCurry
+------------------
+
+Usually, the front end of Curry systems (like PAKCS or KiCS2)
+translates a Curry program into an intermediate FlatCurry program
+in order to further compile it into the target code.
+Furthermore, the FlatCurry representation is used to
+analyze or verify properties of Curry programs.
+When implementing such Curry language tools,
+it is important to understand the FlatCurry representation
+and how it is obtained from a Curry program.
+For this purpose, one can use the
+[Curry browser](https://cpm.curry-lang.org/pkgs/currybrowse.html)
+which has options to show the FlatCurry representation
+of a Curry program in various forms.
+One can also the Curry front end to print the FlatCurry
+representation in a human-readable format.
+For this purpose, one could add the line
+
+    {-# OPTIONS_FRONTEND -ddump-flat #-}
+
+at the beginning of a Curry program.
+
+Type declarations in FlatCurry
+------------------------------
 
 Note that definition of types introduced by `data` or `newtype`
 declarations are still present in FlatCurry.
@@ -23,6 +49,9 @@ However, if the target language is untyped, every use of a `newtype`
 can be eliminated by dropping the `newtype` constructors
 in the FlatCurry program. This can be done by operations
 provided by the module `FlatCurry.ElimNewtype`.
+
+Modules of the package
+----------------------
 
 Currently, this package contains the following modules:
 
