@@ -1,9 +1,14 @@
 ------------------------------------------------------------------------------ 
 --- Library for converting ground terms to strings and vice versa. 
+---
+--- Remark: The `Data` type class constraint is removed for KiCS2
+--- since this causes a memory leak (due to the non-deterministic method
+--- `aValue`) but it is not used in the implementation.
 --- 
 --- @author Michael Hanus 
---- @version April 2021
+--- @version October 2024
 ------------------------------------------------------------------------------ 
+{-# LANGUAGE CPP #-}
 
 module ReadShowTerm ( showTerm, readsUnqualifiedTerm, readUnqualifiedTerm )
  where
@@ -17,11 +22,15 @@ import Data.Char ( isSpace )
 --- but can read the string back with `readUnqualifiedTerm`
 --- (provided that the constructor names are unique without the module
 --- qualifier).
-showTerm :: Data a => a -> String 
+#ifdef __KICS2__
+showTerm :: a -> String
+#else
+showTerm :: Data a => a -> String
+#endif
 showTerm x = prim_showTerm $## x 
- 
-prim_showTerm :: _ -> String 
-prim_showTerm external 
+
+prim_showTerm :: _ -> String
+prim_showTerm external
 
  
 --- Transform a string containing a data term in standard prefix notation 
@@ -33,13 +42,21 @@ prim_showTerm external
 --- In case of a successful parse, the result is a one element list 
 --- containing a pair of the data term and the remaining unparsed string. 
  
+#ifdef __KICS2__
+readsUnqualifiedTerm :: [String] -> String -> [(a,String)]
+#else
 readsUnqualifiedTerm :: Data a => [String] -> String -> [(a,String)]
+#endif
 readsUnqualifiedTerm [] _ =
   error "ReadShowTerm.readsUnqualifiedTerm: list of module prefixes is empty"
 readsUnqualifiedTerm (prefix:prefixes) s =
   readsUnqualifiedTermWithPrefixes (prefix:prefixes) s
  
+#ifdef __KICS2__
+readsUnqualifiedTermWithPrefixes :: [String] -> String -> [(a,String)]
+#else
 readsUnqualifiedTermWithPrefixes :: Data a => [String] -> String -> [(a,String)]
+#endif
 readsUnqualifiedTermWithPrefixes prefixes s =
   (prim_readsUnqualifiedTerm $## prefixes) $## s 
  
@@ -55,7 +72,11 @@ prim_readsUnqualifiedTerm external
 --- 
 --- Example: `readUnqualifiedTerm ["Prelude"] "Just 3"` evaluates to `(Just 3)`
  
+#ifdef __KICS2__
+readUnqualifiedTerm :: [String] -> String -> a
+#else
 readUnqualifiedTerm :: Data a => [String] -> String -> a
+#endif
 readUnqualifiedTerm prefixes s = case result of
   [(term,tail)] 
      -> if all isSpace tail

@@ -5,7 +5,7 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version July 2024
+--- @version October 2024
 ------------------------------------------------------------------------------
 
 module Analysis.Deterministic
@@ -141,8 +141,8 @@ nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
   callsNDOp (Case _ e bs) =
     callsNDOp e || any (\ (Branch _ be) -> callsNDOp be) bs
   callsNDOp (Typed e _) = callsNDOp e
-  callsNDOp (Comb _ qf@(mn,fn) es)
-    | mn == "SetFunctions" && take 3 fn == "set" && all isDigit (drop 3 fn)
+  callsNDOp (Comb _ qf es)
+    | isSetFunction qf
     = -- non-determinism of function (first argument) is encapsulated so that
       -- its called ND functions are not relevant:
       if null es then False -- this case should not occur
@@ -157,7 +157,14 @@ nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
 -- Does the operation ensures the strong encapsulation of its argument?
 isStrongEncapsOp :: QName -> Bool
 isStrongEncapsOp (mn,_) =
-  mn `elem` ["Control.AllSolutions", "Control.AllValues"]
+  mn `elem` ["Control.Search.AllValues", "Control.Search.Unsafe",
+             "Control.AllSolutions", "Control.AllValues"]
+
+-- Is the operation the name of a set function?
+isSetFunction :: QName -> Bool
+isSetFunction (mn,fn) =
+  mn `elem` ["Control.Search.SetFunctions", "Control.SetFunctions"] &&
+  take 3 fn == "set" && all isDigit (drop 3 fn)
 
 ------------------------------------------------------------------------------
 --- Data type to represent information about non-deterministic dependencies.
@@ -238,8 +245,8 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
   calledNDFuncs (Case _ e bs) =
     calledNDFuncs e ++ concatMap (\ (Branch _ be) -> calledNDFuncs be) bs
   calledNDFuncs (Typed e _) = calledNDFuncs e
-  calledNDFuncs (Comb _ qf@(mn,fn) es)
-    | mn == "SetFunctions" && take 3 fn == "set" && all isDigit (drop 3 fn)
+  calledNDFuncs (Comb _ qf es)
+    | isSetFunction qf
     = -- non-determinism of function (first argument) is encapsulated so that
       -- its called ND functions are not relevant:
       if null es then [] -- this case should not occur

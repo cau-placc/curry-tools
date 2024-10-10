@@ -44,17 +44,6 @@ The implementations of the individual analysis are
 usually defined in the package `cass-analysis`).
 
 
-Description of some Curry modules:
-----------------------------------
-
-* `CASS.Registry`: All available analyses must be registered here.
-* `CASS.Server`: The main module implementing the use of the server.
-* `CASS.ServerFormats`: Definition and implementation of output formats.
-* `CASS.WorkerFunctions`: Implementation of the analysis workers
-  (in particular, alternative fixpoint iterations to compute
-   dependency analyses, see option `fixpoint` in the configuration file,
-   must be inserted here).
-
 Examples:
 ---------
 
@@ -73,6 +62,17 @@ M. Hanus, F. Skrlac:
 [A Modular and Generic Analysis Server System for Functional Logic Programs](https://dx.doi.org/10.1145/2543728.2543744),
 ACM SIGPLAN 2014 Workshop on Partial Evaluation and Program Manipulation (PEPM'14), ACM Press, pp. 181-188, 2014
 
+
+Description of some Curry modules:
+----------------------------------
+
+* `CASS.Registry`: All available analyses must be registered here.
+* `CASS.Server`: The main module implementing the use of the server.
+* `CASS.ServerFormats`: Definition and implementation of output formats.
+* `CASS.WorkerFunctions`: Implementation of the analysis workers
+  (in particular, alternative fixpoint iterations to compute
+   dependency analyses, see option `fixpoint` in the configuration file,
+   must be inserted here).
 
 Files
 -----
