@@ -15,10 +15,13 @@
     "exportedModules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"],
     "testsuite": [
         { "src-dir": "src",
-          "modules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"]
+          "modules": ["JSON.Parser"]
         },
         { "src-dir": "examples",
           "modules": [ "SimpleTest" ]
+        },
+        { "src-dir": "test",
+          "modules": [ "TestConvert" ]
         }
     ],
     "source": {

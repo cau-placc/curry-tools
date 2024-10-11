@@ -36,4 +36,12 @@ If you want more control over the layout of the resulting string, you can use
 `ppJValue` from the same value to obtain a `Doc` for Curry's `Pretty` module 
 from a `JValue`. 
 
+## Converting to and from JSON
+
+The module `JSON.Convert` defines a defines a type class `ConvertJSON`
+and various instances for standard types to convert Curry values to JSON values
+and vice versa.
+As apparent from these instance definitions, it is quite easy to
+define instances for other user-defined data types.
+
 [1]: http://www.json.org
