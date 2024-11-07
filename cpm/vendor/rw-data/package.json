@@ -1,6 +1,6 @@
 {
   "name": "rw-data",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Lasse Zuengel <stu226842@mail.uni-kiel.de>",
   "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
   "synopsis": "Base operations to support reading and writing data in a compact (string) representation",
@@ -10,7 +10,11 @@
   "dependencies": {
       "base"          : ">= 3.2.0, < 4.0.0",
       "containers"    : ">= 3.0.0, < 4.0.0",
-      "read-legacy"   : ">= 3.0.0, < 4.0.0"
+      "read-legacy"   : ">= 3.0.0, < 4.0.0",
+      "process"       : ">= 3.0.0, < 4.0.0",
+      "profiling"     : ">= 3.0.0, < 4.0.0",
+      "directory"     : ">= 3.0.0, < 4.0.0",
+      "string-trie"   : "< 1.0.0"
   },
   "exportedModules": [ "RW.Base" ],
   "description": 

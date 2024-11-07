@@ -5,8 +5,10 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version October 2024
+--- @version November 2024
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.Deterministic
   ( overlapAnalysis, showOverlap, showDet

@@ -3,7 +3,7 @@
 --- anlysis server.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version April 2024
+--- @version October 2024
 ------------------------------------------------------------------------------
 
 module CASS.ServerFormats
@@ -35,18 +35,19 @@ serverFormatNames =
 --- Format an analysis result in different formats.
 --- The arguments are the module name, the output format,
 --- `(Just n)` if not the complete module but the result for entity `n`
---- should only be shown, and a flag which is true if only the interface
---- information should be shown.
-formatResult :: String -> OutputFormat -> Maybe String -> Bool
+--- should only be shown, a flag which is true if only the interface
+--- information should be shown, and a flag which is true if also
+--- generated operations should be shown.
+formatResult :: String -> OutputFormat -> Maybe String -> Bool -> Bool
              -> (Either (ProgInfo String) String) -> String
-formatResult _ outForm _ _ (Right err) =
+formatResult _ outForm _ _ _ (Right err) =
   case outForm of FormatXML      -> showXmlDoc (xml "error" [xtxt errMsg])
                   FormatJSON     -> ppJSON (JString errMsg)
                   FormatJSONTerm -> ppJSON (JString errMsg)
                   _              -> errMsg
  where errMsg = "ERROR in analysis: " ++ err
 -- Format a single program entity result:
-formatResult moduleName outForm (Just name) _ (Left pinfo) =
+formatResult moduleName outForm (Just name) _ _ (Left pinfo) =
   case lookupProgInfo (moduleName,name) pinfo of
     Nothing    -> "ERROR " ++ name ++ " not found in " ++ moduleName
     Just value -> case outForm of
@@ -54,8 +55,8 @@ formatResult moduleName outForm (Just name) _ (Left pinfo) =
                     FormatJSON     -> ppJSON (JString value)
                     FormatJSONTerm -> ppJSON (JString value)
                     _              -> value
--- Format a complete module:
-formatResult moduleName outForm Nothing public (Left pinfo) =
+-- Format the analysis results of a complete module:
+formatResult moduleName outForm Nothing public generated (Left pinfo) =
   case outForm of
     FormatTerm     -> show entities ++ "\n"
     FormatXML      -> showXmlDoc $ xml "results" $ map entry2xml entities
@@ -65,9 +66,10 @@ formatResult moduleName outForm Nothing public (Left pinfo) =
  where
   (pubents,privents) = progInfo2Lists pinfo
 
-  entities = if public then pubents
-                       else sortBy (\ (qf1,_) (qf2,_) -> qf1 <= qf2)
-                                   (pubents ++ privents)
+  entities = filter (\(qn,_) -> generated || isCurryID qn)
+                    (if public then pubents
+                               else sortBy (\ (qf1,_) (qf2,_) -> qf1 <= qf2)
+                                           (pubents ++ privents))
 
   entry2xml ((mname,name),value) =
     xml "operation" [xml "module" [xtxt mname],
@@ -85,5 +87,14 @@ formatResult moduleName outForm Nothing public (Left pinfo) =
 formatAsText :: String -> [(QName,String)] -> String
 formatAsText moduleName =
   unlines . map (\ (qf,r) -> showQNameInModule moduleName qf ++ " : " ++ r)
+
+-- Is a qualified name an allowed Curry identifier (i.e., not a generated id)?
+isCurryID :: QName -> Bool
+isCurryID (_,n) = case n of
+  []               -> False
+  x:xs | isAlpha x -> all (\c -> isAlphaNum c || c `elem` "'_") xs
+       | otherwise -> all (flip elem opChars) n
+ where
+  opChars = "~!@#$%^&*+-=<>?./|\\:"
 
 ------------------------------------------------------------------------------

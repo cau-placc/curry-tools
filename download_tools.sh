@@ -112,6 +112,9 @@ cd .cpm/packages
  PKGV=`ls -d socket-*`
  mv $PKGV socket
  ln -s socket $PKGV
+ PKGV=`ls -d string-trie-*`
+ mv $PKGV string-trie
+ ln -s string-trie $PKGV
  PKGV=`ls -d time-*`
  mv $PKGV time
  ln -s time $PKGV

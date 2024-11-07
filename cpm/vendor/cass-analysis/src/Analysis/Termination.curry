@@ -7,8 +7,10 @@
 --- the operation.
 ---
 --- @author Michael Hanus
---- @version July 2024
+--- @version November 2024
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.Termination
   ( terminationAnalysis, showTermination
@@ -202,25 +204,25 @@ isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
 -- ReadWrite instances:
 
 instance ReadWrite Productivity where
-  readRW strs ('0' : r0) = (NoInfo,r0)
-  readRW strs ('1' : r0) = (Terminating,r0)
+  readRW _ ('0' : r0) = (NoInfo,r0)
+  readRW _ ('1' : r0) = (Terminating,r0)
   readRW strs ('2' : r0) = (DCalls a',r1)
     where
       (a',r1) = readRW strs r0
-  readRW strs ('3' : r0) = (Looping,r0)
+  readRW _ ('3' : r0) = (Looping,r0)
 
-  showRW params strs0 NoInfo = (strs0,showChar '0')
-  showRW params strs0 Terminating = (strs0,showChar '1')
+  showRW _ strs0 NoInfo = (strs0,showChar '0')
+  showRW _ strs0 Terminating = (strs0,showChar '1')
   showRW params strs0 (DCalls a') = (strs1,showChar '2' . show1)
     where
       (strs1,show1) = showRW params strs0 a'
-  showRW params strs0 Looping = (strs0,showChar '3')
+  showRW _ strs0 Looping = (strs0,showChar '3')
 
-  writeRW params h NoInfo strs = hPutChar h '0' >> return strs
-  writeRW params h Terminating strs = hPutChar h '1' >> return strs
+  writeRW _      h NoInfo strs = hPutChar h '0' >> return strs
+  writeRW _      h Terminating strs = hPutChar h '1' >> return strs
   writeRW params h (DCalls a') strs =
     hPutChar h '2' >> writeRW params h a' strs
-  writeRW params h Looping strs = hPutChar h '3' >> return strs
+  writeRW _ h Looping strs = hPutChar h '3' >> return strs
 
   typeOf _ = monoRWType "Productivity"
 

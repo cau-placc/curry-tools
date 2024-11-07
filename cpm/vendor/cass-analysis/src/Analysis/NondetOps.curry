@@ -3,8 +3,10 @@
 --- checks whether operations encapsulate or produce non-deterministic values
 ---
 --- @author Michael Hanus
---- @version July 2024
+--- @version November 2024
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.NondetOps ( nondetOperations, showNondet, Nondet(..) )
  where
@@ -251,22 +253,22 @@ isSetCombinator (mn,fn) = mn == "Control.SetFunctions" && take 3 fn == "set"
 -- ReadWrite instances:
 
 instance ReadWrite Nondet where
-  readRW strs ('0' : r0) = (Det,r0)
-  readRW strs ('1' : r0) = (Nondet,r0)
+  readRW _ ('0' : r0) = (Det,r0)
+  readRW _ ('1' : r0) = (Nondet,r0)
   readRW strs ('2' : r0) = (FunD a' b',r2)
     where
       (a',r1) = readRW strs r0
       (b',r2) = readRW strs r1
 
-  showRW params strs0 Det = (strs0,showChar '0')
-  showRW params strs0 Nondet = (strs0,showChar '1')
+  showRW _ strs0 Det = (strs0,showChar '0')
+  showRW _ strs0 Nondet = (strs0,showChar '1')
   showRW params strs0 (FunD a' b') = (strs2,showChar '2' . (show1 . show2))
     where
       (strs1,show1) = showRW params strs0 a'
       (strs2,show2) = showRW params strs1 b'
 
-  writeRW params h Det strs = hPutChar h '0' >> return strs
-  writeRW params h Nondet strs = hPutChar h '1' >> return strs
+  writeRW _ h Det strs = hPutChar h '0' >> return strs
+  writeRW _ h Nondet strs = hPutChar h '1' >> return strs
   writeRW params h (FunD a' b') strs =
     hPutChar h '2' >> (writeRW params h a' strs >>= writeRW params h b')
 

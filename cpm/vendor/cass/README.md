@@ -1,8 +1,40 @@
-CASS: The Curry Analysis Server System
-======================================
+# CASS: The Curry Analysis Server System
 
 This directory contains the implementation of CASS,
 a generic and distributed analysis system for Curry programs.
+
+## Overview
+
+CASS (Curry Analysis Server System) is a tool for the analysis of Curry 
+programs. CASS is generic so that various kinds of analyses
+(e.g., groundness, non-determinism, demanded arguments) can easily
+be integrated into CASS.
+Currently, CASS contains more than 30 kinds of program analyses
+which are used by various programming tools for Curry.
+The implementation of these analyses is contained in the package
+[cass-analysis](https://cpm.curry-lang.org/pkgs/cass-analysis.html)
+
+In order to analyze larger applications consisting of dozens or hundreds
+of Curry modules, CASS supports a modular and incremental analysis of programs.
+Moreover, it can be used by different programming tools,
+like documentation generators, analysis environments, program optimizers,
+as well as Eclipse-based development environments.
+For this purpose, CASS can also be invoked as a server system
+to get a language-independent access to its functionality.
+CASS is completely implemented Curry as a master/worker architecture
+to exploit parallel or distributed execution environments.
+
+## Documentation
+
+The structure of CASS and the ideas behind its implementation
+can be found in this paper:
+
+M. Hanus, F. Skrlac:
+[A Modular and Generic Analysis Server System for Functional Logic Programs](https://dx.doi.org/10.1145/2543728.2543744),
+ACM SIGPLAN 2014 Workshop on Partial Evaluation and Program Manipulation (PEPM'14), ACM Press, pp. 181-188, 2014
+
+
+## Usage
 
 The analysis system is structured as a worker/server application
 where the workers are triggered by the main server to analyse
@@ -40,31 +72,28 @@ names.
 
 The analysis system can be configured in the file `$HOME/.curryanalysisrc`
 which is installed after the first run of the system.
-The implementations of the individual analysis are
-usually defined in the package `cass-analysis`).
+
+More details about the usage of CASS can be found in a
+[short user manual](https://cpm.curry-lang.org/DOC/cass-4.0.0/main.pdf).
 
 
-Examples:
----------
+### Examples:
 
 The Curry program `UsingCass` in directory `examples` contains
 a simple program demonstrating the use of analysis results
 computed by CASS inside another Curry program.
 
+## Web Demo Installation
 
-Technical details
------------------
-
-The structur of CASS and the ideas behind its implementation
-can be found in this paper:
-
-M. Hanus, F. Skrlac:
-[A Modular and Generic Analysis Server System for Functional Logic Programs](https://dx.doi.org/10.1145/2543728.2543744),
-ACM SIGPLAN 2014 Workshop on Partial Evaluation and Program Manipulation (PEPM'14), ACM Press, pp. 181-188, 2014
+If you want to try CASS on simple programs via a web interface,
+you can use a
+[Web Demo Installation](https://cpm.curry-lang.org/webapps/cass/)
+of CASS.
 
 
-Description of some Curry modules:
-----------------------------------
+## Technical details
+
+### Description of some Curry modules:
 
 * `CASS.Registry`: All available analyses must be registered here.
 * `CASS.Server`: The main module implementing the use of the server.
@@ -74,8 +103,7 @@ Description of some Curry modules:
    dependency analyses, see option `fixpoint` in the configuration file,
    must be inserted here).
 
-Files
------
+### Files
 
 In order to support a modular and incremental analysis of applications
 consisting of several modules, CASS caches already computed analysis results

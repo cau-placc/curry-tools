@@ -8,6 +8,8 @@
 --- * not sensible, i.e., maybe not sensible
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
+
 module Analysis.SensibleTypes
   ( Sensible(..), showSensible, sensibleType )
  where
@@ -87,17 +89,17 @@ sensOfTypeExpr usedtypes (ForallType _ texp) = sensOfTypeExpr usedtypes texp
 -- ReadWrite instances:
 
 instance ReadWrite Sensible where
-  readRW strs ('0' : r0) = (NotSensible,r0)
-  readRW strs ('1' : r0) = (PSensible,r0)
-  readRW strs ('2' : r0) = (Sensible,r0)
+  readRW _ ('0' : r0) = (NotSensible,r0)
+  readRW _ ('1' : r0) = (PSensible,r0)
+  readRW _ ('2' : r0) = (Sensible,r0)
 
-  showRW params strs0 NotSensible = (strs0,showChar '0')
-  showRW params strs0 PSensible = (strs0,showChar '1')
-  showRW params strs0 Sensible = (strs0,showChar '2')
+  showRW _ strs0 NotSensible = (strs0,showChar '0')
+  showRW _ strs0 PSensible = (strs0,showChar '1')
+  showRW _ strs0 Sensible = (strs0,showChar '2')
 
-  writeRW params h NotSensible strs = hPutChar h '0' >> return strs
-  writeRW params h PSensible strs = hPutChar h '1' >> return strs
-  writeRW params h Sensible strs = hPutChar h '2' >> return strs
+  writeRW _ h NotSensible strs = hPutChar h '0' >> return strs
+  writeRW _ h PSensible strs = hPutChar h '1' >> return strs
+  writeRW _ h Sensible strs = hPutChar h '2' >> return strs
 
   typeOf _ = monoRWType "Sensible"
 

@@ -2,7 +2,7 @@
 --- Defining and processing tool options of CASS.
 ---
 --- @author Michael Hanus
---- @version July 2024
+--- @version October 2024
 --------------------------------------------------------------------------
 
 module CASS.Options where
@@ -16,31 +16,34 @@ import CASS.ServerFormats
 --------------------------------------------------------------------------
 -- Representation of command line options.
 data Options = Options
-  { optHelp    :: Bool         -- print help?
-  , optVerb    :: Int          -- verbosity level
-  , optServer  :: Bool         -- start CASS in server mode?
-  , optWorker  :: Bool         -- start CASS in worker mode?
-  , optPort    :: Int          -- port number (if used in server mode)
-  , optAll     :: Bool         -- show analysis results for all operations?
-  , optFormat  :: OutputFormat -- output format
-  , optReAna   :: Bool         -- force re-analysis?
-  , optDelete  :: Bool         -- delete analysis files?
-  , optProp    :: [(String,String)] -- property (of ~/.curryanalsisrc) to be set
+  { optHelp      :: Bool         -- print help?
+  , optVerb      :: Int          -- verbosity level
+  , optServer    :: Bool         -- start CASS in server mode?
+  , optWorker    :: Bool         -- start CASS in worker mode?
+  , optPort      :: Int          -- port number (if used in server mode)
+  , optAll       :: Bool         -- show analysis results for all operations?
+  , optGenerated :: Bool         -- show results for generated operations?
+  , optFormat    :: OutputFormat -- output format
+  , optReAna     :: Bool         -- force re-analysis?
+  , optDelete    :: Bool         -- delete analysis files?
+  , optProp      :: [(String,String)] -- property (of ~/.curryanalsisrc)
+                                      -- to be set during this analysis run
   }
 
 -- Default command line options.
 defaultOptions :: Options
 defaultOptions = Options
-  { optHelp    = False
-  , optVerb    = -1
-  , optServer  = False
-  , optWorker  = False
-  , optPort    = 0
-  , optAll     = False
-  , optFormat  = FormatText
-  , optReAna   = False
-  , optDelete  = False
-  , optProp    = []
+  { optHelp      = False
+  , optVerb      = -1
+  , optServer    = False
+  , optWorker    = False
+  , optPort      = 0
+  , optAll       = False
+  , optGenerated = True
+  , optFormat    = FormatText
+  , optReAna     = False
+  , optDelete    = False
+  , optProp      = []
   }
 
 -- Definition of actual command line options.
@@ -59,6 +62,9 @@ options =
   , Option "f" ["format"]
            (ReqArg checkFormat "<f>")
            "output format (default: Text):\nText|Short|CurryTerm|JSON|JSONTerm|XML"
+  , Option "" ["nogenerated"]
+           (NoArg (\opts -> opts { optGenerated = False }))
+           "do not show results of generated operations\n(e.g., operations derived for class instances)"
   , Option "r" ["reanalyze"]
            (NoArg (\opts -> opts { optReAna = True }))
            "force re-analysis \n(i.e., ignore old analysis information)"

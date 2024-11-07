@@ -105,9 +105,9 @@ registeredAnalysis =
 --------------------------------------------------------------------
 
 --- This auxiliary operation creates a new program analysis to be used
---- by the server/client analysis tool from a given analysis and
---- analysis show function. The first argument is a short title for the
---- analysis.
+--- by the server/client analysis tool from a given analysis and a show
+--- function for analysis results.
+--- The first argument is a short title for the analysis.
 cassAnalysis :: (Eq a, Read a, Show a, ReadWrite a)
              => String -> Analysis a -> (AOutFormat -> a -> String)
              -> RegisteredAnalysis

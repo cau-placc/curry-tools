@@ -6,8 +6,10 @@
 --- and domains of depth-bounded constructor terms.
 ---
 --- @author Michael Hanus
---- @version July 2024
+--- @version November 2024
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.TermDomain
   ( TermDomain(..), AType, DType2, DType5, litAsCons )
@@ -299,16 +301,16 @@ instance ReadWrite AType where
   readRW strs ('0' : r0) = (ACons a',r1)
     where
       (a',r1) = readRW strs r0
-  readRW strs ('1' : r0) = (AAny,r0)
+  readRW _ ('1' : r0) = (AAny,r0)
 
   showRW params strs0 (ACons a') = (strs1,showChar '0' . show1)
     where
       (strs1,show1) = showRW params strs0 a'
-  showRW params strs0 AAny = (strs0,showChar '1')
+  showRW _ strs0 AAny = (strs0,showChar '1')
 
   writeRW params h (ACons a') strs =
     hPutChar h '0' >> writeRW params h a' strs
-  writeRW params h AAny strs = hPutChar h '1' >> return strs
+  writeRW _ h AAny strs = hPutChar h '1' >> return strs
 
   typeOf _ = monoRWType "AType"
 
@@ -316,16 +318,16 @@ instance ReadWrite DType where
   readRW strs ('0' : r0) = (DCons a',r1)
     where
       (a',r1) = readRW strs r0
-  readRW strs ('1' : r0) = (DAny,r0)
+  readRW _ ('1' : r0) = (DAny,r0)
 
   showRW params strs0 (DCons a') = (strs1,showChar '0' . show1)
     where
       (strs1,show1) = showRW params strs0 a'
-  showRW params strs0 DAny = (strs0,showChar '1')
+  showRW _ strs0 DAny = (strs0,showChar '1')
 
   writeRW params h (DCons a') strs =
     hPutChar h '0' >> writeRW params h a' strs
-  writeRW params h DAny strs = hPutChar h '1' >> return strs
+  writeRW _ h DAny strs = hPutChar h '1' >> return strs
 
   typeOf _ = monoRWType "DType"
 

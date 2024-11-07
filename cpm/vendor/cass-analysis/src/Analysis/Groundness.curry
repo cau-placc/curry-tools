@@ -1,10 +1,13 @@
+
 ------------------------------------------------------------------------
 --- Groundness/non-determinism effect analysis based on
 --- [Brassel/Hanus'05](http://www.informatik.uni-kiel.de/~mh/papers/ICLP05.html).
 ---
 --- @author Michael Hanus
---- @version July 2024
+--- @version November 2024
 ------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.Groundness
   ( Ground(..), showGround, groundAnalysis
@@ -261,20 +264,20 @@ prelude = "Prelude"
 -- ReadWrite instances:
 
 instance ReadWrite Ground where
-  readRW strs ('0' : r0) = (G,r0)
-  readRW strs ('1' : r0) = (A,r0)
+  readRW _ ('0' : r0) = (G,r0)
+  readRW _ ('1' : r0) = (A,r0)
   readRW strs ('2' : r0) = (P a',r1)
     where
       (a',r1) = readRW strs r0
 
-  showRW params strs0 G = (strs0,showChar '0')
-  showRW params strs0 A = (strs0,showChar '1')
+  showRW _ strs0 G = (strs0,showChar '0')
+  showRW _ strs0 A = (strs0,showChar '1')
   showRW params strs0 (P a') = (strs1,showChar '2' . show1)
     where
       (strs1,show1) = showRW params strs0 a'
 
-  writeRW params h G strs = hPutChar h '0' >> return strs
-  writeRW params h A strs = hPutChar h '1' >> return strs
+  writeRW _ h G strs = hPutChar h '0' >> return strs
+  writeRW _ h A strs = hPutChar h '1' >> return strs
   writeRW params h (P a') strs = hPutChar h '2' >> writeRW params h a' strs
 
   typeOf _ = monoRWType "Ground"

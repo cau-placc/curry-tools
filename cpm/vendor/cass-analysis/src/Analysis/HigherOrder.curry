@@ -2,6 +2,8 @@
 --- Analysis of higher-order properties of types and operations.
 ------------------------------------------------------------------------
 
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
+
 module Analysis.HigherOrder
   (Order(..), showOrder, hiOrdType, hiOrdCons, hiOrdFunc)
  where
@@ -97,14 +99,14 @@ orderOfFuncTypeArity orderMap functype arity =
 -- ReadWrite instances:
 
 instance ReadWrite Order where
-  readRW strs ('0' : r0) = (HO,r0)
-  readRW strs ('1' : r0) = (FO,r0)
+  readRW _ ('0' : r0) = (HO,r0)
+  readRW _ ('1' : r0) = (FO,r0)
 
-  showRW params strs0 HO = (strs0,showChar '0')
-  showRW params strs0 FO = (strs0,showChar '1')
+  showRW _ strs0 HO = (strs0,showChar '0')
+  showRW _ strs0 FO = (strs0,showChar '1')
 
-  writeRW params h HO strs = hPutChar h '0' >> return strs
-  writeRW params h FO strs = hPutChar h '1' >> return strs
+  writeRW _ h HO strs = hPutChar h '0' >> return strs
+  writeRW _ h FO strs = hPutChar h '1' >> return strs
 
   typeOf _ = monoRWType "Order"
 

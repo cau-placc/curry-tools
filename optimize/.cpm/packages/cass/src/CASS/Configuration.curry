@@ -6,19 +6,19 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version July 2024
+--- @version October 2024
 --------------------------------------------------------------------------
 
 module CASS.Configuration
  ( systemBanner, baseDir, docDir, executableName
- , CConfig, debugLevel, setDebugLevel
+ , CConfig, defaultCConfig, debugLevel, setDebugLevel
  , getServerAddress, readRCFile, updateProperty
  , fixpointMethod, withPrelude
  , storeServerPortNumber, removeServerPortNumber
  , getDefaultPath, waitTime, numberOfWorkers
  ) where
 
-import Control.Monad               ( unless )
+import Control.Monad               ( unless, when )
 import Curry.Compiler.Distribution ( curryCompiler )
 import Data.List                   ( sort )
 import Numeric                     ( readInt )
@@ -32,10 +32,11 @@ import Analysis.Logging   ( DLevel(..) )
 import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
 import Data.PropertyFile  ( readPropertyFile, updatePropertyFile )
 
+--- The banner of the CASS system.
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 04/07/2024 for " ++
+                   packageVersion ++ " of 12/10/2024 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
@@ -61,12 +62,12 @@ executableName = packageExecutable
 getServerAddress :: IO String
 getServerAddress = return "127.0.0.1" -- run only on local machine
 
--- timeout for network message passing: -1 is wait time infinity
+--- timeout for network message passing: -1 is wait time infinity
 waitTime :: Int
 waitTime = -1
 
--- Default number of workers (if the number is not found in the
--- configuration file).
+--- Default number of workers (if the number is not found in the
+--- configuration file).
 defaultWorkers :: Int
 defaultWorkers = 0
 
@@ -75,6 +76,7 @@ defaultWorkers = 0
 --- It contains the properties from the rc file and the current debug level.
 data CConfig = CConfig [(String,String)] DLevel
 
+--- The default configuration has no properties and is quiet.
 defaultCConfig :: CConfig
 defaultCConfig = CConfig [] Quiet
 
@@ -86,12 +88,12 @@ debugLevel (CConfig _ dl) = dl
 setDebugLevel :: Int -> CConfig -> CConfig
 setDebugLevel dl (CConfig ps _) = CConfig ps (toEnum dl)
 
--- Returns the fixpoint computation method from Config file
+--- Returns the fixpoint computation method from Config file
 fixpointMethod :: CConfig -> String
 fixpointMethod (CConfig properties _) =
-  maybe "simple" id  (lookup "fixpoint" properties)
+  maybe "wlist" id  (lookup "fixpoint" properties)
 
--- Get the option to analyze also the prelude from Config file
+--- Gets the option to analyze also the prelude from Config file
 withPrelude :: CConfig -> Bool
 withPrelude (CConfig properties _) =
   maybe True (/="no") (lookup "prelude" properties)
@@ -108,7 +110,7 @@ getDefaultPath (CConfig properties _) = do
                                            else currypath ++ ':' : value
     Nothing    -> currypath
 
--- number of worker threads running at the same time
+--- number of worker threads running at the same time
 numberOfWorkers :: CConfig -> Int
 numberOfWorkers (CConfig properties _) = do
   case lookup "numberOfWorkers" properties of
@@ -130,7 +132,8 @@ installPropertyFile :: IO ()
 installPropertyFile = do
   fname <- propertyFileName
   pfexists <- doesFileExist fname
-  unless pfexists $ do
+  dpfexists <- doesFileExist defaultPropertyFileName
+  when (not pfexists && dpfexists) $ do
     copyFile defaultPropertyFileName fname
     putStrLn $ "New analysis configuration file '" ++ fname ++ "' installed."
 
@@ -152,7 +155,8 @@ readRCFile = do
        rcName <- propertyFileName
        putStrLn $ "Updating '" ++ rcName ++ "'..."
        renameFile rcName $ rcName <.> "bak"
-       copyFile defaultPropertyFileName rcName
+       dpfexists <- doesFileExist defaultPropertyFileName
+       when dpfexists $ copyFile defaultPropertyFileName rcName
        mapM_ (\ (n, v) -> maybe (return ())
                  (\uv -> if uv == v then return ()
                                     else updatePropertyFile rcName n uv)
@@ -183,7 +187,7 @@ updateDebugLevel cc@(CConfig properties _) =
                     _        -> cc
     Nothing    -> cc
 
--- Updates a property.
+--- Updates a property.
 updateProperty :: String -> String -> CConfig -> CConfig
 updateProperty pn pv (CConfig currprops dl) =
   let newprops = replaceKeyValue pn pv currprops

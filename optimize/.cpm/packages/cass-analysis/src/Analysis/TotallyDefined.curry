@@ -6,8 +6,10 @@
 --- constructor terms
 ---
 --- @author Johannes Koj, Michael Hanus
---- @version July 2024
+--- @version November 2024
 -----------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.TotallyDefined
   ( siblingCons, showSibling
@@ -198,17 +200,17 @@ analyseTotalFunc pcinfo fdecl calledfuncs =
 -- ReadWrite instances:
 
 instance ReadWrite Completeness where
-  readRW strs ('0' : r0) = (Complete,r0)
-  readRW strs ('1' : r0) = (InComplete,r0)
-  readRW strs ('2' : r0) = (InCompleteOr,r0)
+  readRW _ ('0' : r0) = (Complete,r0)
+  readRW _ ('1' : r0) = (InComplete,r0)
+  readRW _ ('2' : r0) = (InCompleteOr,r0)
 
-  showRW params strs0 Complete = (strs0,showChar '0')
-  showRW params strs0 InComplete = (strs0,showChar '1')
-  showRW params strs0 InCompleteOr = (strs0,showChar '2')
+  showRW _ strs0 Complete = (strs0,showChar '0')
+  showRW _ strs0 InComplete = (strs0,showChar '1')
+  showRW _ strs0 InCompleteOr = (strs0,showChar '2')
 
-  writeRW params h Complete strs = hPutChar h '0' >> return strs
-  writeRW params h InComplete strs = hPutChar h '1' >> return strs
-  writeRW params h InCompleteOr strs = hPutChar h '2' >> return strs
+  writeRW _ h Complete strs = hPutChar h '0' >> return strs
+  writeRW _ h InComplete strs = hPutChar h '1' >> return strs
+  writeRW _ h InCompleteOr strs = hPutChar h '2' >> return strs
 
   typeOf _ = monoRWType "Completeness"
 
