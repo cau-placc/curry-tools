@@ -1,6 +1,6 @@
 {
     "name": "flatcurry",
-    "version": "3.0.0",
+    "version": "4.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Libraries to deal with FlatCurry programs",
     "category": [ "Metaprogramming" ],
@@ -12,8 +12,11 @@
         "directory"     : ">= 3.0.0, < 4.0.0",
         "filepath"      : ">= 3.0.0, < 4.0.0",
         "frontend-exec" : ">= 3.0.0, < 4.0.0",
+        "profiling"     : ">= 3.0.0, < 4.0.0",
         "read-legacy"   : ">= 3.0.0, < 4.0.0",
         "redblacktree"  : ">= 3.0.0, < 4.0.0",
+        "rw-data"       : ">= 1.0.0",
+        "time"          : ">= 3.0.0, < 4.0.0",
         "transformers"  : ">= 3.0.0, < 4.0.0",
         "wl-pprint"     : ">= 3.0.0, < 4.0.0",
         "xml"           : ">= 3.0.0, < 4.0.0"
@@ -22,7 +25,8 @@
                          "FlatCurry.Files", "FlatCurry.FlexRigid",
                          "FlatCurry.Goodies", "FlatCurry.Normalize",
                          "FlatCurry.Pretty", "FlatCurry.Read",
-                         "FlatCurry.Show", "FlatCurry.Types",
+                         "FlatCurry.Show",
+                         "FlatCurry.Types", "FlatCurry.TypesRW",
                          "FlatCurry.XML" ],
     "source": {
         "git": "https://github.com/curry-packages/flatcurry.git",

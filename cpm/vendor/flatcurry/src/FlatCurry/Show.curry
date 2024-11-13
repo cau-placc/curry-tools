@@ -11,11 +11,11 @@
 ---     Curry syntax (`showCurryType`, `showCurryExpr`,...).
 ---
 --- @author Michael Hanus
---- @version December 2020
+--- @version September 2024
 ------------------------------------------------------------------------------
 
 module FlatCurry.Show
-  (showFlatProg, showFlatType, showFlatFunc
+  ( showFlatProg, showFlatType, showFlatFunc
   , showCurryType, isClassContext
   , showCurryExpr, showCurryId, showCurryVar
   )
@@ -165,8 +165,8 @@ showCurryType tf nested = showTypeWithClass []
   showTypeWithClass cls texp = case texp of
     ForallType _ te -> showTypeWithClass cls te -- strip forall quantifiers
     FuncType t1 t2  -> maybe (showClassedType cls texp)
-                             (\ (cn,cv) ->
-                                  showTypeWithClass (cls ++ [(cn,cv)]) t2)
+                             (\ (cn,cvs) ->
+                                  showTypeWithClass (cls ++ [(cn,cvs)]) t2)
                              (isClassContext t1)
     _               -> showClassedType cls texp
 
@@ -177,22 +177,24 @@ showCurryType tf nested = showTypeWithClass []
    = showBracketsIf nested $
        showBracketsIf (length cls > 1)
          (intercalate ", "
-            (map (\ (cn,cv) -> cn ++ " " ++ showCurryType_ tf True cv) cls)) ++
+            (map (\ (cn,cvs) -> unwords $
+                      cn : map (\cv -> showCurryType_ tf True cv) cvs)
+                 cls)) ++
          " => " ++ showCurryType_ tf False texp
 
 --- Tests whether a FlatCurry type is a class context.
---- If it is the case, return the class name and the type parameter
---- of the context.
-isClassContext :: TypeExpr -> Maybe (String,TypeExpr)
+--- If it is the case, return the class name and the type parameters
+--- of the class context.
+isClassContext :: TypeExpr -> Maybe (String,[TypeExpr])
 isClassContext texp = case texp of
-  TCons (_,tc) [a] -> checkDictCons tc a
+  TCons (_,tc) ts -> checkDictCons tc ts
   -- a class context might be represented as function `() -> Dict`:
-  FuncType (TCons unit []) (TCons (_,tc) [a]) | unit == ("Prelude","()")
-                   -> checkDictCons tc a
+  FuncType (TCons unit []) (TCons (_,tc) ts) | unit == ("Prelude","()")
+                   -> checkDictCons tc ts
   _                -> Nothing
  where
-  checkDictCons tc a | take 6 tc == "_Dict#" = Just (drop 6 tc, a)
-                     | otherwise             = Nothing
+  checkDictCons tc ts | take 6 tc == "_Dict#" = Just (drop 6 tc, ts)
+                      | otherwise             = Nothing
 
 ------------------------------
 

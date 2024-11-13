@@ -3,7 +3,7 @@
 --- together with all its imported modules in the current load path.
 ---
 --- @author Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version November 2020
+--- @version October 2024
 ------------------------------------------------------------------------------
 
 module FlatCurry.Read
@@ -15,9 +15,12 @@ module FlatCurry.Read
   ) where
 
 import Control.Monad       ( when )
+import Data.List           ( intercalate )
+
 import System.Directory    ( getModificationTime, getFileWithSuffix
                            , findFileWithSuffix )
-import System.FilePath     ( dropExtension, normalise, takeFileName )
+import System.FilePath     ( dropExtension, normalise, takeFileName
+                           , searchPathSeparator )
 import System.CurryPath    ( getLoadPathForModule, lookupModuleSource )
 import System.FrontendExec ( FrontendTarget (FCY), callFrontendWithParams
                            , defaultParams, setQuiet, setFullPath )
@@ -97,8 +100,10 @@ parseFlatCurryFile withImp verb loadpath modname suffixes = do
   when verb $ putStr "Reading FlatCurry files "
   eiMods <- tryReadFlatCurryFile withImp verb loadpath modname suffixes
   return (either (error . notFound) id eiMods)
- where notFound mods = "FlatCurry file not found for the following module(s): "
-                         ++ unwords mods
+ where
+  notFound mods = "FlatCurry file not found for the following module(s): " ++
+                  unwords mods ++ "\nin load path: " ++
+                  intercalate [searchPathSeparator] loadpath
 
 -- Read a FlatCurry file (with all its imports if first argument is true).
 -- If all files could be read,

@@ -1,3 +1,11 @@
+------------------------------------------------------------------------------
+--- This library contains the definition of a data type to represent
+--- JSON values.
+---
+--- @author Jonas Oberschweiber
+--- @version May 2017
+------------------------------------------------------------------------------
+
 module JSON.Data (JValue (..)) where
 
 --- A JSON value.

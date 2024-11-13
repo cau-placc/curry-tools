@@ -2,15 +2,17 @@
 --- A finite map is an efficient purely functional data structure
 --- to store a mapping from keys to values.
 ---
---- This version was ported from a corresponding Haskell library
+--- This version was ported from a corresponding Haskell library.
 ---
 --- @author Frank Huch, Bernd Brassel
---- @version March 2013
---- @category algorithm
+--- @version July 2024
 -----------------------------------------------------------------------------
 
 module Data.Map (
-        Map,                -- abstract type
+        -- Although this type is abstract, we export the constructors
+        -- to enable the definition of specific `Map` instances,
+        -- like a `RW.Base.ReadWrite` instance.
+        Map(..),
 
         empty,
         singleton,
@@ -599,3 +601,5 @@ deleteMax (Bin _   _   _ fm_l Tip) = fm_l
 deleteMax (Bin key elt _ fm_l (Bin key_r elt_r s_r fm_rl fm_rr)) =
   mkBalBranch key elt fm_l
               (deleteMax (Bin key_r elt_r s_r fm_rl fm_rr))
+
+------------------------------------------------------------------------------

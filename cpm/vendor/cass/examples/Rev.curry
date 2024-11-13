@@ -6,5 +6,6 @@ rev :: [a] -> [a]
 rev []     = []
 rev (x:xs) = append (rev xs) [x]
 
-main :: Int -> Int -> [Int]
-main x y = rev [x .. y]
+nth :: [a] -> Int -> a
+nth (x:xs) n | n == 0 = x
+             | n > 0  = nth xs (n - 1)

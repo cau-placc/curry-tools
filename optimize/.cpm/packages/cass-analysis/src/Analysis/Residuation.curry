@@ -4,8 +4,10 @@
 --- if some arguments are ground
 ---
 --- @author Michael Hanus
---- @version September 2018
+--- @version November 2024
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.Residuation
   ( ResiduationInfo(..), residuationAnalysis, showResInfo )
@@ -13,9 +15,12 @@ module Analysis.Residuation
 
 import Data.List ( intercalate, union )
 
-import Analysis.Types
 import FlatCurry.Types
 import FlatCurry.Goodies
+import RW.Base
+import System.IO
+
+import Analysis.Types
 
 ------------------------------------------------------------------------------
 --- Data type to represent residuation information.
@@ -137,5 +142,28 @@ nrFuncRule _ _ calledFuncs (Rule args rhs) =
 
 prelude :: String
 prelude = "Prelude"
+
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite ResiduationInfo where
+  readRW _    ('0' : r0) = (MayResiduate,r0)
+  readRW strs ('1' : r0) = (NoResiduateIf a',r1)
+    where
+      (a',r1) = readRW strs r0
+  readRW _ ('2' : r0) = (NoResInfo,r0)
+
+  showRW _ strs0 MayResiduate = (strs0,showChar '0')
+  showRW params strs0 (NoResiduateIf a') = (strs1,showChar '1' . show1)
+    where
+      (strs1,show1) = showRW params strs0 a'
+  showRW _ strs0 NoResInfo = (strs0,showChar '2')
+
+  writeRW _ h MayResiduate strs = hPutChar h '0' >> return strs
+  writeRW params h (NoResiduateIf a') strs =
+    hPutChar h '1' >> writeRW params h a' strs
+  writeRW _ h NoResInfo strs = hPutChar h '2' >> return strs
+
+  typeOf _ = monoRWType "ResiduationInfo"
 
 ------------------------------------------------------------------------------

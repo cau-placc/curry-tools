@@ -322,20 +322,25 @@ curryrcFileName = getHomeDirectory >>= return . (</> rcFile)
 setCurryPath :: Bool -> String -> IO ()
 setCurryPath quiet cpmexec = do
   cp <- getEnv "CURRYPATH"
-  when (null cp) $
-    (if null cpmexec then getFileInPath "cypm" else return (Just cpmexec)) >>=
-    maybe (return ())
-          (\cpm -> do
-            unless quiet $ putStrLn $
-              "Computing CURRYPATH with '" ++ cpm ++ "'..."
-            (rc,out,err) <- evalCmd cpm ["deps","--path"] ""
-            if rc==0
-              then do let cpath = strip out
-                      unless quiet $ putStrLn $ "CURRYPATH=" ++ cpath
-                      setEnv "CURRYPATH" cpath
-              else putStrLn $ "ERROR during computing CURRYPATH with 'cypm':\n"
-                              ++ out ++ err )
+  if null cp
+    then
+      (if null cpmexec then getFileInPath "cypm" else return (Just cpmexec)) >>=
+      maybe
+        (return ())
+        (\cpm -> do
+          putStrLnNQ $
+            "Computing CURRYPATH with '" ++ cpm ++ "'..."
+          (rc,out,err) <- evalCmd cpm ["deps","--path"] ""
+          if rc==0
+            then do let cpath = strip out
+                    putStrLnNQ $ "CURRYPATH=" ++ cpath
+                    setEnv "CURRYPATH" cpath
+            else putStrLn $ "ERROR during computing CURRYPATH with 'cypm':\n"
+                                ++ out ++ err )
+    else putStrLnNQ $ "CURRYPATH=" ++ cp
  where
+  putStrLnNQ s = unless quiet $ putStrLn s
+
   -- Remove leading and trailing whitespace
   strip = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 

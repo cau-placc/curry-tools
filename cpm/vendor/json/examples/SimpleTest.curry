@@ -33,4 +33,3 @@ eqJValue jv1 jv2 = case (jv1,jv2) of
 testParsePrint :: JValue -> Prop
 testParsePrint json =
   always (eqJValue (fromJust (parseJSON (ppJSON json))) json)
-

@@ -166,10 +166,6 @@ daysOfMonth mo yr =
 validDate :: Int -> Int -> Int -> Bool
 validDate y m d = m > 0 && m < 13 && d > 0 && d <= daysOfMonth m y
 
---- Compares two dates (don't use it, just for backward compatibility!).
-compareDate :: CalendarTime -> CalendarTime -> Ordering
-compareDate = compareCalendarTime
-
 --- Compares two calendar times.
 compareCalendarTime :: CalendarTime -> CalendarTime -> Ordering
 compareCalendarTime ct1 ct2 =

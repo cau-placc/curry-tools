@@ -5,8 +5,10 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version June 2022
+--- @version November 2024
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.Deterministic
   ( overlapAnalysis, showOverlap, showDet
@@ -15,11 +17,14 @@ module Analysis.Deterministic
   , showNonDetDeps, nondetDepAnalysis, nondetDepAllAnalysis
   ) where
 
-import Analysis.Types
+import Data.Char         (isDigit)
+import Data.List
 import FlatCurry.Types
 import FlatCurry.Goodies
-import Data.List
-import Data.Char         (isDigit)
+import RW.Base
+import System.IO
+
+import Analysis.Types
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual functions.
@@ -138,8 +143,8 @@ nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
   callsNDOp (Case _ e bs) =
     callsNDOp e || any (\ (Branch _ be) -> callsNDOp be) bs
   callsNDOp (Typed e _) = callsNDOp e
-  callsNDOp (Comb _ qf@(mn,fn) es)
-    | mn == "SetFunctions" && take 3 fn == "set" && all isDigit (drop 3 fn)
+  callsNDOp (Comb _ qf es)
+    | isSetFunction qf
     = -- non-determinism of function (first argument) is encapsulated so that
       -- its called ND functions are not relevant:
       if null es then False -- this case should not occur
@@ -154,7 +159,14 @@ nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
 -- Does the operation ensures the strong encapsulation of its argument?
 isStrongEncapsOp :: QName -> Bool
 isStrongEncapsOp (mn,_) =
-  mn `elem` ["Control.AllSolutions", "Control.AllValues"]
+  mn `elem` ["Control.Search.AllValues", "Control.Search.Unsafe",
+             "Control.AllSolutions", "Control.AllValues"]
+
+-- Is the operation the name of a set function?
+isSetFunction :: QName -> Bool
+isSetFunction (mn,fn) =
+  mn `elem` ["Control.Search.SetFunctions", "Control.SetFunctions"] &&
+  take 3 fn == "set" && all isDigit (drop 3 fn)
 
 ------------------------------------------------------------------------------
 --- Data type to represent information about non-deterministic dependencies.
@@ -235,8 +247,8 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
   calledNDFuncs (Case _ e bs) =
     calledNDFuncs e ++ concatMap (\ (Branch _ be) -> calledNDFuncs be) bs
   calledNDFuncs (Typed e _) = calledNDFuncs e
-  calledNDFuncs (Comb _ qf@(mn,fn) es)
-    | mn == "SetFunctions" && take 3 fn == "set" && all isDigit (drop 3 fn)
+  calledNDFuncs (Comb _ qf es)
+    | isSetFunction qf
     = -- non-determinism of function (first argument) is encapsulated so that
       -- its called ND functions are not relevant:
       if null es then [] -- this case should not occur
@@ -252,5 +264,20 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
 
 pre :: String -> QName
 pre n = ("Prelude",n)
+
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite Deterministic where
+  readRW _ ('0' : r0) = (NDet,r0)
+  readRW _ ('1' : r0) = (Det,r0)
+
+  showRW _ strs0 NDet = (strs0,showChar '0')
+  showRW _ strs0 Det  = (strs0,showChar '1')
+
+  writeRW _ h NDet strs = hPutChar h '0' >> return strs
+  writeRW _ h Det strs  = hPutChar h '1' >> return strs
+
+  typeOf _ = monoRWType "Deterministic"
 
 ------------------------------------------------------------------------------

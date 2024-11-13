@@ -260,9 +260,9 @@ data Literal
 --- (first argument). Thus, names not defined in this module (except for names
 --- defined in the prelude) are prefixed with their module name.
 showQNameInModule :: String -> QName -> String
-showQNameInModule mod qn@(qmod, name)
-  | qmod == mod || qmod == "Prelude" = name
-  | otherwise                        = showQName qn
+showQNameInModule mname qn@(qmod, name)
+  | qmod == mname || qmod == "Prelude" = name
+  | otherwise                          = showQName qn
 
 --- Shows a qualified name.
 showQName :: QName -> String

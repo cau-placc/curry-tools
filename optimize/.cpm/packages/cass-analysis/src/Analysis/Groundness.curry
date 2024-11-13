@@ -1,10 +1,13 @@
+
 ------------------------------------------------------------------------
 --- Groundness/non-determinism effect analysis based on
 --- [Brassel/Hanus'05](http://www.informatik.uni-kiel.de/~mh/papers/ICLP05.html).
 ---
 --- @author Michael Hanus
---- @version May 2013
+--- @version November 2024
 ------------------------------------------------------------------------
+
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.Groundness
   ( Ground(..), showGround, groundAnalysis
@@ -13,6 +16,8 @@ module Analysis.Groundness
 
 import FlatCurry.Types
 import Data.List
+import RW.Base
+import System.IO
 
 import Analysis.Types
 import Analysis.ProgInfo
@@ -255,4 +260,44 @@ mergeInts (x:xs) (y:ys) | x==y = x : mergeInts xs ys
 prelude :: String
 prelude = "Prelude"
 
------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite Ground where
+  readRW _ ('0' : r0) = (G,r0)
+  readRW _ ('1' : r0) = (A,r0)
+  readRW strs ('2' : r0) = (P a',r1)
+    where
+      (a',r1) = readRW strs r0
+
+  showRW _ strs0 G = (strs0,showChar '0')
+  showRW _ strs0 A = (strs0,showChar '1')
+  showRW params strs0 (P a') = (strs1,showChar '2' . show1)
+    where
+      (strs1,show1) = showRW params strs0 a'
+
+  writeRW _ h G strs = hPutChar h '0' >> return strs
+  writeRW _ h A strs = hPutChar h '1' >> return strs
+  writeRW params h (P a') strs = hPutChar h '2' >> writeRW params h a' strs
+
+  typeOf _ = monoRWType "Ground"
+
+instance ReadWrite NDEffect where
+  readRW strs r0 = (NDEffect a' b' c',r3)
+    where
+      (a',r1) = readRW strs r0
+      (b',r2) = readRW strs r1
+      (c',r3) = readRW strs r2
+
+  showRW params strs0 (NDEffect a' b' c') = (strs3,show1 . (show2 . show3))
+    where
+      (strs1,show1) = showRW params strs0 a'
+      (strs2,show2) = showRW params strs1 b'
+      (strs3,show3) = showRW params strs2 c'
+
+  writeRW params h (NDEffect a' b' c') strs =
+    (writeRW params h a' strs >>= writeRW params h b') >>= writeRW params h c'
+
+  typeOf _ = monoRWType "NDEffect"
+
+------------------------------------------------------------------------------

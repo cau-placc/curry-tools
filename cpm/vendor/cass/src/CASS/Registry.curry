@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version October 2023
+--- @version July 2024
 --------------------------------------------------------------------
 
 module CASS.Registry
@@ -14,7 +14,9 @@ module CASS.Registry
  ) where
 
 import FlatCurry.Types
-import FlatCurry.Goodies(progImports)
+import FlatCurry.TypesRW
+import FlatCurry.Goodies    ( progImports )
+import RW.Base
 import System.IO
 import System.IOExts
 import Control.Monad
@@ -26,6 +28,7 @@ import Analysis.ProgInfo
 import Analysis.Types
 import CASS.Configuration   ( CConfig, debugLevel, numberOfWorkers )
 import CASS.Dependencies    ( getModulesToAnalyze )
+import CASS.ServerFormats   ( OutputFormat(..) )
 import CASS.ServerFunctions ( masterLoop )
 import CASS.WorkerFunctions ( analysisClient )
 
@@ -102,10 +105,10 @@ registeredAnalysis =
 --------------------------------------------------------------------
 
 --- This auxiliary operation creates a new program analysis to be used
---- by the server/client analysis tool from a given analysis and
---- analysis show function. The first argument is a short title for the
---- analysis.
-cassAnalysis :: (Read a, Show a, Eq a)
+--- by the server/client analysis tool from a given analysis and a show
+--- function for analysis results.
+--- The first argument is a short title for the analysis.
+cassAnalysis :: (Eq a, Read a, Show a, ReadWrite a)
              => String -> Analysis a -> (AOutFormat -> a -> String)
              -> RegisteredAnalysis
 cassAnalysis title analysis showres =
@@ -127,7 +130,8 @@ data RegisteredAnalysis =
   RegAna String
          Bool
          String
-         (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
+         (CConfig -> String -> Bool -> [Handle]
+                  -> OutputFormat -> Maybe AOutFormat
                   -> IO (Either (ProgInfo String) String))
          (CConfig -> [String] -> IO ())
 
@@ -141,8 +145,8 @@ regAnaFunc :: RegisteredAnalysis -> Bool
 regAnaFunc (RegAna _ fa _ _ _) = fa
 
 regAnaServer :: RegisteredAnalysis
-             -> (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
-                 -> IO (Either (ProgInfo String) String))
+             -> (CConfig -> String -> Bool -> [Handle] -> OutputFormat
+             -> Maybe AOutFormat -> IO (Either (ProgInfo String) String))
 regAnaServer (RegAna _ _ _ a _) = a
 
 regAnaWorker :: RegisteredAnalysis -> (CConfig -> [String] -> IO ())
@@ -167,10 +171,11 @@ lookupRegAna aname (ra@(RegAna raname _ _ _ _) : ras) =
 
 -- Look up a registered analysis server with a given analysis name.
 lookupRegAnaServer :: String
-                   -> (CConfig -> String -> Bool -> [Handle] -> Maybe AOutFormat
+                   -> (CConfig -> String -> Bool -> [Handle] -> OutputFormat
+                   -> Maybe AOutFormat
                    -> IO (Either (ProgInfo String) String))
 lookupRegAnaServer aname =
-  maybe (\_ _ _ _ _ -> return (Right $ "unknown analysis: " ++ aname))
+  maybe (\_ _ _ _ _ _ -> return (Right $ "unknown analysis: " ++ aname))
         regAnaServer
         (lookupRegAna aname registeredAnalysis)
 
@@ -184,16 +189,20 @@ lookupRegAnaWorker aname =
 --------------------------------------------------------------------
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles and return the analysis results.
-runAnalysisWithWorkers :: CConfig -> String -> AOutFormat -> Bool -> [Handle]
+runAnalysisWithWorkers :: CConfig -> String -> OutputFormat -> AOutFormat
+                       -> Bool -> [Handle]
                        -> String -> IO (Either (ProgInfo String) String)
-runAnalysisWithWorkers cc ananame aoutformat enforce handles moduleName =
-  (lookupRegAnaServer ananame) cc moduleName enforce handles (Just aoutformat)
+runAnalysisWithWorkers cc ananame outformat aoutformat enforce handles
+                       moduleName =
+  (lookupRegAnaServer ananame)
+    cc moduleName enforce handles outformat (Just aoutformat)
 
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles but do not load analysis results.
 runAnalysisWithWorkersNoLoad :: CConfig -> String -> [Handle] -> String -> IO ()
 runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
-  () <$ (lookupRegAnaServer ananame) cc moduleName False handles Nothing
+  () <$ (lookupRegAnaServer ananame)
+          cc moduleName False handles FormatText Nothing
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the show operation for analysis results,
@@ -204,17 +213,21 @@ runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeAsString :: (Read a, Show a)
+analyzeAsString :: (Read a, Show a, ReadWrite a)
                 => Analysis a -> (AOutFormat -> a -> String) -> CConfig
-                -> String -> Bool -> [Handle] -> Maybe AOutFormat
+                -> String -> Bool -> [Handle]
+                -> OutputFormat -> Maybe AOutFormat
                 -> IO (Either (ProgInfo String) String)
 analyzeAsString analysis showres cconfig
-                modname enforce handles mbaoutformat = do
+                modname enforce handles outformat mbaoutformat = do
   analyzeMain cconfig analysis modname handles enforce
               (mbaoutformat /= Nothing) >>=
-    return . either (Left . mapProgInfo (showres aoutformat)) Right
+    return . either (Left . mapProgInfo showResult) Right
  where
-  aoutformat = maybe AText id mbaoutformat
+  showResult x = case outformat of
+    FormatTerm     -> show x
+    FormatJSONTerm -> show x
+    _              -> showres (maybe AText id mbaoutformat) x
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the name of the main module
@@ -224,7 +237,7 @@ analyzeAsString analysis showres cconfig
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeMain :: (Read a, Show a)
+analyzeMain :: (Read a, Show a, ReadWrite a)
             => CConfig -> Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
 analyzeMain cconfig analysis modname handles enforce load = do

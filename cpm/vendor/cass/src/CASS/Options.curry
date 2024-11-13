@@ -2,40 +2,48 @@
 --- Defining and processing tool options of CASS.
 ---
 --- @author Michael Hanus
---- @version October 2023
+--- @version October 2024
 --------------------------------------------------------------------------
 
 module CASS.Options where
 
-import System.Console.GetOpt
+import Data.Char             ( toLower )
 import Numeric               ( readNat )
+import System.Console.GetOpt
+
+import CASS.ServerFormats
 
 --------------------------------------------------------------------------
 -- Representation of command line options.
 data Options = Options
-  { optHelp    :: Bool     -- print help?
-  , optVerb    :: Int      -- verbosity level
-  , optServer  :: Bool     -- start CASS in server mode?
-  , optWorker  :: Bool     -- start CASS in worker mode?
-  , optPort    :: Int      -- port number (if used in server mode)
-  , optAll     :: Bool     -- show analysis results for all operations?
-  , optReAna   :: Bool     -- force re-analysis?
-  , optDelete  :: Bool     -- delete analysis files?
-  , optProp    :: [(String,String)] -- property (of ~/.curryanalsisrc) to be set
+  { optHelp      :: Bool         -- print help?
+  , optVerb      :: Int          -- verbosity level
+  , optServer    :: Bool         -- start CASS in server mode?
+  , optWorker    :: Bool         -- start CASS in worker mode?
+  , optPort      :: Int          -- port number (if used in server mode)
+  , optAll       :: Bool         -- show analysis results for all operations?
+  , optGenerated :: Bool         -- show results for generated operations?
+  , optFormat    :: OutputFormat -- output format
+  , optReAna     :: Bool         -- force re-analysis?
+  , optDelete    :: Bool         -- delete analysis files?
+  , optProp      :: [(String,String)] -- property (of ~/.curryanalsisrc)
+                                      -- to be set during this analysis run
   }
 
 -- Default command line options.
 defaultOptions :: Options
 defaultOptions = Options
-  { optHelp    = False
-  , optVerb    = -1
-  , optServer  = False
-  , optWorker  = False
-  , optPort    = 0
-  , optAll     = False
-  , optReAna   = False
-  , optDelete  = False
-  , optProp    = []
+  { optHelp      = False
+  , optVerb      = -1
+  , optServer    = False
+  , optWorker    = False
+  , optPort      = 0
+  , optAll       = False
+  , optGenerated = True
+  , optFormat    = FormatText
+  , optReAna     = False
+  , optDelete    = False
+  , optProp      = []
   }
 
 -- Definition of actual command line options.
@@ -47,10 +55,16 @@ options =
            "run quietly (no output)"
   , Option "v" ["verbosity"]
             (ReqArg (safeReadNat checkVerb) "<n>")
-            "verbosity/debug level:\n0: quiet (same as `-q')\n1: show worker activity, e.g., timings\n2: show server communication\n3: ...and show read/store information\n4: ...show also stored/computed analysis data\n(default: see debugLevel in ~/.curryanalysisrc)"
+            "verbosity/debug level:\n0: quiet (default; same as `-q')\n1: show worker activity, e.g., timings\n2: show server communication\n3: ...and show read/store information\n4: ...show also stored/computed analysis data\n(default: see debugLevel in ~/.curryanalysisrc)"
   , Option "a" ["all"]
            (NoArg (\opts -> opts { optAll = True }))
            "show analysis results for all operations\n(i.e., also for non-exported operations)"
+  , Option "f" ["format"]
+           (ReqArg checkFormat "<f>")
+           "output format (default: Text):\nText|Short|CurryTerm|JSON|JSONTerm|XML"
+  , Option "" ["nogenerated"]
+           (NoArg (\opts -> opts { optGenerated = False }))
+           "do not show results of generated operations\n(e.g., operations derived for class instances)"
   , Option "r" ["reanalyze"]
            (NoArg (\opts -> opts { optReAna = True }))
            "force re-analysis \n(i.e., ignore old analysis information)"
@@ -76,8 +90,13 @@ options =
      _        -> error "Illegal number argument (try `-h' for help)"
 
   checkVerb n opts = if n>=0 && n<5
-                     then opts { optVerb = n }
-                     else error "Illegal verbosity level (try `-h' for help)"
+                       then opts { optVerb = n }
+                       else error "Illegal verbosity level (try `-h' for help)"
+
+  checkFormat s opts =
+    maybe (error $ "Illegal format value: " ++ s)
+          (\f -> opts { optFormat = f })
+          (lookup (map toLower s) serverFormatNames)
 
   checkSetProperty s opts =
     let (key,eqvalue) = break (=='=') s

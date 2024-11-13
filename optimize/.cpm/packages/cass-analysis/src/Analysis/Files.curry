@@ -3,7 +3,7 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version September 2023
+--- @version July 2024
 --------------------------------------------------------------------------
 
 module Analysis.Files where
@@ -16,6 +16,7 @@ import Data.Time           ( ClockTime )
 import FlatCurry.Files
 import FlatCurry.Goodies   ( progImports )
 import FlatCurry.Types     ( Prog, QName )
+import RW.Base             ( ReadWrite )
 import System.CurryPath    ( currySubdir, lookupModuleSourceInLoadPath
                            , stripCurrySuffix )
 import System.Directory
@@ -43,24 +44,25 @@ getAnalysisPublicFile modname ananame = do
   getAnalysisBaseFile modname ananame >>= return . (<.> "pub")
 
 -- Cache directory where analysis info files are stored.
--- If $HOME exists, it is ~/.curryanalysis_cache
+-- If $HOME exists, it is ~/.curry_analysis_cache
 getAnalysisDirectory :: IO String
 getAnalysisDirectory = do
   homedir <- getHomeDirectory
   hashomedir <- doesDirectoryExist homedir
   let cassStoreDir = if hashomedir then homedir else installDir
-  return $ cassStoreDir </> ".curryanalysis_cache" </>
+  return $ cassStoreDir </> ".curry_analysis_cache" </>
            joinPath (tail (splitDirectories currySubdir))
 
 -- loads analysis results for a list of modules
-getInterfaceInfos :: Read a => DLevel -> String -> [String] -> IO (ProgInfo a)
+getInterfaceInfos :: (Read a, ReadWrite a) => DLevel -> String -> [String]
+                  -> IO (ProgInfo a)
 getInterfaceInfos _  _       [] = return emptyProgInfo
 getInterfaceInfos dl anaName (mod:mods) =
   do modInfo  <- loadPublicAnalysis dl anaName mod
      modsInfo <- getInterfaceInfos dl anaName mods
      return (combineProgInfo modInfo modsInfo)
 
---- Gets the file name in which default analysis values different from
+--- Reads the file name in which default analysis values different from
 --- standard start values are stored. Typically, such a file contains
 --- specific analysis information for external operations.
 --- The file must contain a term of the type `[(String,a)]` where
@@ -80,12 +82,14 @@ loadDefaultAnalysisValues dl anaName moduleName = do
     else return []
 
 --- Loads the currently stored analysis information for a module.
-loadCompleteAnalysis :: Read a => DLevel -> String -> String -> IO (ProgInfo a)
+loadCompleteAnalysis :: (Read a, ReadWrite a) => DLevel -> String -> String
+                     -> IO (ProgInfo a)
 loadCompleteAnalysis dl ananame mainModule =
   getAnalysisBaseFile mainModule ananame >>= readAnalysisFiles dl
 
 --- Reads analysis result from file for the public entities of a given module.
-loadPublicAnalysis::  Read a => DLevel -> String -> String -> IO (ProgInfo a)
+loadPublicAnalysis :: (Read a, ReadWrite a) => DLevel -> String -> String
+                   -> IO (ProgInfo a)
 loadPublicAnalysis dl anaName moduleName = do
   getAnalysisPublicFile moduleName anaName >>= readAnalysisPublicFile dl
 
@@ -105,14 +109,15 @@ getImportModuleListFile modname = do
   return $ if iflExists then Just importListFile else Nothing
 
 --- Store an analysis results in a file and create directories if neccesssary.
---- The first argument is the analysis name.
-storeAnalysisResult :: Show a => DLevel -> String -> String -> ProgInfo a
-                    -> IO ()
+--- The arguments are the analysis name, the module name and the
+--- analysis results for this module.
+storeAnalysisResult :: (Show a, ReadWrite a) => DLevel -> String -> String
+                    -> ProgInfo a -> IO ()
 storeAnalysisResult dl ananame moduleName result = do
-   baseFileName <- getAnalysisBaseFile moduleName ananame
-   createDirectoryR dl (dropFileName baseFileName)
-   debugMessage dl 4 ("Analysis result: " ++ showProgInfo result)
-   writeAnalysisFiles dl baseFileName result
+  baseFileName <- getAnalysisBaseFile moduleName ananame
+  createDirectoryR dl (dropFileName baseFileName)
+  debugMessage dl 4 ("Analysis result: " ++ showProgInfo result)
+  writeAnalysisFiles dl baseFileName result
 
 -- creates directory (and all needed root-directories) recursively
 createDirectoryR :: DLevel -> String -> IO ()
@@ -132,25 +137,26 @@ createDirectoryR dl maindir =
 --- Deletes all analysis files for a given analysis name.
 deleteAllAnalysisFiles :: String -> IO ()
 deleteAllAnalysisFiles ananame = do
-   analysisDir <- getAnalysisDirectory
-   deleteAllInDir analysisDir
+  analysisDir <- getAnalysisDirectory
+  deleteAllInDir analysisDir
  where
   deleteAllInDir dir = do
     dircont <- getDirectoryContents dir
     mapM_ processDirElem (filter (not . isPrefixOf ".") dircont)
    where
-     processDirElem f = do
-       let fullname = dir </> f
-       when (isAnaFile f) $ do
-         putStrLn ("DELETE: " ++ fullname)
-         removeFile fullname
-       isdir <- doesDirectoryExist fullname
-       when isdir $ deleteAllInDir fullname
+    processDirElem f = do
+      let fullname = dir </> f
+      when (isAnaFile f) $ do
+        putStrLn ("DELETE: " ++ fullname)
+        removeFile fullname
+      isdir <- doesDirectoryExist fullname
+      when isdir $ deleteAllInDir fullname
 
-     isAnaFile f =
-       (".pub" `isSuffixOf` f && ('.':ananame) `isSuffixOf` dropExtension f) ||
-       (".priv" `isSuffixOf` f && ('.':ananame) `isSuffixOf` dropExtension f)
-
+    isAnaFile f = any hasAnaSuffix [".pub",".priv",".pub.rw",".priv.rw"]
+     where
+      hasAnaSuffix suf =
+        suf `isSuffixOf` f &&
+        ('.':ananame) `isSuffixOf` take (length f - length suf) f
 
 --------------------------------------------------------------------------
 -- Auxiliaries for dealing with Curry files.

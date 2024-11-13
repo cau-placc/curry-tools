@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version April 2024
+--- @version October 2024
 --------------------------------------------------------------------------
 
 module CASS.Server
@@ -18,6 +18,7 @@ module CASS.Server
 import Numeric            ( readNat )
 import Data.Char          ( isSpace, toLower )
 import Control.Monad      ( unless )
+import RW.Base
 import System.CurryPath   ( runModuleAction )
 import System.Directory
 import System.FilePath
@@ -78,13 +79,15 @@ mainServer cconfig mbport = do
 --- representation.
 --- If the fourth argument is true, all operations are shown,
 --- otherwise only the interface operations.
---- The fifth argument is a flag indicating whether the
+--- If the fifth argument is false, generated operations (e.g.,
+--- operations of derived class instances) are not shown.
+--- The sixth argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
 analyzeModuleAndPrint :: CConfig -> String -> String -> Bool -> OutputFormat
-                      -> Bool -> IO ()
-analyzeModuleAndPrint cconfig ananame mname optall format enforce =
+                      -> Bool -> Bool -> IO ()
+analyzeModuleAndPrint cconfig ananame mname optall format optgenerated enforce =
   analyzeProgram cconfig ananame enforce format (format2AOut format) mname >>=
-  putStr . formatResult mname format Nothing (not optall)
+  putStr . formatResult mname format Nothing (not optall) optgenerated
 
 format2AOut :: OutputFormat -> AOutFormat
 format2AOut format = if format == FormatShort then ANote else AText
@@ -93,14 +96,17 @@ format2AOut format = if format == FormatShort then ANote else AText
 --- representation.
 --- If the fourth argument is true, all operations are shown,
 --- otherwise only the interface operations.
---- The fifth argument is a flag indicating whether the
+--- If the fifth argument is false, generated operations (e.g.,
+--- operations of derived class instances) are not shown.
+--- The sixth argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
 --- Note that, before its first use, the analysis system must be initialized
 --- by 'initializeAnalysisSystem'.
-analyzeModuleAsText :: CConfig -> String -> String -> Bool -> Bool -> IO String
-analyzeModuleAsText cconfig ananame mname optall enforce =
+analyzeModuleAsText :: CConfig -> String -> String -> Bool -> Bool -> Bool
+                    -> IO String
+analyzeModuleAsText cconfig ananame mname optall optgenerated enforce =
   analyzeProgram cconfig ananame enforce FormatText AText mname >>=
-  return . formatResult mname FormatText Nothing (not optall)
+  return . formatResult mname FormatText Nothing (not optall) optgenerated
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- The options are read from the rc file.
@@ -156,7 +162,7 @@ analyzeModule cconfig ananame enforce outformat aoutformat modname = do
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one. The options are read from the rc file.
 --- Returns either the analysis information or an error message.
-analyzeGeneric :: (Read a, Show a)
+analyzeGeneric :: (Read a, Show a, ReadWrite a)
                => Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric = analyzeGenericWithDebug Nothing
 
@@ -166,7 +172,7 @@ analyzeGeneric = analyzeGenericWithDebug Nothing
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one. The options are read from the rc file.
 --- Returns either the analysis information or an error message.
-analyzeGenericWithDebug :: (Read a, Show a) =>
+analyzeGenericWithDebug :: (Read a, Show a, ReadWrite a) =>
   Maybe Int -> Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGenericWithDebug debuglevel analysis moduleName = do
   configrc <- readRCFile
@@ -199,7 +205,7 @@ analyzeGenericWithDebug debuglevel analysis moduleName = do
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
 --- Returns either the analysis information or an error message.
-analyzePublic :: (Read a, Show a)
+analyzePublic :: (Read a, Show a, ReadWrite a)
               => Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzePublic analysis moduleName =
   analyzeGeneric analysis moduleName
@@ -210,7 +216,7 @@ analyzePublic analysis moduleName =
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
-analyzeInterface :: (Read a, Show a)
+analyzeInterface :: (Read a, Show a, ReadWrite a)
                  => Analysis a -> String -> IO (Either [(QName,a)] String)
 analyzeInterface analysis moduleName =
   analyzeGeneric analysis moduleName
@@ -295,14 +301,14 @@ serverLoopOnHandle cconfig socket1 whandles handle = do
        AnalyzeModule ananame outform modname public ->
          catch (runAnalysisWithWorkers cconfig ananame outform
                  (format2AOut outform) force whandles modname >>=
-                return . formatResult modname outform Nothing public >>=
+                return . formatResult modname outform Nothing public True >>=
                 sendResult)
                sendAnalysisError
        AnalyzeEntity ananame outform modname functionName ->
          catch (runAnalysisWithWorkers cconfig ananame outform
                  (format2AOut outform) force whandles modname >>=
-                return . formatResult modname outform
-                                      (Just functionName) False >>= sendResult)
+                return . formatResult modname outform (Just functionName)
+                                      False True >>= sendResult)
                sendAnalysisError
        SetCurryPath path -> do
          setEnv "CURRYPATH" path

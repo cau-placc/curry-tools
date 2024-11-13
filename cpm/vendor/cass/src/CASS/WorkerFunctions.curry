@@ -3,7 +3,7 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2021
+--- @version July 2024
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
@@ -24,6 +24,7 @@ import FlatCurry.Types
 import FlatCurry.Goodies
 import Data.SCC          ( scc )
 import Data.Set.RBTree as Set ( SetRBT, member, empty, insert, null )
+import RW.Base
 
 import CASS.Configuration
 import CASS.FlatCurryDependency ( callsDirectly, dependsDirectlyOnTypes )
@@ -39,14 +40,14 @@ newProgInfoStoreRef = newIORef []
 -----------------------------------------------------------------------
 --- Analyze a list of modules (in the given order) with a given analysis.
 --- The analysis results are stored in the corresponding analysis result files.
-analysisClient :: (Eq a, Show a, Read a) =>
+analysisClient :: (Eq a, Show a, Read a, ReadWrite a) =>
                   Analysis a -> CConfig -> [String] -> IO ()
 analysisClient analysis cconfig modnames = do
   store <- newIORef []
   let fpmethod = fixpointMethod cconfig
   mapM_ (analysisClientWithStore cconfig store analysis fpmethod) modnames
 
-analysisClientWithStore :: (Eq a, Show a, Read a)
+analysisClientWithStore :: (Eq a, Show a, Read a, ReadWrite a)
                         => CConfig -> IORef (ProgInfoStore a) -> Analysis a
                         -> String -> String -> IO ()
 analysisClientWithStore cconfig store analysis fpmethod moduleName = do
@@ -75,11 +76,13 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
                       show (stoptime - starttime) ++ " msecs"
   loadinfos <- readIORef store
   writeIORef store ((moduleName,publicProgInfo result):loadinfos)
- where dl = debugLevel cconfig
+ where
+  dl = debugLevel cconfig
 
 -- Loads analysis results for a list of modules where already read results
 -- are stored in an IORef.
-getInterfaceInfosWS :: Read a => CConfig -> IORef (ProgInfoStore a) -> String
+getInterfaceInfosWS :: (Read a, ReadWrite a) => CConfig
+                    -> IORef (ProgInfoStore a) -> String
                     -> [String] -> IO (ProgInfo a)
 getInterfaceInfosWS _  _     _       []         = return emptyProgInfo
 getInterfaceInfosWS cc store anaName (mod:mods) = do

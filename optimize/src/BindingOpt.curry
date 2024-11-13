@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version January 2020
+--- @version October 2024
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -18,6 +18,7 @@ import System.CPUTime              ( getCPUTime )
 import FlatCurry.Types hiding  (Cons)
 import FlatCurry.Files
 import FlatCurry.Goodies
+import RW.Base             ( ReadWrite )
 import System.CurryPath    ( runModuleAction )
 import System.Directory    ( renameFile )
 import System.FilePath     ( (</>), (<.>), normalise, pathSeparator
@@ -170,8 +171,8 @@ transformFlatProg opts modname
   return ( Prog mname imports tdecls newfdecls opdecls
          , numtranseqs + numtranseqv > 0)
 
-loadAnalysisWithImports :: (Read a, Show a) => Analysis a -> String -> [String]
-                        -> IO (ProgInfo a,ProgInfo a)
+loadAnalysisWithImports :: (Read a, Show a, ReadWrite a) => Analysis a -> String
+                        -> [String] -> IO (ProgInfo a,ProgInfo a)
 loadAnalysisWithImports analysis modname imports = do
   maininfo <- analyzeGeneric analysis modname >>= return . either id error
   impinfos <- mapM (\m -> analyzePublic analysis m >>=

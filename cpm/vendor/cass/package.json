@@ -1,6 +1,6 @@
 {
     "name": "cass",
-    "version": "3.0.1",
+    "version": "4.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "CASS: the Curry Analysis Server System",
     "category": [ "Analysis" ],
@@ -8,16 +8,18 @@
     "licenseFile": "LICENSE",
     "dependencies": {
         "base"          : ">= 3.0.0, < 4.0.0",
-        "cass-analysis" : ">= 3.0.1, < 4.0.0",
+        "cass-analysis" : ">= 4.0.0, < 5.0.0",
         "containers"    : ">= 3.0.0, < 4.0.0",
         "currypath"     : ">= 3.0.0, < 4.0.0",
         "directory"     : ">= 3.0.0, < 4.0.0",
         "filepath"      : ">= 3.0.0, < 4.0.0",
-        "flatcurry"     : ">= 3.0.0, < 4.0.0",
+        "flatcurry"     : ">= 3.0.0, < 5.0.0",
         "io-extra"      : ">= 3.0.0, < 4.0.0",
+        "json"          : ">= 3.0.0, < 4.0.0",
         "process"       : ">= 3.0.0, < 4.0.0",
         "propertyfile"  : ">= 3.0.0, < 4.0.0",
         "redblacktree"  : ">= 3.0.0, < 4.0.0",
+        "rw-data"       : ">= 1.0.0",
         "scc"           : ">= 3.0.0, < 4.0.0",
         "socket"        : ">= 3.0.0, < 4.0.0",
         "time"          : ">= 3.0.0, < 4.0.0",
@@ -26,7 +28,9 @@
     "configModule": "CASS.PackageConfig",
     "executable": {
         "name": "cass",
-        "main": "CASS.Main"
+        "main": "CASS.Main",
+        "options": { "kics2" : ":set rts -T",
+                     "kmcc"  : ":set args +RTS -T -RTS" }
     },
     "documentation": {
         "src-dir": "docs",

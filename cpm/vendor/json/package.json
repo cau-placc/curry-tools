@@ -15,14 +15,17 @@
     "exportedModules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"],
     "testsuite": [
         { "src-dir": "src",
-          "modules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"]
+          "modules": ["JSON.Parser"]
         },
         { "src-dir": "examples",
           "modules": [ "SimpleTest" ]
+        },
+        { "src-dir": "test",
+          "modules": [ "TestConvert" ]
         }
     ],
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/json.git",
+        "git": "https://github.com/curry-packages/json.git",
         "tag": "$version"
     }
 }

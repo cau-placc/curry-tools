@@ -44,12 +44,13 @@ src/CPM.Main: src/CPM/ConfigPackage.curry $(DEPS)
 	echo "Set CURRYPATH to $$CURRYPATH"; 				\
 	cd src; $(REPL) --nocypm $(REPL_OPTS) :l CPM.Main :save :quit
 
+# Create the ConfigPackage (which is usually created by `cypm install`)
 src/CPM/ConfigPackage.curry: Makefile
 	@echo "module CPM.ConfigPackage where" > $@
 	@echo "packagePath :: String" >> $@
 	@echo "packagePath = \"$(CURDIR)\"" >> $@
 	@echo "packageVersion :: String" >> $@
-	@echo "packageVersion = \"3.1.0\"" >> $@
+	@echo "packageVersion = \"3.3.0\"" >> $@
 	@echo "Curry configuration module '$@' written."
 
 runtest:

@@ -2,14 +2,19 @@
 --- Analysis of higher-order properties of types and operations.
 ------------------------------------------------------------------------
 
+{-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
+
 module Analysis.HigherOrder
-  (Order(..),showOrder,hiOrdType,hiOrdCons,hiOrdFunc) where
+  (Order(..), showOrder, hiOrdType, hiOrdCons, hiOrdFunc)
+ where
 
 import Analysis.Types
 import Analysis.ProgInfo
 import FlatCurry.Types
 import FlatCurry.Goodies
 import Data.Maybe
+import RW.Base
+import System.IO
 
 -- datatype order: higher-order or first-order
 data Order = HO | FO
@@ -90,4 +95,20 @@ orderOfFuncTypeArity orderMap functype arity =
         in hoOr (orderOfFuncTypeArity orderMap x 0)
                 (orderOfFuncTypeArity orderMap y (arity-1))
 
------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- ReadWrite instances:
+
+instance ReadWrite Order where
+  readRW _ ('0' : r0) = (HO,r0)
+  readRW _ ('1' : r0) = (FO,r0)
+
+  showRW _ strs0 HO = (strs0,showChar '0')
+  showRW _ strs0 FO = (strs0,showChar '1')
+
+  writeRW _ h HO strs = hPutChar h '0' >> return strs
+  writeRW _ h FO strs = hPutChar h '1' >> return strs
+
+  typeOf _ = monoRWType "Order"
+
+------------------------------------------------------------------------------
+

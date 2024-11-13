@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version April 2024
+--- @version October 2024
 --------------------------------------------------------------------------
 
 module CASS.Main ( main ) where
@@ -62,7 +62,7 @@ main = do
          debugMessage dl 1 $
            "Computing results for analysis `" ++ fullananame ++ "'"
          analyzeModuleAndPrint cconfig2 fullananame (stripCurrySuffix mname)
-                               (optAll opts) (optFormat opts) (optReAna opts)
+           (optAll opts) (optFormat opts) (optGenerated opts) (optReAna opts)
  where
   deleteFiles args = case args of
     [aname] -> do fullaname <- checkAnalysisName aname

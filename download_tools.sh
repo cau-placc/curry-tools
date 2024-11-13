@@ -58,6 +58,9 @@ cd .cpm/packages
  PKGV=`ls -d currypath-*`
  mv $PKGV currypath
  ln -s currypath $PKGV
+ PKGV=`ls -d det-parse-*`
+ mv $PKGV det-parse
+ ln -s det-parse $PKGV
  PKGV=`ls -d directory-*`
  mv $PKGV directory
  ln -s directory $PKGV
@@ -82,6 +85,9 @@ cd .cpm/packages
  PKGV=`ls -d process-*`
  mv $PKGV process
  ln -s process $PKGV
+ PKGV=`ls -d profiling-*`
+ mv $PKGV profiling
+ ln -s profiling $PKGV
  PKGV=`ls -d propertyfile-*`
  mv $PKGV propertyfile
  ln -s propertyfile $PKGV
@@ -97,12 +103,18 @@ cd .cpm/packages
  PKGV=`ls -d redblacktree-*`
  mv $PKGV redblacktree
  ln -s redblacktree $PKGV
+ PKGV=`ls -d rw-data-*`
+ mv $PKGV rw-data
+ ln -s rw-data $PKGV
  PKGV=`ls -d scc-*`
  mv $PKGV scc
  ln -s scc $PKGV
  PKGV=`ls -d socket-*`
  mv $PKGV socket
  ln -s socket $PKGV
+ PKGV=`ls -d string-trie-*`
+ mv $PKGV string-trie
+ ln -s string-trie $PKGV
  PKGV=`ls -d time-*`
  mv $PKGV time
  ln -s time $PKGV
