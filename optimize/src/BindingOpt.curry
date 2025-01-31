@@ -171,8 +171,8 @@ transformFlatProg opts modname
   return ( Prog mname imports tdecls newfdecls opdecls
          , numtranseqs + numtranseqv > 0)
 
-loadAnalysisWithImports :: (Read a, Show a, ReadWrite a) => Analysis a -> String
-                        -> [String] -> IO (ProgInfo a,ProgInfo a)
+loadAnalysisWithImports :: (Read a, Show a, ReadWrite a, Eq a) => Analysis a
+                        -> String -> [String] -> IO (ProgInfo a,ProgInfo a)
 loadAnalysisWithImports analysis modname imports = do
   maininfo <- analyzeGeneric analysis modname >>= return . either id error
   impinfos <- mapM (\m -> analyzePublic analysis m >>=

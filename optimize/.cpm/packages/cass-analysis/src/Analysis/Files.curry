@@ -3,7 +3,7 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2024
+--- @version January 2025
 --------------------------------------------------------------------------
 
 module Analysis.Files where
@@ -40,8 +40,13 @@ getAnalysisBaseFile moduleName anaName = do
 
 --- Get the file name in which public analysis results are stored.
 getAnalysisPublicFile :: String -> String -> IO String
-getAnalysisPublicFile modname ananame = do
-  getAnalysisBaseFile modname ananame >>= return . (<.> "pub")
+getAnalysisPublicFile modname ananame =
+  fmap (<.> "pub") $ getAnalysisBaseFile modname ananame
+
+--- Get the file name in which public analysis results are stored.
+getAnalysisPrivateFile :: String -> String -> IO String
+getAnalysisPrivateFile modname ananame =
+  fmap (<.> "priv") $ getAnalysisBaseFile modname ananame
 
 -- Cache directory where analysis info files are stored.
 -- If $HOME exists, it is ~/.curry_analysis_cache
@@ -90,7 +95,7 @@ loadCompleteAnalysis dl ananame mainModule =
 --- Reads analysis result from file for the public entities of a given module.
 loadPublicAnalysis :: (Read a, ReadWrite a) => DLevel -> String -> String
                    -> IO (ProgInfo a)
-loadPublicAnalysis dl anaName moduleName = do
+loadPublicAnalysis dl anaName moduleName =
   getAnalysisPublicFile moduleName anaName >>= readAnalysisPublicFile dl
 
 --- Store current import dependencies.

@@ -3,12 +3,13 @@
 --- the log level for the analyses.
 ---
 --- @author Michael Hanus
---- @version April 2021
+--- @version January 2025
 --------------------------------------------------------------------------
 
 module Analysis.Logging ( DLevel(..), debugMessage, debugString ) where
 
 import Control.Monad
+import System.IO      ( hPutStr, stderr )
 
 --------------------------------------------------------------------------
 --- Debug levels intended as first parameter in debug operations below:
@@ -20,13 +21,12 @@ import Control.Monad
 data DLevel = Quiet | Timing | Communicate | Storage | AllData
  deriving Enum
 
---- Prints a message line if debugging level is at least n:
+--- Prints a message line (to stderr) if debugging level is at least n.
 debugMessage :: DLevel -> Int -> String -> IO ()
 debugMessage dl n message = debugString dl n (message ++ "\n")
 
---- Prints a string if debugging level (as specified in the Config file)
---- is at least n:
+--- Prints a string (to stderr) if debugging level is at least n.
 debugString :: DLevel -> Int -> String -> IO ()
-debugString dl n message = when (fromEnum dl >= n) $ putStr message
+debugString dl n message = when (fromEnum dl >= n) $ hPutStr stderr message
 
 --------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 --- as back end by other functional logic programming systems.
 ---
 --- @author Sebastian Fischer
---- @version October 2015
+--- @version November 2024
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns -Wno-missing-signatures #-}
@@ -22,7 +22,8 @@ import XML
 import XmlConv
 
 -- URL for the FlatCurry DTD:
-flatCurryDtd = "http://www.informatik.uni-kiel.de/~curry/flatcurrynew.dtd"
+flatCurryDtd :: String
+flatCurryDtd = "http://www.curry-lang.org/docs/flatcurry.dtd"
 
 --- Transforms a FlatCurry program term into a corresponding XML file.
 flatCurry2XmlFile :: Prog -> String -> IO ()
@@ -47,7 +48,7 @@ cProg         = eSeq5   "prog" Prog cModname cImports cTypes cFuncs cOps
 cModname      = eString "module"
 cImports      = eRep    "import" (eString "module")
 cTypes        = eRep    "types" cType
-cType         = eSeq4   "type" Type cQName cVis cTParams (rep cConsDecl)
+cType         = eSeq4   "type"    Type    cQName cVis cTParams (rep cConsDecl)
               ! eSeq4   "typesyn" TypeSyn cQName cVis cTParams cTypeExpr
               ! eSeq4   "typenew" TypeNew cQName cVis cTParams cNewConsDecl
 cQName        = seq2    (\a b -> (a,b)) (aString "module") (aString "name")
@@ -62,7 +63,13 @@ cTypeExpr     = eSeq2   "functype" FuncType cTypeExpr cTypeExpr
               ! eSeq2   "tcons" TCons cQName (rep cTypeExpr)
               ! eSeq1   "tvar" TVar int
               ! eSeq2   "forall" ForallType cTParams cTypeExpr
-cTVarWithKind = eSeq2   "tvarwithkind" (,) int cKind
+cTVarWithKind = eSeq2   "tvarwithkind" (,)
+                        (adapt (fromTVar,TVar) (eSeq1 "tvar" TVar int))
+                        cKind
+
+fromTVar :: TypeExpr -> TVarIndex
+fromTVar (TVar i) = i
+
 cKind         = eEmpty  "kstar" KStar
               ! eSeq2   "karrow" KArrow cKind cKind
 cFuncs        = eRep    "functions" cFunc

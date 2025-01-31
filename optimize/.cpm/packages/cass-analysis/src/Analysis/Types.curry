@@ -10,7 +10,7 @@
 ---                (instead of the data constructors).
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2024
+--- @version December 2024
 -------------------------------------------------------------------------
 
 module Analysis.Types
@@ -21,7 +21,7 @@ module Analysis.Types
   , combinedSimpleTypeAnalysis
   , combinedDependencyFuncAnalysis, combinedDependencyTypeAnalysis
   , simpleModuleAnalysis, dependencyModuleAnalysis
-  , isSimpleAnalysis, isCombinedAnalysis, isFunctionAnalysis
+  , isSimpleAnalysis, isCombinedAnalysis, isFunctionAnalysis, isTypeAnalysis
   , analysisName, baseAnalysisNames, startValue
   , AOutFormat(..)
   ) where
@@ -216,6 +216,16 @@ isFunctionAnalysis analysis = case analysis of
   DependencyFuncAnalysis         _ _ _     -> True
   CombinedSimpleFuncAnalysis     _ _ _ _   -> True
   CombinedDependencyFuncAnalysis _ _ _ _ _ -> True
+  _                                        -> False
+
+--- Is the analysis a type analysis?
+--- Otherwise, it is a function or constructor analysis.
+isTypeAnalysis :: Analysis a -> Bool
+isTypeAnalysis analysis = case analysis of
+  SimpleTypeAnalysis             _ _       -> True
+  DependencyTypeAnalysis         _ _ _     -> True
+  CombinedSimpleTypeAnalysis     _ _ _ _   -> True
+  CombinedDependencyTypeAnalysis _ _ _ _ _ -> True
   _                                        -> False
 
 --- Name of the analysis to be used in server communication and

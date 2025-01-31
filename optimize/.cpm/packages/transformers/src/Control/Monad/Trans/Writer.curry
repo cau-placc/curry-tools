@@ -48,6 +48,10 @@ listen m = WriterT $ (\(x, w) -> ((x, w), w)) <$> runWriterT m
 execWriterT :: Monad m => WriterT w m a -> m w
 execWriterT m = snd <$> runWriterT m
 
+-- | Maps both the value and the output of a writer computation.
+mapWriterT :: (m (a, w) -> n (b, w')) -> WriterT w m a -> WriterT w' n b
+mapWriterT f = WriterT . f . runWriterT
+
 type Writer w = WriterT w Identity
 
 -- | Runs a writer compuation.

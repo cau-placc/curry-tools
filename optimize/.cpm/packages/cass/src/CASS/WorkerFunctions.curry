@@ -3,7 +3,7 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2024
+--- @version January 2025
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
@@ -15,7 +15,7 @@ import System.CPUTime    ( getCPUTime )
 import Analysis.Files
 import Analysis.Logging  ( debugMessage, debugString )
 import Analysis.Types    ( Analysis(..), isSimpleAnalysis, isCombinedAnalysis
-                         , analysisName, startValue)
+                         , analysisName, startValue, isFunctionAnalysis, isTypeAnalysis)
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
                          , publicProgInfo, lookupProgInfo, lists2ProgInfo
                          , equalProgInfo, publicListFromProgInfo, showProgInfo )
@@ -28,6 +28,10 @@ import RW.Base
 
 import CASS.Configuration
 import CASS.FlatCurryDependency ( callsDirectly, dependsDirectlyOnTypes )
+import CASS.Options      ( Options(..), optNoCurryInfo )
+
+import CPM.Query.Main    ( askCurryInfoCmd ) -- for curry-info integration
+import qualified CPM.Query.Options as CPMQuery ( CurryEntity(..) )
 
 -----------------------------------------------------------------------
 -- Datatype to store already read ProgInfos for modules.
@@ -65,11 +69,37 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
   debugMessage dl 1 $ "Starting analysis for " ++ anaModName ++ "..."
   starttime <- getCPUTime
   startvals <- getStartValues analysis prog
+
+  curryInfoResult <-
+    if useCurryInfo cconfig && not (optAll (ccOptions cconfig)) &&
+       moduleName `notElem` optNoCurryInfo (ccOptions cconfig) &&
+       ananame `elem` curryInfoAnalyses &&
+       (isFunctionAnalysis analysis || isTypeAnalysis analysis)
+      then do -- try `curry-info` to get analysis results:
+        let entkind = if isTypeAnalysis analysis then CPMQuery.Type
+                                                 else CPMQuery.Operation
+            withciweb = useCurryInfoWeb cconfig
+        debugMessage dl 1 $ "\nUse CURRYINFO" ++
+          (if withciweb then "/WEB" else "") ++ " for " ++
+          moduleName ++ " / " ++ "cass-" ++ ananame
+        res <- askCurryInfoCmd withciweb (optVerb (ccOptions cconfig))
+                 moduleName entkind ("cass-" ++ ananame)
+        debugMessage dl 3 $ "Result received from CURRYINFO:\n" ++ show res
+        return res
+      else return Nothing
+  
   result <-
-     if isCombinedAnalysis analysis
-       then execCombinedAnalysis cconfig analysis prog importInfos
-                                 startvals moduleName fpmethod
-       else runAnalysis cconfig analysis prog importInfos startvals fpmethod
+    case curryInfoResult >>= mapM (\(qn, s) -> fmap ((,) qn) (safeRead s)) of
+      Nothing ->  do
+        debugMessage dl 3 $ "Read error of CURRYINFO result!"
+        debugMessage dl 1 $
+          "\nAnalyze by CASS: " ++ moduleName ++ " / " ++ ananame
+        if isCombinedAnalysis analysis
+          then execCombinedAnalysis cconfig analysis prog importInfos
+                                    startvals moduleName fpmethod
+          else runAnalysis cconfig analysis prog importInfos startvals fpmethod
+      Just i -> return (lists2ProgInfo (i, []))
+
   storeAnalysisResult dl ananame moduleName result
   stoptime <- getCPUTime
   debugMessage dl 1 $ "Analysis time for " ++ anaModName ++ ": " ++
@@ -78,6 +108,9 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
   writeIORef store ((moduleName,publicProgInfo result):loadinfos)
  where
   dl = debugLevel cconfig
+
+  safeRead s = case readsPrec 0 s of [(x, "")] -> Just x
+                                     _         -> Nothing
 
 -- Loads analysis results for a list of modules where already read results
 -- are stored in an IORef.

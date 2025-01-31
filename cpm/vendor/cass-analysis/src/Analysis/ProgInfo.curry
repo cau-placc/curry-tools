@@ -2,7 +2,7 @@
 --- This module defines a datatype to represent the analysis information.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2024
+--- @version January 2025
 -----------------------------------------------------------------------
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
@@ -11,7 +11,8 @@ module Analysis.ProgInfo
   , lists2ProgInfo, publicListFromProgInfo, progInfo2Lists
   , mapProgInfo, publicProgInfo
   , showProgInfo, equalProgInfo
-  , readAnalysisFiles, readAnalysisPublicFile, writeAnalysisFiles
+  , readAnalysisFiles, readAnalysisPublicFile, readAnalysisPrivateFile, readAnalysisFile
+  , writeAnalysisFiles
   ) where
 
 import Prelude hiding   ( empty, lookup )
@@ -107,14 +108,34 @@ readAnalysisFiles dl basefname = do
            putStrLn "Please try to re-run the analysis!"
            ioError err)
 
---- Reads the public ProgInfo from the public analysis file.
+--- Reads the public `ProgInfo` from an existing public analysis file and
+--- set the private information to empty.
+--- If the file is buggy, an error is raised.
 readAnalysisPublicFile :: (Read a, ReadWrite a) => DLevel -> String
                        -> IO (ProgInfo a)
 readAnalysisPublicFile dl fname = do
   debugMessage dl 3 $ "Reading public analysis file '" ++ fname ++ "'..."
-  pubinfo <- readTermFile (fromEnum dl > 2) fname
-  let pinfo = ProgInfo pubinfo empty
-  catch (return $!! pinfo)
+  infomap <- readAnalysisFile dl fname
+  return $ ProgInfo infomap empty
+
+--- Reads the private `ProgInfo` from a private analysis file and
+--- set the public information to empty. If the private analysis file
+--- does not exist, the empty `ProgInfo` is returned.
+--- If the file is buggy, an error is raised.
+readAnalysisPrivateFile :: (Read a, ReadWrite a) => DLevel -> String
+                        -> IO (ProgInfo a)
+readAnalysisPrivateFile dl fname = do
+  debugMessage dl 3 $ "Reading private analysis file '" ++ fname ++ "'..."
+  fexists <- doesFileExist fname
+  infomap <- if fexists then readAnalysisFile dl fname else return empty
+  return $ ProgInfo empty infomap
+
+--- Reads an existing file with (public or private) analysis information.
+readAnalysisFile :: (Read a, ReadWrite a) => DLevel -> String
+                 -> IO (Map QName a)
+readAnalysisFile dl fname = do
+  infomap <- readTermFile (fromEnum dl > 2) fname
+  catch (return $!! infomap)
         (\err -> do
            putStrLn $ "Buggy analysis files detected and removed:\n" ++ fname
            removeFile fname
@@ -155,10 +176,13 @@ readTermFile reporttimings fname = do
                     else do
                       putStrLn $ "\nReading " ++ fname
                       (_,ttime) <- getElapsedTimeNF readtermfile
-                      putStr $ "Time: " ++ show ttime ++
-                               " msecs / Compact reading: " ++
-                               show rwtime ++ " msecs / speedup: " ++
-                               show (fromInt ttime / fromInt rwtime)
+                      putStrLn $ "Time: " ++ show ttime ++
+                                 " msecs / Compact reading: " ++
+                                 show rwtime ++ " msecs" ++
+                                 (if rwtime == 0
+                                    then ""
+                                    else " / speedup: " ++
+                                         show (fromInt ttime / fromInt rwtime))
                       return rwterms )
                 mbterms
     else readtermfile

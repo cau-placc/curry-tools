@@ -2,7 +2,7 @@
     "name": "containers",
     "version": "3.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
-    "synopsis": "Library implementing various datastructures",
+    "synopsis": "Library implementing various data structures",
     "category": [ "Data" ],
     "license": "BSD-3-Clause",
     "licenseFile": "LICENSE",

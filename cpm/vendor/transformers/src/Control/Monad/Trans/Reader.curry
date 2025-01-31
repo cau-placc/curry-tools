@@ -47,6 +47,10 @@ reader = asks
 withReaderT :: (s -> r) -> ReaderT r m a -> ReaderT s m a
 withReaderT f m = ReaderT $ \s -> runReaderT m (f s)
 
+-- | Maps the computation inside the reader monad.
+mapReaderT :: (m a -> n b) -> ReaderT r m a -> ReaderT r n b
+mapReaderT f m = ReaderT $ f . runReaderT m
+
 type Reader r = ReaderT r Identity
 
 -- | Runs a computation in the reader monad.

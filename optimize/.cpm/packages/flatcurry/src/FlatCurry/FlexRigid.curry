@@ -12,6 +12,7 @@ import FlatCurry.Types
 
 --- Datatype for representing a flex/rigid status of an expression.
 data FlexRigidResult = UnknownFR | ConflictFR | KnownFlex | KnownRigid
+  deriving (Read, Show)
 
 --- Computes the rigid/flex status of a FlatCurry expression.
 --- This function checks all cases in this expression.

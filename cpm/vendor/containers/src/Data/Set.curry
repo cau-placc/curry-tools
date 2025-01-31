@@ -3,7 +3,7 @@
 -----------------------------------------------------------------------------
 
 module Data.Set
-  ( Set, null, size, fromList, empty, insert, member, delete
+  ( Set, null, size, fromList, empty, singleton, insert, member, delete
   , deleteAll, union, toList, difference
   ) where
 
@@ -21,6 +21,10 @@ type Set key = Map.Map key ()
 --- Returns an empty set.
 empty :: Set key
 empty = Map.empty
+
+--- Construct a set with only a single element.
+singleton :: key -> Set key
+singleton x = Map.singleton x ()
 
 --- Transforms a list into a set of its elements.
 fromList :: Ord key => [key] -> Set key

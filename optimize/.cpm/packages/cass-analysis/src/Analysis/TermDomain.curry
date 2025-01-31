@@ -112,7 +112,7 @@ joinAType (ACons c) (ACons d) = ACons (intersect c d)
 
 -- Shows an abstract value.
 showAType :: AType -> String
-showAType AAny        = "_"
+showAType AAny       = "_"
 showAType (ACons cs) = "{" ++ intercalate "," (map snd cs) ++ "}"
 
 --- The `AType` instance of `TermDomain`.

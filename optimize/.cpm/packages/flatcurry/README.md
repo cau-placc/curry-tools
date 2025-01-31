@@ -41,10 +41,9 @@ Note that definition of types introduced by `data` or `newtype`
 declarations are still present in FlatCurry.
 Although a `newtype` declaration can be considered as syntactic sugar
 for a type synonym, a `newtype` declaration is important for
-typing reasons, i.e., a `newtype`
-is different from a type synonym. Thus, if one wants to translate
-FlatCurry programs into typed target languages (e.g., Haskell),
-the information about a `newtype` might be relevant.
+typing reasons, i.e., a `newtype` is different from a type synonym.
+Thus, if one wants to translate FlatCurry programs into typed target languages
+(e.g., Haskell), the information about a `newtype` might be relevant.
 However, if the target language is untyped, every use of a `newtype`
 can be eliminated by dropping the `newtype` constructors
 in the FlatCurry program. This can be done by operations
@@ -86,3 +85,5 @@ Currently, this package contains the following modules:
   This can be used to store Curry programs in a way independent
   of a Curry system or to use a Curry system, like PAKCS,
   as back end by other functional logic programming systems.
+  The [DTD](http://www.curry-lang.org/docs/flatcurry.dtd) to validate
+  these XML representation is also contained in file `flatcurry.dtd`.

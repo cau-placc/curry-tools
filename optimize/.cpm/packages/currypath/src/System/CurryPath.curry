@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
---- This module contains operations related to module names and paths
---- used in Curry system.
+--- This module contains operations related to module names, paths, and
+--- packages used in a Curry system (with the Curry Package Manager CPM).
 ---
 --- @author Bernd Brassel, Michael Hanus, Bjoern Peemoeller, Finn Teegen
---- @version March 2024
+--- @version December 2024
 ------------------------------------------------------------------------------
 
 module System.CurryPath
@@ -17,26 +17,30 @@ module System.CurryPath
   , sysLibPath, getLoadPathForModule
   , lookupModuleSourceInLoadPath, lookupModuleSource
   , curryModulesInDirectory, curryrcFileName
-  , setCurryPath
+  , getPackageVersionOfModule, getPackageVersionOfDirectory
+  , setCurryPath, setCurryPathIfNecessary
+  , packageSpecFile
   ) where
 
 import Control.Monad       ( unless, when )
 import Curry.Compiler.Distribution
-                           ( curryCompiler, curryCompilerMajorVersion
+                           ( baseVersion, curryCompiler
+                           , curryCompilerMajorVersion
                            , curryCompilerMinorVersion
                            , curryCompilerRevisionVersion
                            , installDir )
 import Data.List           ( init, intercalate, last, split )
 import System.Directory    ( doesDirectoryExist, doesFileExist
                            , getCurrentDirectory, getDirectoryContents
-                           , getHomeDirectory, setCurrentDirectory )
+                           , getHomeDirectory, getModificationTime
+                           , setCurrentDirectory )
 import System.Environment  ( getEnv, setEnv )
 import System.FilePath     ( FilePath, (</>), (<.>), addTrailingPathSeparator
                            , dropFileName, joinPath, splitDirectories
                            , splitExtension, splitFileName, splitPath
                            , splitSearchPath, takeExtension, dropExtension
                            )
-import System.IOExts       ( evalCmd )
+import System.IOExts       ( evalCmd, readCompleteFile )
 import System.Path         ( getFileInPath )
 
 import Data.PropertyFile   ( getPropertyFromFile )
@@ -311,6 +315,78 @@ curryrcFileName = getHomeDirectory >>= return . (</> rcFile)
   where rcFile = '.' : curryCompiler ++ "rc"
 
 ------------------------------------------------------------------------------
+-- Operations related to Curry packages maintained by the
+-- Curry package manager CPM.
+
+--- Checks whether a module name is part of a package and
+--- returns the package name and package version.
+--- For instance, in a package containing a dependency to package
+--- `process` with version `3.0.0`, the call
+---
+---     getPackageVersionOfModule "System.Process"
+---
+--- returns
+---
+---     Just "process" "3.0.0"
+---
+--- `Nothing` is returned if there is no package to which this module
+--- belongs.
+---
+--- For this purpose, the source file of the module is looked up
+--- (and an error is raised if this module cannot be found) and
+--- it is checked whether there is a `package.json` file under the
+--- directory of the source file and the directory name is a valid package id.
+getPackageVersionOfModule :: String -> IO (Maybe (String,String))
+getPackageVersionOfModule mname = do
+  mbsrc <- lookupModuleSourceInLoadPath mname
+  case mbsrc of
+    Nothing -> error $ "Module '" ++ mname ++ "' not found in load path!"
+    Just (dirname,_) -> getPackageVersionOfDirectory dirname
+
+--- Checks whether a directory path is part of a package and returns
+--- the package name and package version. For instance,
+---
+---     getPackageVersionOfDirectory "/home/joe/mytool/.cpm/packages/process-3.0.0/src"
+---
+--- returns
+---
+---     Just "process" "3.0.0"
+---
+--- For this purpose, it is checked whether there is a `package.json` file
+--- under the directory and the directory name is a valid package id.
+getPackageVersionOfDirectory :: FilePath -> IO (Maybe (String,String))
+getPackageVersionOfDirectory path =
+  if sysLibPath == [path]
+    then return (Just ("base",baseVersion))
+    else getPackageSpecPath path >>=
+         return . maybe Nothing
+                        (\pdir -> splitPkgId "" (last (splitDirectories pdir)))
+ where
+  splitPkgId oldpn s =
+    let (pname,hvers) = break (=='-') s
+        newpn = if null oldpn then pname else oldpn ++ "-" ++ pname
+    in if null hvers
+         then Nothing
+         else let vers = tail hvers
+              in if isVersionId vers then Just (newpn,vers)
+                                     else splitPkgId newpn vers
+
+  isVersionId vs = case split (=='.') vs of
+    (maj:min:patch:_) -> all (all isDigit) [maj, min, take 1 patch]
+    _                 -> False
+
+--- Returns, for a given directory, the directory path containing
+--- a package specification.
+getPackageSpecPath :: FilePath -> IO (Maybe FilePath)
+getPackageSpecPath dir = getPkgSpecPath (splitDirectories dir)
+ where
+  getPkgSpecPath []             = return Nothing
+  getPkgSpecPath dirnames@(_:_) = do
+    expkg <- doesFileExist (joinPath (dirnames ++ [packageSpecFile]))
+    if expkg
+      then return (Just (joinPath dirnames))
+      else getPkgSpecPath (init dirnames)
+
 
 --- If the environment variable `CURRYPATH` is not already set
 --- (i.e., not null), set it to the value computed by `cypm deps --path`
@@ -343,5 +419,36 @@ setCurryPath quiet cpmexec = do
 
   -- Remove leading and trailing whitespace
   strip = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+--- If the environment variable `CURRYPATH` is not already set
+--- (i.e., not null), set it to the value stored in CPM's `CURRYPATH_CACHE`
+--- file or set it by `System.CurryPath.setCurryPath`
+--- (which uses `cypm deps --path` to compute its value).
+setCurryPathIfNecessary :: IO ()
+setCurryPathIfNecessary = do
+  cp <- getEnv "CURRYPATH"
+  when (null cp) $ do
+    cdir <- getCurrentDirectory
+    getPackageSpecPath cdir >>= maybe setCurryPathByCPM loadCurryPathFromCache
+ where
+  loadCurryPathFromCache specdir = do
+    let cachefile = specdir </> ".cpm" </> "CURRYPATH_CACHE"
+    excache <- doesFileExist cachefile
+    if excache
+      then do
+        cftime <- getModificationTime cachefile
+        pftime <- getModificationTime (specdir </> packageSpecFile)
+        if cftime > pftime
+          then do cnt <- readCompleteFile cachefile
+                  let cpath = head (lines cnt)
+                  setEnv "CURRYPATH" cpath
+          else setCurryPathByCPM
+      else setCurryPathByCPM
+
+  setCurryPathByCPM = setCurryPath True ""
+
+--- The name of the package specification file in JSON format.
+packageSpecFile :: String
+packageSpecFile = "package.json"
 
 ------------------------------------------------------------------------------

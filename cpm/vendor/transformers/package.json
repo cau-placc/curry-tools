@@ -22,5 +22,10 @@
   "source": {
       "git": "https://github.com/curry-packages/transformers.git",
       "tag": "$version"
+  },
+  "testsuite": {
+      "src-dir": "examples",
+      "modules": [ "EnumVars" ]
   }
+
 }

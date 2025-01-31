@@ -30,7 +30,7 @@
         "name": "cass",
         "main": "CASS.Main",
         "options": { "kics2" : ":set rts -T",
-                     "kmcc"  : ":set args +RTS -T -RTS" }
+                     "kmcc"  : ":set rts -T" }
     },
     "documentation": {
         "src-dir": "docs",

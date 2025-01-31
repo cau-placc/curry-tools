@@ -213,7 +213,7 @@ runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeAsString :: (Read a, Show a, ReadWrite a)
+analyzeAsString :: (Eq a, Read a, Show a, ReadWrite a)
                 => Analysis a -> (AOutFormat -> a -> String) -> CConfig
                 -> String -> Bool -> [Handle]
                 -> OutputFormat -> Maybe AOutFormat
@@ -237,7 +237,7 @@ analyzeAsString analysis showres cconfig
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeMain :: (Read a, Show a, ReadWrite a)
+analyzeMain :: (Eq a, Read a, Show a, ReadWrite a)
             => CConfig -> Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
 analyzeMain cconfig analysis modname handles enforce load = do
@@ -260,9 +260,9 @@ analyzeMain cconfig analysis modname handles enforce load = do
        else analyzeLocally cconfig ananame (map fst modulesToDo)
   result <-
     maybe (if load
-           then do debugMessage dl 3 ("Reading analysis of: "++modname)
-                   loadCompleteAnalysis dl ananame modname >>= return . Left
-           else return (Left emptyProgInfo))
+             then do debugMessage dl 3 ("Reading analysis of: "++modname)
+                     loadCompleteAnalysis dl ananame modname >>= return . Left
+             else return (Left emptyProgInfo))
           (return . Right)
           workresult
   debugMessage dl 4 ("Result: " ++ either showProgInfo id result)
