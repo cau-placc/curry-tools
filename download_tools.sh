@@ -52,6 +52,9 @@ cd .cpm/packages
  PKGV=`ls -d containers-*`
  mv $PKGV containers
  ln -s containers $PKGV
+ PKGV=`ls -d cpm-query-*`
+ mv $PKGV cpm-query
+ ln -s containers $PKGV
  PKGV=`ls -d csv-*`
  mv $PKGV csv
  ln -s csv $PKGV
