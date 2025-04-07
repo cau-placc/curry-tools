@@ -129,8 +129,8 @@ nondetAnalysis = dependencyFuncAnalysis "Deterministic" Det nondetFunc
 nondetFunc :: FuncDecl -> [(QName,Deterministic)] -> Deterministic
 nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
   if isNondetDefined func || callsNDOpInRule rule
-   then NDet
-   else Det
+    then NDet
+    else Det
  where
   callsNDOpInRule (Rule _ e) = callsNDOp e
   callsNDOpInRule (External _) = False

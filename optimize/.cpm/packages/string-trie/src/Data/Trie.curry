@@ -12,10 +12,10 @@ module Data.Trie
     
   --- * Basic functions 
     empty, null, singleton, size,
-    containsKey, delete, 
+    containsKey,
 
   --- * Traversing functions
-    insert, lookup, 
+    insert, lookup, update, delete,
     
   --- * List conversion functions
     fromList, toList) where
@@ -50,8 +50,12 @@ singleton = (Trie 1 .) . singleton'
 
 --- Inserts a value into the trie.
 insert :: String -> a -> Trie a -> Trie a
-insert key val (Trie s it) = let (incr, t) = insert' key val it
-                             in Trie (if incr then s+1 else s) t 
+insert key val t = update key (const val) t
+
+--- Updates or inserts a value in the trie. 
+update :: String -> (Maybe a -> a) -> Trie a -> Trie a
+update key f (Trie s it) = let (incr, t) = update' key f it
+                           in Trie (if incr then s+1 else s) t
 
 --- Removes a key from the trie. 
 --- If the key is not in the trie, the trie is returned unchanged.

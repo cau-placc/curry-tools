@@ -54,7 +54,7 @@ the main server program via
 
 or a free port number is chosen when the analysis server is started.
 The current port and process numbers of a running analysis server
-are temporarily stored in the file `$HOME/.curryanalysis.port`
+are temporarily stored in the file `$HOME/.cass.port`
 (in the tuple format `(port,pid)`).
 
 The program `cass` can also be started on a console with arguments:
@@ -70,7 +70,7 @@ and the output is shown on stdout. Run the command
 to get a description of the arguments and a list of registered analysis
 names.
 
-The analysis system can be configured in the file `$HOME/.curryanalysisrc`
+The analysis system can be configured in the file `$HOME/.cassrc`
 which is installed after the first run of the system.
 
 More details about the usage of CASS can be found in a

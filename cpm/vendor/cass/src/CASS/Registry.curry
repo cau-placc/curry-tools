@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2024
+--- @version March 2025
 --------------------------------------------------------------------
 
 module CASS.Registry
@@ -13,13 +13,11 @@ module CASS.Registry
  , lookupRegAnaWorker, runAnalysisWithWorkers, analyzeMain
  ) where
 
+import Control.Monad
 import FlatCurry.Types
 import FlatCurry.TypesRW
-import FlatCurry.Goodies    ( progImports )
 import RW.Base
 import System.IO
-import System.IOExts
-import Control.Monad
 import XML
 
 import Analysis.Logging (debugMessage)
@@ -213,7 +211,7 @@ runAnalysisWithWorkersNoLoad cc ananame handles moduleName =
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeAsString :: (Read a, Show a, ReadWrite a)
+analyzeAsString :: (Eq a, Read a, Show a, ReadWrite a)
                 => Analysis a -> (AOutFormat -> a -> String) -> CConfig
                 -> String -> Bool -> [Handle]
                 -> OutputFormat -> Maybe AOutFormat
@@ -237,7 +235,7 @@ analyzeAsString analysis showres cconfig
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeMain :: (Read a, Show a, ReadWrite a)
+analyzeMain :: (Eq a, Read a, Show a, ReadWrite a)
             => CConfig -> Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
 analyzeMain cconfig analysis modname handles enforce load = do
@@ -260,9 +258,9 @@ analyzeMain cconfig analysis modname handles enforce load = do
        else analyzeLocally cconfig ananame (map fst modulesToDo)
   result <-
     maybe (if load
-           then do debugMessage dl 3 ("Reading analysis of: "++modname)
-                   loadCompleteAnalysis dl ananame modname >>= return . Left
-           else return (Left emptyProgInfo))
+             then do debugMessage dl 3 ("Reading analysis of: "++modname)
+                     loadCompleteAnalysis dl ananame modname >>= return . Left
+             else return (Left emptyProgInfo))
           (return . Right)
           workresult
   debugMessage dl 4 ("Result: " ++ either showProgInfo id result)

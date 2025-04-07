@@ -1,0 +1,19 @@
+{
+    "name": "extra",
+    "version": "3.0.0",
+    "author": "Fredrik Wieczerkowski <stu216794@mail.uni-kiel.de>",
+    "synopsis": "General utility functions",
+    "category": [ "Programming" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base" : ">= 3.0.0, < 4.0.0"
+    },
+    "exportedModules": [
+        "Data.Tuple.Extra", "Control.Monad.Extra"
+    ],
+    "source": {
+      "git": "https://github.com/curry-packages/extra.git",
+      "tag": "$version"
+    }
+}

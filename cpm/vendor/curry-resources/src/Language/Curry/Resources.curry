@@ -12,6 +12,11 @@ module Language.Curry.Resources where
 curryHomeURL :: String
 curryHomeURL = "http://www.curry-lang.org"
 
+--- The URL of Masala, the web-based system to upload and publish
+--- Curry packages.
+masalaHomeURL :: String
+masalaHomeURL = "https://cpm.curry-lang.org/masala/"
+
 --- The URL of the home page of CPM containing a description and
 --- some documentation about CPM.
 cpmHomeURL :: String
@@ -84,14 +89,14 @@ curryWikiURL = "https://www-ps.informatik.uni-kiel.de/currywiki"
 
 --- The home page of the Curry system PAKCS.
 pakcsURL :: String
-pakcsURL = "https://www.informatik.uni-kiel.de/~pakcs/"
+pakcsURL = "https://www.curry-lang.org/pakcs/"
 
 --- The home page of the Curry system KiCS2.
 kics2URL :: String
-kics2URL = "https://www-ps.informatik.uni-kiel.de/kics2/"
+kics2URL = "https://www.curry-lang.org/kics2/"
 
 --- The home page of the Curry system Curry2Go.
 curry2goURL :: String
-curry2goURL = "https://www-ps.informatik.uni-kiel.de/curry2go/"
+curry2goURL = "https://www.curry-lang.org/curry2go/"
 
 ------------------------------------------------------------------------------

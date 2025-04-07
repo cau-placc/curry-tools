@@ -4,16 +4,18 @@
 --- delivers only bottom if some argument is bottom.
 ---
 --- @author Michael Hanus
---- @version May 2013
+--- @version February 2025
 ------------------------------------------------------------------------------
 
 module Analysis.Demandedness
  where
 
-import Analysis.Types
+import Data.List         ( (\\), intercalate )
+
 import FlatCurry.Types
 import FlatCurry.Goodies
-import Data.List         ( (\\), intercalate )
+
+import Analysis.Types
 
 ------------------------------------------------------------------------------
 --- Data type to represent information about demanded arguments.
@@ -46,8 +48,8 @@ demandAnalysis = dependencyFuncAnalysis "Demand" [1..] daFunc
 -- Otherwise, we analyse the right-hand sides of the rule.
 daFunc :: FuncDecl -> [(QName,DemandedArgs)] -> DemandedArgs
 daFunc (Func (m,f) _ _ _ rule) calledFuncs
- | f `elem` prelude2s && m==prelude = [1,2]
- | f `elem` prelude1s && m==prelude = [1]
+ | m == prelude && f `elem` prelude2s = [1,2]
+ | m == prelude && f `elem` prelude1s = [1]
  | otherwise = daFuncRule calledFuncs rule
  where
   prelude2s = ["==","=:=","compare","<=","$#","$##","$!","$!!",
@@ -57,7 +59,7 @@ daFunc (Func (m,f) _ _ _ rule) calledFuncs
 
 
 daFuncRule :: [(QName,DemandedArgs)] -> Rule -> DemandedArgs
-daFuncRule _ (External _) = [] -- nothing known about other externals
+daFuncRule _           (External _)    = [] -- nothing known about externals
 daFuncRule calledFuncs (Rule args rhs) =
   map fst
       (filter ((==Bot) . snd)
@@ -67,36 +69,35 @@ daFuncRule calledFuncs (Rule args rhs) =
   -- abstract evaluation of an expression w.r.t. variables assumed to be Bot
   absEvalExpr (Var i)        bvs = if i `elem` bvs then Bot else Top
   absEvalExpr (Lit _)        _   = Top
-  absEvalExpr (Comb ct g es) bvs =
-    if ct == FuncCall
-    then
-      if g == (prelude,"failed")
-      then Bot -- Prelude.failed never returns a value
-      else maybe (error $ "Abstract value of " ++ show g ++ " not found!")
-                 (\gdas -> let curargs = map (\ (i,e) -> (i,absEvalExpr e bvs))
-                                             (zip [1..] es)
-                               cdas = gdas \\
-                                      map fst (filter ((/=Bot) . snd) curargs)
-                            in if null cdas then Top else Bot)
-                 (lookup g calledFuncs)
-    else Top
+  absEvalExpr (Comb ct g es) bvs
+    | ct == FuncCall
+    = if g == (prelude,"failed")
+        then Bot -- Prelude.failed never returns a value
+        else maybe (error $ "Abstract value of " ++ show g ++ " not found!")
+                   (\gdas -> let curargs = map (\(i,e) -> (i,absEvalExpr e bvs))
+                                               (zip [1..] es)
+                                 cdas = gdas \\
+                                        map fst (filter ((/=Bot) . snd) curargs)
+                             in if null cdas then Top else Bot)
+                   (lookup g calledFuncs)
+    | otherwise = Top
   absEvalExpr (Free _ e)     bvs = absEvalExpr e bvs
   absEvalExpr (Let bs e)     bvs = absEvalExpr e (absEvalBindings bs bvs)
   absEvalExpr (Or e1 e2)     bvs = lub (absEvalExpr e1 bvs) (absEvalExpr e2 bvs)
   absEvalExpr (Case _  e bs) bvs =
     if absEvalExpr e bvs == Bot
-    then Bot
-    else foldr lub Bot (map absEvalBranch bs)
+      then Bot
+      else foldr lub Bot (map absEvalBranch bs)
    where absEvalBranch (Branch _ be) = absEvalExpr be bvs
   absEvalExpr (Typed e _) bvs = absEvalExpr e bvs
 
     -- could be improved with local fixpoint computation
-  absEvalBindings [] bvs = bvs
+  absEvalBindings []             bvs = bvs
   absEvalBindings ((i,exp) : bs) bvs =
     let ival = absEvalExpr exp bvs
-     in if ival==Bot
-        then absEvalBindings bs (i:bvs)
-        else absEvalBindings bs bvs
+    in if ival==Bot
+         then absEvalBindings bs (i:bvs)
+         else absEvalBindings bs bvs
 
 prelude :: String
 prelude = "Prelude"

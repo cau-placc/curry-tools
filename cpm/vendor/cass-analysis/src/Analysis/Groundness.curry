@@ -1,7 +1,7 @@
 
 ------------------------------------------------------------------------
---- Groundness/non-determinism effect analysis based on
---- [Brassel/Hanus'05](http://www.informatik.uni-kiel.de/~mh/papers/ICLP05.html).
+--- Groundness/non-determinism effect analysis based on the method
+--- described in the [ICLP 2005 paper](https://doi.org/10.1007/11562931_21).
 ---
 --- @author Michael Hanus
 --- @version November 2024

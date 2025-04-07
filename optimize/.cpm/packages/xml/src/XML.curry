@@ -8,14 +8,16 @@
 --- @version June 2018
 ------------------------------------------------------------------------------
 
-module XML(XmlExp(..),Encoding(..),XmlDocParams(..),
-       tagOf,elemsOf,textOf,textOfXml,xtxt,xml,
-       showXmlDoc,showXmlDocWithParams,
-       writeXmlFile,writeXmlFileWithParams,parseXmlString,readXmlFile,
-       readUnsafeXmlFile,readFileWithXmlDocs,updateXmlFile) where
+module XML
+  ( XmlExp(..), Encoding(..), XmlDocParams(..)
+  , tagOf, elemsOf, textOf, textOfXml, xtxt, xml
+  , showXmlDoc, showXmlDocWithParams
+  , writeXmlFile, writeXmlFileWithParams, parseXmlString, readXmlFile
+  , readUnsafeXmlFile, readFileWithXmlDocs, updateXmlFile
+  ) where
 
 import Data.Char
-import Data.List (intersperse)
+import Data.List ( intersperse )
 import Numeric
 
 ------------------------------------------------------------------------------
@@ -62,9 +64,9 @@ standardEncoding (c:cs)
 iso88591Encoding :: String -> String
 iso88591Encoding [] = []
 iso88591Encoding (c:cs) = 
-   if ord c `elem` iso88591list
-   then c : iso88591Encoding cs
-   else standardEncoding [c] ++ iso88591Encoding cs
+  if ord c `elem` iso88591list
+    then c : iso88591Encoding cs
+    else standardEncoding [c] ++ iso88591Encoding cs
 
 -- iso-8859-1-list
 -- not yet completed...
@@ -113,7 +115,7 @@ tagOf (XText _) = ""
 --- Returns the child elements an XML element.
 elemsOf :: XmlExp -> [XmlExp]
 elemsOf (XElem _ _ xexps) = xexps
-elemsOf (XText _) = []
+elemsOf (XText _)         = []
 
 
 --- Extracts the textual contents of a list of XML expressions.
@@ -125,8 +127,8 @@ elemsOf (XText _) = []
 textOf :: [XmlExp] -> String
 textOf = unwords . filter (not . null) . map textOfXmlExp
  where
-   textOfXmlExp (XText s) = s
-   textOfXmlExp (XElem _ _ xs) = textOf xs
+  textOfXmlExp (XText s)      = s
+  textOfXmlExp (XElem _ _ xs) = textOf xs
 
 --- Included for backward compatibility, better use <code>textOf</code>!
 textOfXml :: [XmlExp] -> String
@@ -170,8 +172,8 @@ showXmlDocWithParams ps (XElem root attrL xmlEL) =
    (encoding2Attribute (lookupEncoding ps)) ++ "standalone=\"" ++
    (if hasDtdUrl ps then "no" else "yes") ++ "\"?>\n\n" ++
    (if hasDtdUrl ps
-    then "<!DOCTYPE " ++ root ++ " SYSTEM \"" ++ lookupDtdUrl ps ++ "\">\n\n"
-    else "") ++
+     then "<!DOCTYPE " ++ root ++ " SYSTEM \"" ++ lookupDtdUrl ps ++ "\">\n\n"
+     else "") ++
    showXmlExp 0 (encoding2EncFunc (lookupEncoding ps))
                 (XElem root attrL xmlEL)
 showXmlDocWithParams _ (XText _) =
@@ -182,12 +184,12 @@ showXmlExp i encFun (XText s)  = xtab i ++ (encFun s) ++ "\n"
 showXmlExp i encFun (XElem tag attrs xexps) =
   xtab i ++ showXmlOpenTag tag attrs encFun ++
   if null xexps
-  then " />\n"
-  else if length xexps == 1 && isXText (head xexps)
-       then let [XText s] = xexps
-            in  ">" ++ (encFun s) ++ "</" ++ tag ++ ">\n"
-       else ">\n" ++ showXmlExps (i+2) xexps encFun ++
-            xtab i ++ "</" ++ tag ++ ">\n"
+    then " />\n"
+    else if length xexps == 1 && isXText (head xexps)
+           then let [XText s] = xexps
+                in  ">" ++ (encFun s) ++ "</" ++ tag ++ ">\n"
+           else ">\n" ++ showXmlExps (i+2) xexps encFun ++
+                xtab i ++ "</" ++ tag ++ ">\n"
 
 xtab :: Int -> String
 xtab n = take n (repeat ' ')
@@ -195,14 +197,14 @@ xtab n = take n (repeat ' ')
 showXmlOpenTag :: String -> [(String, a)] -> (a -> String) -> String
 showXmlOpenTag tag attrs encFun =
   "<" ++ tag ++ concat (map ((" "++) . attr2string) attrs)
-  where attr2string (attr,value) = attr ++ "=\""
-                                        ++ (encFun value) ++ "\""
+ where
+  attr2string (attr,value) = attr ++ "=\"" ++ (encFun value) ++ "\""
 
 showXmlExps :: Int -> [XmlExp] -> (String -> String) -> String
 showXmlExps encFun xexps i = concatMap (showXmlExp encFun i) xexps
 
 isXText :: XmlExp -> Bool
-isXText (XText _) = True
+isXText (XText _)     = True
 isXText (XElem _ _ _) = False
 
 -- unquote special characters (<,>,&,',") in an XML string:
@@ -210,7 +212,7 @@ xmlUnquoteSpecials :: String -> String
 xmlUnquoteSpecials [] = []
 xmlUnquoteSpecials (c:cs)
   | c=='&'    = let (special,rest) = splitAtChar ';' cs
-                 in xmlUnquoteSpecial special rest
+                in xmlUnquoteSpecial special rest
   | otherwise = c : xmlUnquoteSpecials cs
 
 xmlUnquoteSpecial :: String -> String -> String
@@ -248,14 +250,14 @@ unquoteUnicode (c:cs)
 --- Reads a file with an XML document and returns
 --- the corresponding XML expression.
 readXmlFile :: String -> IO XmlExp
-readXmlFile file =
- do xmlstring <- readFile file
-    let xexps = parseXmlString xmlstring
-    if null xexps
-      then error ("File "++file++" contains no XML document!")
-      else if null (tail xexps)
-            then return (head xexps)
-            else error ("File "++file++" contains more than one XML document!")
+readXmlFile file = do
+  xmlstring <- readFile file
+  let xexps = parseXmlString xmlstring
+  if null xexps
+    then error ("File "++file++" contains no XML document!")
+    else if null (tail xexps)
+           then return (head xexps)
+           else error ("File "++file++" contains more than one XML document!")
 
 --- Tries to read a file with an XML document and returns
 --- the corresponding XML expression, if possible.
@@ -289,17 +291,17 @@ parseXmlTokens (XText s : xtokens) stop =
   let (xexps, rem_xtokens) = parseXmlTokens xtokens stop
   in  (XText (xmlUnquoteSpecials s) : xexps, rem_xtokens)
 parseXmlTokens (XElem (t:ts) args cont : xtokens) stop
- | t == '<' && head ts /= '/'
-   = let (xexps1, xtokens1) = parseXmlTokens xtokens (Just ts)
-         (xexps, rem_xtokens) = parseXmlTokens xtokens1 stop
-     in  (XElem ts args xexps1 : xexps, rem_xtokens)
- | t == '<' && head ts == '/'
-   = if maybe False (==(tail ts)) stop
-     then ([], xtokens) -- stop this parser if appropriate stop token reached
-     else let (xexps, rem_xtokens) = parseXmlTokens xtokens stop
-          in  (XElem ts args cont : xexps, rem_xtokens)
- | otherwise = let (xexps, rem_xtokens) = parseXmlTokens xtokens stop
-               in  (XElem (t:ts) args cont : xexps, rem_xtokens)
+  | t == '<' && head ts /= '/'
+  = let (xexps1, xtokens1) = parseXmlTokens xtokens (Just ts)
+        (xexps, rem_xtokens) = parseXmlTokens xtokens1 stop
+    in  (XElem ts args xexps1 : xexps, rem_xtokens)
+  | t == '<' && head ts == '/'
+  = if maybe False (==(tail ts)) stop
+      then ([], xtokens) -- stop this parser if appropriate stop token reached
+      else let (xexps, rem_xtokens) = parseXmlTokens xtokens stop
+           in  (XElem ts args cont : xexps, rem_xtokens)
+  | otherwise = let (xexps, rem_xtokens) = parseXmlTokens xtokens stop
+                in  (XElem (t:ts) args cont : xexps, rem_xtokens)
 parseXmlTokens (XElem [] _ _ : _) _ =
   error "XML.parseXmlTokens: incomplete parse"
 
@@ -313,9 +315,9 @@ scanXmlString s = scanXml (dropBlanks s)
  where
   scanXml []     = []
   scanXml (c:cs) = if c=='<'
-                   then scanXmlElem cs
-                   else let (initxt,remtag) = scanXmlText (c:cs)
-                         in XText initxt : scanXml remtag
+                     then scanXmlElem cs
+                     else let (initxt,remtag) = scanXmlText (c:cs)
+                          in XText initxt : scanXml remtag
 
 -- scan an XML text until next tag and remove superflous blanks:
 scanXmlText :: String -> (String,String)
@@ -326,18 +328,18 @@ scanXmlText :: String -> (String,String)
 scanXmlText [] = ([],[])
 scanXmlText (c:cs) | c=='<' = ([],c:cs)
                    | isSpace c = let (txt,rem) = scanXmlText (dropBlanks cs)
-                                  in (if null txt then txt else ' ':txt, rem)
+                                 in (if null txt then txt else ' ':txt, rem)
                    | otherwise = let (txt,rem) = scanXmlText cs
-                                  in (c:txt,rem)
+                                 in (c:txt,rem)
 
 -- scan an XML element:
 scanXmlElem :: String -> [XmlExp]
 scanXmlElem [] = []
 scanXmlElem (c:cs)
- | c=='!' = if take 2 cs == "--"
-            then scanXmlComment (drop 2 cs)
-            else scanXmlCData cs
- | c=='?' = scanXmlProcInstr cs
+ | c=='!'    = if take 2 cs == "--"
+                 then scanXmlComment (drop 2 cs)
+                 else scanXmlCData cs
+ | c=='?'    = scanXmlProcInstr cs
  | otherwise = scanXmlElemName [c] cs
 
 scanXmlElemName :: String -> String -> [XmlExp]
@@ -346,8 +348,8 @@ scanXmlElemName ct (c:cs)
   | c=='>'    = XElem ('<':ct) [] [] : scanXmlString cs
   | isSpace c = let (attrs,rest) = parseAttrs (dropBlanks cs) in
                  if (head rest)=='/'
-                 then XElem ct attrs [] : scanXmlString (drop 2 rest)
-                 else XElem ('<':ct) attrs [] : scanXmlString (tail rest)
+                   then XElem ct attrs [] : scanXmlString (drop 2 rest)
+                   else XElem ('<':ct) attrs [] : scanXmlString (tail rest)
   | c=='/' && head cs == '>' = XElem ct [] [] : scanXmlString (tail cs)
   | otherwise = scanXmlElemName (ct++[c]) cs
 
@@ -356,8 +358,8 @@ scanXmlComment :: String -> [XmlExp]
 scanXmlComment [] = []
 scanXmlComment (c:cs) =
   if c=='-' && take 2 cs == "->"
-  then scanXmlString (drop 2 cs)
-  else scanXmlComment cs
+    then scanXmlString (drop 2 cs)
+    else scanXmlComment cs
 
 -- scan (and drop) an XML CDATA element (simplified version):
 scanXmlCData :: String -> [XmlExp]
@@ -402,7 +404,7 @@ splitAtChar char (c:cs) =
  if c==char then ([],cs)
             else let (first,rest) = splitAtChar char cs in (c:first,rest)
 
-------------------------------------------------------------------------------
+-----------------------------------------------------------------------------
 --- An action that updates the contents of an XML file by some transformation
 --- on the XML document.
 --- @param f - the function to transform the XML document in the file

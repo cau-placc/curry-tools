@@ -6,14 +6,15 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version October 2024
+--- @version February 2025
 --------------------------------------------------------------------------
 
 module CASS.Configuration
  ( systemBanner, baseDir, docDir, executableName
- , CConfig, defaultCConfig, debugLevel, setDebugLevel
- , getServerAddress, readRCFile, updateProperty
- , fixpointMethod, withPrelude
+ , curryInfoRequest2CASS
+ , CConfig(..), defaultCConfig, debugLevel, setDebugLevel
+ , getServerAddress
+ , useCurryInfo, useCurryInfoWeb, fixpointMethod, withPrelude
  , storeServerPortNumber, removeServerPortNumber
  , getDefaultPath, waitTime, numberOfWorkers
  ) where
@@ -23,20 +24,21 @@ import Curry.Compiler.Distribution ( curryCompiler )
 import Data.List                   ( sort )
 import Numeric                     ( readInt )
 import System.Environment          ( getEnv )
-import System.FilePath             ( FilePath, (</>), (<.>) )
+import System.FilePath             ( (</>) )
+import System.IO                   ( hPutStrLn, stderr )
 
-import System.Process
-import System.Directory
+import System.Directory   ( getHomeDirectory, removeFile )
+import System.Process     ( getPID )
 
-import Analysis.Logging   ( DLevel(..) )
+import Analysis.Logging   ( DLevel(..), debugMessage )
+import CASS.Options       ( Options(..), defaultOptions )
 import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
-import Data.PropertyFile  ( readPropertyFile, updatePropertyFile )
 
 --- The banner of the CASS system.
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 12/10/2024 for " ++
+                   packageVersion ++ " of 20/02/2025 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
@@ -71,39 +73,64 @@ waitTime = -1
 defaultWorkers :: Int
 defaultWorkers = 0
 
+--- The requests and analysis names currently support by CurryInfo.
+--- Taken from `CurryInfo.Analysis` of package `curry-info`.
+curryInfoRequest2CASS :: [(String,String)]
+curryInfoRequest2CASS =
+  [ ("deterministic",     "Deterministic")
+  , ("demand",            "Demand")
+  , ("indeterministic",   "Indeterministic")
+  , ("solution-complete", "SolComplete")
+  , ("terminating",       "Terminating")
+  , ("totally-defined",   "Total")
+  , ("result-values",     "Values")
+  ]
+
 --------------------------------------------------------------------------
 --- Configuration info used during execution of CASS.
---- It contains the properties from the rc file and the current debug level.
-data CConfig = CConfig [(String,String)] DLevel
+--- It contains the properties from the RC file, the current debug level,
+--- and the options passed to CASS.
+data CConfig = CConfig
+  { ccProps      :: [(String,String)]
+  , ccDebugLevel :: DLevel
+  , ccOptions    :: Options
+  }
 
 --- The default configuration has no properties and is quiet.
 defaultCConfig :: CConfig
-defaultCConfig = CConfig [] Quiet
+defaultCConfig = CConfig [] Quiet defaultOptions
 
 --- Returns the debug level from the current configuration.
 debugLevel :: CConfig -> DLevel
-debugLevel (CConfig _ dl) = dl
+debugLevel = ccDebugLevel
 
 --- Returns the debug level from the current configuration.
 setDebugLevel :: Int -> CConfig -> CConfig
-setDebugLevel dl (CConfig ps _) = CConfig ps (toEnum dl)
+setDebugLevel dl cc = cc { ccDebugLevel = toEnum dl }
+
+--- Returns the curryinfo flag from the current configuration.
+useCurryInfo :: CConfig -> Bool
+useCurryInfo cc =
+  maybe False (`elem` ["local","remote"]) (lookup "curryinfo" (ccProps cc))
+
+--- Returns the curryinfo web flag from the current configuration.
+useCurryInfoWeb :: CConfig -> Bool
+useCurryInfoWeb cc = maybe False (=="remote") (lookup "curryinfo" (ccProps cc))
 
 --- Returns the fixpoint computation method from Config file
 fixpointMethod :: CConfig -> String
-fixpointMethod (CConfig properties _) =
-  maybe "wlist" id  (lookup "fixpoint" properties)
+fixpointMethod cc = maybe "wlist" id  (lookup "fixpoint" (ccProps cc))
 
 --- Gets the option to analyze also the prelude from Config file
 withPrelude :: CConfig -> Bool
-withPrelude (CConfig properties _) =
-  maybe True (/="no") (lookup "prelude" properties)
+withPrelude cc = maybe True (/="no") (lookup "prelude" (ccProps cc))
 
 --- Gets the default load path from the property file (added at the end
 --- of CURRYPATH).
 getDefaultPath :: CConfig -> IO String
-getDefaultPath (CConfig properties _) = do
+getDefaultPath cc = do
   currypath <- getEnv "CURRYPATH"
-  return $ case lookup "path" properties of
+  return $ case lookup "path" (ccProps cc) of
     Just value -> if all isSpace value
                     then currypath
                     else if null currypath then value
@@ -112,101 +139,18 @@ getDefaultPath (CConfig properties _) = do
 
 --- number of worker threads running at the same time
 numberOfWorkers :: CConfig -> Int
-numberOfWorkers (CConfig properties _) = do
-  case lookup "numberOfWorkers" properties of
+numberOfWorkers cc = do
+  case lookup "numberOfWorkers" (ccProps cc) of
     Just value -> case readInt value of
                     [(int,_)] -> int
                     _         -> defaultWorkers
     Nothing    -> defaultWorkers
 
 --------------------------------------------------------------------------
--- Name of user property file:
-propertyFileName :: IO String
-propertyFileName = getHomeDirectory >>= return . (</> ".curryanalysisrc")
-
-defaultPropertyFileName :: String
-defaultPropertyFileName = baseDir </> "curryanalysisrc"
-
---- Install user property file if it does not exist.
-installPropertyFile :: IO ()
-installPropertyFile = do
-  fname <- propertyFileName
-  pfexists <- doesFileExist fname
-  dpfexists <- doesFileExist defaultPropertyFileName
-  when (not pfexists && dpfexists) $ do
-    copyFile defaultPropertyFileName fname
-    putStrLn $ "New analysis configuration file '" ++ fname ++ "' installed."
-
---- Reads the rc file (and try to install a user copy of it if it does not
---- exist) and returns its definition. Additionally, the definitions
---- are compared with the default property file of the CASS distribution.
---- If the set of variables is different, the rc file of the user is updated
---- with the distribution but the user's definitions are kept.
-readRCFile :: IO CConfig
-readRCFile = do
-  hashomedir <- getHomeDirectory >>= doesDirectoryExist
-  if not hashomedir
-   then readPropertiesAndStoreLocally
-   else do
-     installPropertyFile
-     CConfig userprops dl <- readPropertiesAndStoreLocally
-     distprops <- readPropertyFile defaultPropertyFileName
-     unless (rcKeys userprops == rcKeys distprops) $ do
-       rcName <- propertyFileName
-       putStrLn $ "Updating '" ++ rcName ++ "'..."
-       renameFile rcName $ rcName <.> "bak"
-       dpfexists <- doesFileExist defaultPropertyFileName
-       when dpfexists $ copyFile defaultPropertyFileName rcName
-       mapM_ (\ (n, v) -> maybe (return ())
-                 (\uv -> if uv == v then return ()
-                                    else updatePropertyFile rcName n uv)
-                 (lookup n userprops))
-             distprops
-     return (CConfig userprops dl)
-
-rcKeys :: [(String, String)] -> [String]
-rcKeys = sort . map fst
-
---- Reads the user property file or, if it does not exist,
---- the default property file of CASS,
---- and store the properties in a global variable for next access.
-readPropertiesAndStoreLocally :: IO CConfig
-readPropertiesAndStoreLocally = do
-  userpfn    <- propertyFileName
-  hasuserpfn <- doesFileExist userpfn
-  props      <- readPropertyFile
-                  (if hasuserpfn then userpfn else defaultPropertyFileName)
-  return $ updateDebugLevel (CConfig props Quiet)
-
---- Updates the debug level from the current properties.
-updateDebugLevel :: CConfig -> CConfig
-updateDebugLevel cc@(CConfig properties _) =
-  case lookup "debugLevel" properties of
-    Just value -> case readInt value of
-                    [(dl,_)] -> setDebugLevel dl cc
-                    _        -> cc
-    Nothing    -> cc
-
---- Updates a property.
-updateProperty :: String -> String -> CConfig -> CConfig
-updateProperty pn pv (CConfig currprops dl) =
-  let newprops = replaceKeyValue pn pv currprops
-  in updateDebugLevel (CConfig newprops dl)
-
-replaceKeyValue :: Eq a => a -> b -> [(a,b)] -> [(a,b)]
-replaceKeyValue k v []            = [(k,v)]
-replaceKeyValue k v ((k1,v1):kvs) =
-  if k == k1 then (k,v) : kvs
-             else (k1,v1) : replaceKeyValue k v kvs
-
-
---------------------------------------------------------------------------
 --- Gets the name of file containing the current server port and pid
 --- ($HOME has to be set)
 getServerPortFileName :: IO String
-getServerPortFileName = do
-  homeDir <- getHomeDirectory
-  return $ homeDir++"/.curryanalysis.port"
+getServerPortFileName = (</> ".cass.port") `fmap` getHomeDirectory
 
 --- Stores the current server port number together with the pid of
 --- the server process.

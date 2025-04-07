@@ -173,4 +173,4 @@ OPERAND-B     The second operand.
 ```
 
 [1]: https://hackage.haskell.org/package/optparse-applicative
-[2]: https://www-ps.informatik.uni-kiel.de/kics2/lib/GetOpt.html
+[2]: https://cpm.curry-lang.org/DOC/base-3.3.0/System.Console.GetOpt.html

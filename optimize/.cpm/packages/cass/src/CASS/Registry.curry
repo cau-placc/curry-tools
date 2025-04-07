@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2024
+--- @version March 2025
 --------------------------------------------------------------------
 
 module CASS.Registry
@@ -13,13 +13,11 @@ module CASS.Registry
  , lookupRegAnaWorker, runAnalysisWithWorkers, analyzeMain
  ) where
 
+import Control.Monad
 import FlatCurry.Types
 import FlatCurry.TypesRW
-import FlatCurry.Goodies    ( progImports )
 import RW.Base
 import System.IO
-import System.IOExts
-import Control.Monad
 import XML
 
 import Analysis.Logging (debugMessage)

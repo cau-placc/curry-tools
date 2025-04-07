@@ -1,9 +1,6 @@
 -- Some examples for matching in XML documents based on the `XCuery` library.
---
--- Note that this module requires the installation
--- of the package `setfunctions`!
 
-import Control.SetFunctions
+import Control.Search.SetFunctions
 
 import XML
 import XCuery
@@ -36,7 +33,10 @@ getNamePhone
        (with [xml "name" [xtxt name],
               xml "phone" [xtxt phone]])) = name ++ ": " ++ phone
 
+test1 :: Prop
 test1 = getNamePhone entry1 -=- "Hanus: +49-431-8807271"
+
+test2 :: Prop
 test2 = failing $ getNamePhone entry2 -- due to wrong order of phone/name
 
 -- Search for names and their phone numbers appearing in any order:
@@ -47,18 +47,21 @@ getAnyNamePhone
                         xml "name"  [xtxt name]])))
   = name ++ ": " ++ phone
 
+test3 :: Prop
 test3 = getAnyNamePhone entry2 -=- "Smith: +1-987-742-9388"
 
 -- Search for some email occurring anywhere (deep) in a document:
 getEmail :: XmlExp -> String
 getEmail (deepXml "email" [xtxt email]) = email
 
+test4 :: Prop
 test4 = getEmail contacts <~> ("hanus@acm.org" ? "mh@informatik.uni-kiel.de")
 
 -- Get all emails:
 allEmails :: [String]
 allEmails = sortValues ((set1 getEmail) contacts)
 
+test5 :: Prop
 test5 = allEmails -=- ["hanus@acm.org","mh@informatik.uni-kiel.de"]
 
 
@@ -76,6 +79,7 @@ getNamePhoneWithoutEmail
 noTagOf :: String -> [XmlExp] -> Bool
 noTagOf tag xmlexps = all (\xe -> tag /= (tagOf xe)) xmlexps
 
+test6 :: Prop
 test6 = getNamePhoneWithoutEmail contacts <~> "Smith: +1-987-742-9388"
 
 
@@ -103,4 +107,5 @@ getEmails (deepXml "entry"
 emailOf :: [XmlExp] -> [XmlExp]
 emailOf (with [xml "email" email]) = email
 
+test8 :: Prop
 test8 = getEmails contacts <~> (("Hanus",2) ? ("Smith",0))

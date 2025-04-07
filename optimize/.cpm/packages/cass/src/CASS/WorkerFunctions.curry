@@ -3,19 +3,20 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2025
+--- @version February 2025
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
 
 import Data.IORef
-import Data.List         ( partition )
+import Data.List         ( find, partition )
 import System.CPUTime    ( getCPUTime )
 
 import Analysis.Files
 import Analysis.Logging  ( debugMessage, debugString )
 import Analysis.Types    ( Analysis(..), isSimpleAnalysis, isCombinedAnalysis
-                         , analysisName, startValue, isFunctionAnalysis, isTypeAnalysis)
+                         , analysisName, startValue, isFunctionAnalysis
+                         , isTypeAnalysis)
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
                          , publicProgInfo, lookupProgInfo, lists2ProgInfo
                          , equalProgInfo, publicListFromProgInfo, showProgInfo )
@@ -70,10 +71,11 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
   starttime <- getCPUTime
   startvals <- getStartValues analysis prog
 
+  let cirequest = maybe "" fst (find ((==ananame) . snd) curryInfoRequest2CASS)
   curryInfoResult <-
     if useCurryInfo cconfig && not (optAll (ccOptions cconfig)) &&
        moduleName `notElem` optNoCurryInfo (ccOptions cconfig) &&
-       ananame `elem` curryInfoAnalyses &&
+       not (Prelude.null cirequest) &&
        (isFunctionAnalysis analysis || isTypeAnalysis analysis)
       then do -- try `curry-info` to get analysis results:
         let entkind = if isTypeAnalysis analysis then CPMQuery.Type
@@ -81,9 +83,9 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
             withciweb = useCurryInfoWeb cconfig
         debugMessage dl 1 $ "\nUse CURRYINFO" ++
           (if withciweb then "/WEB" else "") ++ " for " ++
-          moduleName ++ " / " ++ "cass-" ++ ananame
+          moduleName ++ " / " ++ cirequest
         res <- askCurryInfoCmd withciweb (optVerb (ccOptions cconfig))
-                 moduleName entkind ("cass-" ++ ananame)
+                               moduleName entkind cirequest
         debugMessage dl 3 $ "Result received from CURRYINFO:\n" ++ show res
         return res
       else return Nothing

@@ -3,13 +3,15 @@
 --- check whether functions are indeterministic, i.e., might deliver
 --- different results for different runs of a program.
 --- This could be the case if there are explicit or implicit calls
---- to `SetFunctions.select` or to a committed choice.
+--- to indeterministic encapsulation operation
+--- (e.g. `Control.Search.SetFunctions.select`) or operations from the module
+--- `System.IO.Unsafe`.
 ---
 --- @author Michael Hanus
---- @version April 2013
+--- @version February 2025
 ------------------------------------------------------------------------------
 
-module Analysis.Indeterministic(indetAnalysis,showIndet) where
+module Analysis.Indeterministic ( indetAnalysis, showIndet ) where
 
 import Analysis.Types
 import FlatCurry.Types
@@ -18,13 +20,13 @@ import FlatCurry.Types
 --- The indeterminism analysis is a global function dependency analysis.
 --- It assigns to a function a flag which is True if this function
 --- might be indeterministic (i.e., calls directly or indirectly
---- a select or committed choice operation).
+--- some indeterministic operation.
 
 indetAnalysis :: Analysis Bool
 indetAnalysis = dependencyFuncAnalysis "Indeterministic" False indetFunc
 
---- An operation is indeterministic if it calls a select or committed choice
---- or depends on some indeterministic operation.
+--- An operation is indeterministic if it calls directly or indirectly
+--- some indeterministic operation.
 indetFunc  :: FuncDecl -> [(QName,Bool)] -> Bool
 indetFunc func calledFuncs =
   hasIndetRules func || any snd calledFuncs
@@ -37,28 +39,32 @@ showIndet AText False = "referentially transparent operation"
 showIndet ANote False = "" 
 
 ------------------------------------------------------------------------------
--- The right-linearity analysis can also be applied to individual functions.
--- It returns True for a function if it is defined by right-linear rules.
 
+-- Check a function declaration for occurrences of indeterministic operations.
 hasIndetRules :: FuncDecl -> Bool
-hasIndetRules (Func _ _ _ _ (Rule _ e))   = choiceInExpr e
+hasIndetRules (Func _ _ _ _ (Rule _ e))   = indetInExpr e
 hasIndetRules (Func _ _ _ _ (External _)) = False
 
--- check an expression for occurrences of select, committed choice, or send:
-choiceInExpr :: Expr -> Bool
-choiceInExpr (Var _) = False
-choiceInExpr (Lit _) = False
-choiceInExpr (Comb _ f es) = f `elem` indetFuns || any choiceInExpr es
-choiceInExpr (Free _ e) = choiceInExpr e
-choiceInExpr (Let bs e) = any choiceInExpr (map snd bs) || choiceInExpr e
-choiceInExpr (Or e1 e2) = choiceInExpr e1 || choiceInExpr e2
-choiceInExpr (Case _  e bs) = choiceInExpr e || any choiceInBranch bs
-                where choiceInBranch (Branch _ be) = choiceInExpr be
-choiceInExpr (Typed e _) = choiceInExpr e
+-- Check an expression for occurrences of indeterministic operations.
+indetInExpr :: Expr -> Bool
+indetInExpr (Var _) = False
+indetInExpr (Lit _) = False
+indetInExpr (Comb _ f es) = isIndetFunction f || any indetInExpr es
+indetInExpr (Free _ e) = indetInExpr e
+indetInExpr (Let bs e) = any indetInExpr (map snd bs) || indetInExpr e
+indetInExpr (Or e1 e2) = indetInExpr e1 || indetInExpr e2
+indetInExpr (Case _  e bs) = indetInExpr e || any indetInBranch bs
+                where indetInBranch (Branch _ be) = indetInExpr be
+indetInExpr (Typed e _) = indetInExpr e
 
-indetFuns :: [QName]
-indetFuns = [("Prelude","commit"),
-             ("Ports","send"),("Ports","doSend"),
-             ("SetFunctions","select")]
+-- Is the given operation indeterministic?
+isIndetFunction :: QName -> Bool
+isIndetFunction (mn,fn) =
+  (mn `elem` ["Control.Search.SetFunctions", "Control.SetFunctions"] &&
+   fn `elem` ["select", "selectValue"]) ||
+  mn `elem` ["System.IO.Unsafe", "Control.Search.Unsafe", "Control.AllValues",
+             "Control.Findall", "Control.Search.SearchTree.Unsafe"] ||
+  (mn == "Network.Ports" &&
+   fn `elem` ["send", "timeoutOnStream", "choiceSPEP"])
 
--- end of Indeterministic
+-------------------------------------------------------------------------------

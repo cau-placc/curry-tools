@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version October 2024
+--- @version January 2025
 --------------------------------------------------------------------------
 
 module CASS.Main ( main ) where
@@ -12,6 +12,8 @@ import Data.List             ( isPrefixOf, isSuffixOf, sort, init )
 import Control.Monad         ( when, unless )
 import System.CurryPath      ( stripCurrySuffix )
 import System.FilePath       ( (</>), (<.>) )
+import System.IO             ( hPutStrLn, stderr )
+import System.Path           ( fileInPath )
 import System.Process        ( exitWith )
 import System.Environment    ( getArgs )
 import System.Console.GetOpt
@@ -21,6 +23,7 @@ import Analysis.Logging   ( debugMessage )
 import CASS.Configuration
 import CASS.Doc           ( getAnalysisDoc )
 import CASS.Options
+import CASS.RCFile        ( readRCFile, updateProperty )
 import CASS.Server        ( analyzeModuleAndPrint, mainServer )
 import CASS.Registry      ( registeredAnalysisInfos, registeredAnalysisNames )
 import CASS.Worker        ( startWorker )
@@ -36,35 +39,47 @@ main = do
   unless (null opterrors)
          (putStr (unlines opterrors) >> putStr usageText >> exitWith 1)
   cconfig <- readRCFile
+  let cconfig0 = cconfig { ccOptions = opts }
   when (optHelp opts) (printHelp args >> exitWith 1)
-  when (optDelete opts) (deleteFiles args)
+  when (optDelete opts) (deleteFilesAndExit args)
   when ((optServer opts && not (null args)) ||
         (not (optServer opts) && length args /= 2))
        (writeErrorAndExit "Illegal arguments (try `-h' for help)")
   when (optWorker opts && length args /= 2)
        (writeErrorAndExit "Illegal arguments (try `-h' for help)")
-  let cconfig1 = foldr (uncurry updateProperty) cconfig (optProp opts)
+  let cconfig1 = foldr (uncurry updateProperty) cconfig0 (optProp opts)
       verb     = optVerb opts
-      cconfig2 = if verb >= 0
-                   then setDebugLevel verb cconfig1
-                   else cconfig1
-      dl       = debugLevel cconfig2
+      cconfig2 = if verb >= 0 then setDebugLevel verb cconfig1
+                              else cconfig1
+  cconfig3 <- checkCurryInfoProp cconfig2
+  let dl = debugLevel cconfig3
   debugMessage dl 1 systemBanner
   if optServer opts
-   then mainServer cconfig2
+   then mainServer cconfig3
                    (let p = optPort opts in if p == 0 then Nothing else Just p)
    else
      if optWorker opts
-       then startWorker cconfig2 (head args) (read (args!!1))
+       then startWorker cconfig3 (head args) (read (args!!1))
        else do
          let [ananame,mname] = args
          fullananame <- checkAnalysisName ananame
          debugMessage dl 1 $
            "Computing results for analysis `" ++ fullananame ++ "'"
-         analyzeModuleAndPrint cconfig2 fullananame (stripCurrySuffix mname)
+         analyzeModuleAndPrint cconfig3 fullananame (stripCurrySuffix mname)
            (optAll opts) (optFormat opts) (optGenerated opts) (optReAna opts)
  where
-  deleteFiles args = case args of
+  -- Set curryinfo property to `no` if executable `curry-info` does not exist
+  checkCurryInfoProp cc = do
+    if useCurryInfo cc && not (useCurryInfoWeb cc)
+      then do excurryinfo <- fileInPath "curry-info"
+              if excurryinfo
+                then return cc
+                else do debugMessage (ccDebugLevel cc) 1 
+                          "Do not use 'curry-info' since executable not found."
+                        return $ updateProperty "curryinfo" "no" cc
+      else return cc
+
+  deleteFilesAndExit args = case args of
     [aname] -> do fullaname <- checkAnalysisName aname
                   putStrLn $ "Deleting files for analysis `" ++ fullaname ++ "'"
                   deleteAllAnalysisFiles fullaname
@@ -74,7 +89,7 @@ main = do
             "Too many arguments (only analysis name should be given)!"
 
 writeErrorAndExit :: String -> IO _
-writeErrorAndExit msg = putStrLn ("ERROR: " ++ msg) >> exitWith 1
+writeErrorAndExit msg = hPutStrLn stderr ("ERROR: " ++ msg) >> exitWith 1
 
 -- Checks whether a given analysis name is a unique abbreviation
 -- of a registered analysis name and return the registered name.

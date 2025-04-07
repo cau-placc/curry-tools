@@ -1,0 +1,17 @@
+{
+    "name": "url-base",
+    "version": "0.1.0",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "Base library for dealing with URLs",
+    "category": [ "Web" ],
+    "dependencies": {
+        "base" : "^ 3.0.0"
+    },
+    "exportedModules": [ "Network.URL" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "source": {
+        "git": "https://github.com/curry-packages/url-base.git",
+        "tag": "$version"
+    }
+}

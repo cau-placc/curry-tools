@@ -24,9 +24,9 @@ countResOps mname = do
 
 printCountResOps :: [String] -> IO ()
 printCountResOps mname = do
-  stats <- mapIO countResOps mname
+  stats <- mapM countResOps mname
   putStrLn $ "Module | Residuating | Non-residuating"
-  mapIO_ (\row -> putStrLn (intercalate "|" row)) stats
+  mapM_ (\row -> putStrLn (intercalate "|" row)) stats
 
 main :: IO ()
 main = printCountResOps baseModules

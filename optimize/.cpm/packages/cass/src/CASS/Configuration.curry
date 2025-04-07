@@ -6,12 +6,12 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version January 2025
+--- @version February 2025
 --------------------------------------------------------------------------
 
 module CASS.Configuration
  ( systemBanner, baseDir, docDir, executableName
- , curryInfoAnalyses
+ , curryInfoRequest2CASS
  , CConfig(..), defaultCConfig, debugLevel, setDebugLevel
  , getServerAddress
  , useCurryInfo, useCurryInfoWeb, fixpointMethod, withPrelude
@@ -38,7 +38,7 @@ import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 29/01/2025 for " ++
+                   packageVersion ++ " of 20/02/2025 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
@@ -73,16 +73,17 @@ waitTime = -1
 defaultWorkers :: Int
 defaultWorkers = 0
 
---- Analysis names currently supported by CurryInfo.
-curryInfoAnalyses :: [String]
-curryInfoAnalyses =
-  [ "Deterministic"
-  , "Demand"
-  , "Indeterministic"
-  , "SolComplete"
-  , "Terminating"
-  , "Total"
-  , "Values"
+--- The requests and analysis names currently support by CurryInfo.
+--- Taken from `CurryInfo.Analysis` of package `curry-info`.
+curryInfoRequest2CASS :: [(String,String)]
+curryInfoRequest2CASS =
+  [ ("deterministic",     "Deterministic")
+  , ("demand",            "Demand")
+  , ("indeterministic",   "Indeterministic")
+  , ("solution-complete", "SolComplete")
+  , ("terminating",       "Terminating")
+  , ("totally-defined",   "Total")
+  , ("result-values",     "Values")
   ]
 
 --------------------------------------------------------------------------

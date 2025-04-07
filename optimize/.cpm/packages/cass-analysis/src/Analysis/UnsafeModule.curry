@@ -1,9 +1,10 @@
 ------------------------------------------------------------------------
 --- An analysis which returns information whether a module is unsafe, i.e.,
---- it imports directly or indirectly the module `Unsafe`.
+--- it imports directly or indirectly the module `System.IO.Unsafe` or
+--- related unsafe modules.
 ---
 --- @author Michael Hanus
---- @version February 2021
+--- @version February 2025
 ------------------------------------------------------------------------
 
 module Analysis.UnsafeModule ( showUnsafe, unsafeModuleAnalysis )
@@ -32,11 +33,13 @@ showUnsafe ANote (_:_)      = "unsafe"
 showUnsafe AText [mod]      = "unsafe (due to module " ++ mod ++ ")"
 showUnsafe AText ms@(_:_:_) = "unsafe (due to modules " ++ unwords ms ++ ")"
 
--- Does the module import the module `Unsafe` or any other unsafe module?
+-- Is a module or one of its imports an unsafe module like `System.IO.Unsafe`
+-- or any other unsafe module?
 -- TODO: to be real safe, one also has to check external operations!
 importsUnsafe :: Prog -> [(String,[String])] -> [String]
 importsUnsafe prog impinfos =
-  let unsafemods = (if any ("Unsafe" `isInfixOf`) (progImports prog)
+  let unsafemods = (if any ("Unsafe" `isInfixOf`)
+                           (progName prog : progImports prog)
                       then [progName prog]
                       else []) ++
                    concatMap snd impinfos

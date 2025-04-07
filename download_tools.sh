@@ -70,6 +70,9 @@ cd .cpm/packages
  PKGV=`ls -d execpath-*`
  mv $PKGV execpath
  ln -s execpath $PKGV
+ PKGV=`ls -d extra-*`
+ mv $PKGV extra
+ ln -s extra $PKGV
  PKGV=`ls -d filepath-*`
  mv $PKGV filepath
  ln -s filepath $PKGV
@@ -124,6 +127,9 @@ cd .cpm/packages
  PKGV=`ls -d transformers-*`
  mv $PKGV transformers
  ln -s transformers $PKGV
+ PKGV=`ls -d url-base-*`
+ mv $PKGV url-base
+ ln -s url-base $PKGV
  PKGV=`ls -d wl-pprint-*`
  mv $PKGV wl-pprint
  ln -s wl-pprint $PKGV

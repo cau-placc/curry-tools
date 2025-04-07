@@ -1,6 +1,6 @@
 {
   "name": "string-trie",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Lasse Zuengel <stu226842@mail.uni-kiel.de>",
   "synopsis": "Implementation of an efficient map from strings to values.",
   "category": [ "Data" ],
@@ -9,7 +9,8 @@
   "dependencies": {
     "base"          : " ^3.2.0",
     "containers"    : ">= 3.0.0, < 4.0.0",
-    "profiling"     : ">= 3.0.0, < 4.0.0"
+    "profiling"     : ">= 3.0.0, < 4.0.0",
+    "extra"         : ">= 3.0.0, < 4.0.0"
   },
   "exportedModules": [ "Data.Trie" ],
   "testsuite": {

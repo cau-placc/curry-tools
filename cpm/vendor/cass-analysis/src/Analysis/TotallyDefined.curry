@@ -6,7 +6,7 @@
 --- constructor terms
 ---
 --- @author Johannes Koj, Michael Hanus
---- @version November 2024
+--- @version February 2025
 -----------------------------------------------------------------------------
 
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
@@ -66,7 +66,7 @@ siblingConsAndDecl =
     where cs = case t of
             Type _ _ _ consDecls ->
               map (\cd -> (consName cd, consArity cd))
-                (filter (\cd -> consName cd /= consName cdecl) consDecls)
+                  (filter (\cd -> consName cd /= consName cdecl) consDecls)
             TypeSyn _ _ _ _ -> []
             TypeNew _ _ _ _ -> []
 
@@ -96,10 +96,15 @@ showComplete _     InCompleteOr = "incomplete in each disjunction"
 
 
 analysePatComplete :: ProgInfo [(QName,Int)] -> FuncDecl -> Completeness
-analysePatComplete consinfo fdecl = anaFun fdecl
+analysePatComplete consinfo (Func (mn,fn) _ _ _ rule)
+ | mn == prelude && fn `elem` preludePartial = InComplete
+ | otherwise                                 = anaFun rule
  where
-  anaFun (Func _ _ _ _ (Rule _ e)) = isComplete consinfo e
-  anaFun (Func _ _ _ _ (External _)) = Complete
+  preludePartial = [ "=:=", "constrEq", "=:<=", "nonstrictEq", "unifEqLinear"
+                   , "sqrt", "sqrtFloat" ]
+
+  anaFun (Rule _ e)   = isComplete consinfo e
+  anaFun (External _) = Complete
 
 isComplete :: ProgInfo [(QName,Int)] -> Expr -> Completeness
 isComplete _ (Var _)      = Complete
@@ -195,6 +200,9 @@ analyseTotalFunc pcinfo fdecl calledfuncs =
   (maybe False id (lookupProgInfo (funcName fdecl) pcinfo))
   && not (isNondetDefined fdecl)
   && all snd calledfuncs
+
+prelude :: String
+prelude = "Prelude"
 
 ------------------------------------------------------------------------------
 -- ReadWrite instances:

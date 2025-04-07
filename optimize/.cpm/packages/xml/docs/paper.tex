@@ -1,0 +1,1345 @@
+\documentclass[12pt,fleqn]{article}
+
+\setlength{\textwidth}{16.0cm}
+\setlength{\textheight}{22cm}
+\setlength{\topmargin}{-1cm}
+\setlength{\oddsidemargin}{0cm}
+\setlength{\evensidemargin}{\oddsidemargin}
+\setlength{\marginparwidth}{0.0cm}
+\setlength{\marginparsep}{0.0cm}
+
+\usepackage{url}
+\def\UrlFont{\tt}
+\usepackage{xspace}
+\usepackage{hyperref}
+\usepackage{pdfpages}
+
+\usepackage{listings}
+\lstset{aboveskip=1.5ex,
+        belowskip=1.5ex,
+        showstringspaces=false, % no special string space
+        mathescape=true,
+        basewidth=0.5em,
+        basicstyle=\small\ttfamily,%
+        backgroundcolor=\color[rgb]{0.9,0.9,0.9}}
+
+\lstset{literate={->}{{$\rightarrow{}\!\!\!$}}3
+                 {unknown}{{\char95}}1
+       }
+
+\lstnewenvironment{lcurry}{\lstset{firstline=2}}{}
+\lstnewenvironment{curry}{}{}
+\lstnewenvironment{xmldoc}{\lstset{backgroundcolor=\color{white}}}{}
+\newcommand{\listline}{\vrule width0pt depth1.75ex}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\ccode}[1]{``\code{#1}''}
+\newcommand{\bs}{\char92\xspace} % backslash
+\newcommand{\us}{\char95\xspace} % underscore
+\newcommand{\funset}{\ensuremath{_{\cal S}}}
+
+\begin{document}
+\pagestyle{plain}
+\date{\small Technical Report 1103, March 2011}
+\sloppy
+%\includepdf[nup=1x1,pages=-]{cover.pdf}
+\setcounter{page}{1}
+
+\title{Declarative Processing of\\ Semistructured Web Data}
+
+\author{Michael Hanus\\[1ex]
+\small
+Institut f\"ur Informatik, CAU Kiel, D-24098 Kiel, Germany. \\
+\small{\tt mh@informatik.uni-kiel.de}
+}
+
+\maketitle
+
+\begin{abstract}
+In order to give application programs access to data stored in the web
+in semistructured formats, in particular, in XML format,
+we propose a domain-specific language for declarative
+processing such data.
+Our language is embedded in the functional logic programming language Curry
+and offers powerful matching constructs
+that enable a declarative description of accessing and transforming
+XML data.
+We exploit advanced features of functional logic programming
+to provide a high-level and maintainable implementation
+of our language.
+Actually, this paper contains the complete code of our implementation
+so that the source text of this paper is an executable
+implementation of our language.
+\end{abstract}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Motivation}
+\label{sec:motivation}
+
+Nowadays, huge amounts of information are available in the
+world-wide web. Much of this information is also available
+in semistructured formats so that it can be automatically accessed
+by application programs.
+The extensible markup language (XML) is often used as an exchange format
+for such data.
+Since data in XML format are basically term structures,
+XML data can be (in principle)
+easily processed with functional or logic programming languages:
+one has to define a term representation of XML data
+in the programming language, implement a parser from the textual XML
+representation into such terms, and exploit pattern matching
+to implement the specific processing task.
+
+In practice, such an implementation causes some difficulties
+due to the fact that the concrete data formats are complex or evolve over time:
+\begin{itemize}
+\item
+For many application areas, concrete XML languages are defined.
+However, they are often quite complex so that it is difficult
+or tedious to deal with all details when one is interested in
+extracting only some parts of the given data.
+\item
+For more specialized areas without standardized XML languages,
+the XML format might be incompletely specified or evolves over time.
+Thus, application programs with standard pattern matching
+must be adapted if the data format changes.
+\end{itemize}
+%
+\begin{figure}
+  \centering
+\begin{xmldoc}
+  <contacts>
+    <entry>
+      <name>Hanus</name>
+      <first>Michael</first>
+      <phone>+49-431-8807271</phone>
+      <email>mh@informatik.uni-kiel.de</email>
+      <email>hanus@acm.org</email>
+    </entry>
+    <entry>
+      <name>Smith</name>
+      <first>William</first>
+      <nickname>Bill</nickname>
+      <phone>+1-987-742-9388</phone>
+    </entry>
+  </contacts>
+\end{xmldoc}
+  
+\caption{A simple XML document}
+\label{fig:xml-contacts}
+\end{figure}
+%
+For instance, consider the XML document
+shown in Figure~\ref{fig:xml-contacts} which
+represents the data of a small address book.
+As one can see, the two entries have different
+information fields: the first entry contains two email addresses
+but no nickname whereas the second entry contains
+no email address but a nickname.
+Such data, which is not uncommon in practice, is also called ``semistructured''
+\cite{AbiteboulBunemanSuciu00}.
+Semistructured data causes difficulties when it should be processed
+with a declarative programming language by mapping the
+XML structures into data terms of the implementation language.
+Therefore, various distinguished languages for processing
+XML data have been proposed.
+
+For instance, the language XPath\footnote{\url{http://www.w3.org/TR/xpath}}
+provides powerful path expressions to select sub-documents in XML documents.
+Although path expressions allow flexible retrievals
+by the use of wildcards, regular path expressions, stepping to
+father and sibling nodes etc,
+they are oriented towards following a path through the document from the root
+to the selected sub-documents.
+This gives them a more imperative rather than a descriptive or
+declarative flavor.
+The same is true for query and transformation languages like
+XQuery\footnote{\url{http://www.w3.org/XML/Query/}}
+or XSLT\footnote{\url{http://www.w3.org/TR/xslt}}
+which are based on the XPath-oriented style to select the required
+sub-documents.
+
+As an alternative to path-oriented processing languages,
+the language
+Xcerpt \cite{BrySchaffert02,BrySchaffertSchroeder05}
+is a proposal to exploit ideas from logic programming
+in order to provide a declarative method to select and transform
+semistructured data in XML format.
+In contrast to pure logic programming,
+Xcerpt proposes matching with partial term structures
+for which a specialized unification procedure,
+called ``simulation unification'' \cite{BrySchaffert02ICLP},
+has been developed.
+Since matching with partial term structures is a powerful feature
+that avoids many problems related to the evolution of web data over time,
+we propose a language with similar features.
+However, our language is an embedded domain-specific language (eDSL).
+Due to the embedding into the functional logic programming language
+Curry \cite{Hanus06Curry}, our language for XML processing
+has the following features and advantages:
+\begin{itemize}
+\item The selection and transformation of
+incompletely specified XML data is supported.
+\item Due to the embedding into a universal programming language,
+the selected or transformed data can be directly used in the
+application program.
+\item Due to the use of advanced functional logic programming features,
+the implementation is straightforward and can be easily extended
+with new features.
+Actually, this paper contains the complete source code
+of the implementation.
+\item
+The direct implementation in a declarative language results in immediate
+correctness proofs of the implementation.
+\end{itemize}
+In the following, we present our language for XML processing
+together with their implementation.
+Since the implementation exploits features of modern
+functional logic programming languages, we review them in
+the next section before presenting our eDSL.
+
+
+\section{Functional Logic Programming and Curry}
+
+Curry \cite{Hanus06Curry}
+is a declarative multi-paradigm language combining features 
+from functional programming (demand-driven evaluation, parametric
+polymorphism, higher-order functions) and logic programming
+(computing with partial information, unification, constraints).
+Recent surveys are available in \cite{AntoyHanus10CACM,Hanus07ICLP}.
+The syntax of Curry is close to Haskell\footnote{%
+Variables and function names usually
+start with lowercase letters and the names of type and data constructors
+start with an uppercase letter. The application of $f$
+to $e$ is denoted by juxtaposition (``$f~e$'').}
+\cite{PeytonJones03Haskell}. In addition, Curry allows free (logic) 
+variables in conditions and right-hand sides of defining rules.
+The operational semantics is based on an optimal evaluation strategy
+\cite{AntoyEchahedHanus00JACM} which is a conservative extension
+of lazy functional programming and (concurrent) logic programming.
+
+A Curry program consists of the definition of data types and
+operations on these types. 
+Note that in a functional logic language
+operations might yield more than one result on the same input due to 
+the logic programming features.
+Thus, Curry operations are not 
+functions in the classical mathematical sense so that they are
+sometimes called ``nondeterministic functions'' \cite{GonzalezEtAl99}.
+Nevertheless, a Curry program has a purely declarative semantics
+where nondeterministic operations are modeled as set-valued functions
+(to be more precise, down-closed partially ordered sets
+are used as target domains in order to cover non-strictness,
+see \cite{GonzalezEtAl99} for a detailed account of
+this model-theoretic semantics).
+
+For instance, Curry contains a \emph{choice} operation defined by:
+%
+\begin{curry}
+  x ? _ = x
+  _ ? y = y
+\end{curry}
+%
+Thus, the expression \ccode{0$~$?$~$1} has two values: \code{0} and \code{1}.
+If expressions have more than one value, one wants to select
+intended values according to some constraints,
+typically in conditions of program rules.
+A \emph{rule} has the form \ccode{$f~t_1\ldots{}t_n$ | $c$ = $e$}
+where the (optional) condition $c$ is a \emph{constraint},
+i.e., an expression of the built-in type
+\code{Success}. For instance, the trivial constraint
+\code{success} is a value of type \code{Success} that
+denotes the always satisfiable constraint.
+Thus, we say that a constraint $c$ is \emph{satisfied} if it
+can be evaluated to \code{success}.
+An \emph{equational constraint} $e_1 \,\code{=:=}\, e_2$ is satisfiable
+if both sides $e_1$ and $e_2$ are reducible to unifiable values.
+Furthermore, if $c_1$ and $c_2$ are constraints,
+\code{$c_1\,$\&$\,\,c_2$} denotes their concurrent conjunction
+(i.e., both argument constraints are concurrently evaluated).
+
+As a simple example, consider the following Curry program
+which defines a polymorphic 
+data type for lists and operations to compute the 
+concatenation of lists and the last element of a list:\footnote{Note
+that lists are a built-in data type with a more convenient syntax, 
+e.g., one can write \code{[x,y,z]} instead of \code{x:y:z:[]}
+and \code{[a]} instead of the list type \ccode{List a}.}
+%
+\begin{curry}
+  data List a = [] | a : List a    --[a] denotes "List a"
+
+  -- "++" is a right-associative infix operator
+  (++) :: [a] -> [a] -> [a]
+  []     ++ ys = ys
+  (x:xs) ++ ys = x : (xs ++ ys)
+
+  last :: [a] -> a
+  last xs | (ys ++ [z]) =:= xs
+          = z                    where ys,z free
+\end{curry}
+%
+Logic programming is supported by admitting function calls with free
+variables (e.g., \code{(ys++[z])} in the rule defining \code{last})
+and constraints in the condition of a defining rule. In contrast to
+Prolog, free variables need to be declared explicitly to make their
+scopes clear (e.g., \ccode{where ys,z free} in the example).
+A conditional rule is applicable if its condition  is satisfiable.
+Thus, the rule defining \code{last} states in its condition
+that \code{z} is the last element of a given list
+\code{xs} if there exists a list \code{ys}
+such that the concatenation of \code{ys} and the one-element list
+\code{[z]} is equal to the given list \code{xs}.
+
+The combination of functional and logic programming features
+has led to new design patterns \cite{AntoyHanus02FLOPS}
+and better abstractions for application programming,
+e.g., as shown for programming with databases
+\cite{BrasselHanusMueller08PADL,Fischer05},
+GUI programming \cite{Hanus00PADL},
+web programming \cite{Hanus01PADL,Hanus06PPDP,HanusKoschnicke10PADL},
+or string parsing \cite{CaballeroLopez99}.
+In this paper, we show how to exploit these combined
+features to implement an eDSL for XML processing.
+To make this implementation as simple as possible,
+we exploit two more recent features described in the following:
+functional patterns \cite{AntoyHanus05LOPSTR}
+and set functions \cite{AntoyHanus09}.
+
+A fundamental requirement in functional as well as logic languages
+is that patterns in the left-hand sides of
+program rules contain only variables and data constructors.
+This excludes rules like
+\begin{curry}
+  (xs ++ ys) ++ zs = xs ++ (ys ++ zs)
+\end{curry}
+stating the associativity property of list concatenation.
+This restriction is the key to construct
+efficient evaluation strategies \cite{Hanus07ICLP}.
+However, in a functional logic language one can relax
+this requirement and allow expressions containing defined operations
+in patterns as an abbreviation for a (potentially infinite) set of
+``standard'' patterns.
+A pattern containing defined operations is called
+\emph{functional pattern}.
+For instance,
+\begin{curry}
+  last (xs ++ [e]) = e
+\end{curry}
+is a rule with the functional pattern \code{(xs++[e])}
+stating that \code{last} is reducible
+to \code{e} provided that the argument can be matched against
+some value of \code{(xs++[e])} where \code{xs} and \code{e} are free variables.
+By instantiating \code{xs} to arbitrary lists, the value
+of \code{(xs++[e])} is any list having \code{e} as its last element.
+The semantics of functional patterns can be defined in terms of
+standard pattern by interpreting a functional pattern
+as the set of all constructor terms
+that is the result of evaluating (by narrowing \cite{AntoyEchahedHanus00JACM})
+the functional pattern.
+Thus, the above rule abbreviates the following (infinite)
+set of rules:
+\begin{curry}
+  last [e] = e
+  last [x1,e] = e
+  last [x1,x2,e] = e
+  $\ldots$
+\end{curry}
+As we will see in this paper, functional patterns are
+a powerful feature to express arbitrary selections in term structures.
+In order to assign a reasonable semantics to functional patterns,
+one need syntactic conditions (like stratification)
+to ensure meaningful definitions (e.g., the above rule stating
+associativity of \ccode{++} is not allowed).
+Detailed requirements and a constructive implementation
+of functional patterns by a demand-driven unification procedure
+can be found in \cite{AntoyHanus05LOPSTR}.
+
+If nondeterministic programming techniques are applied,
+it is sometimes useful to collect all the values
+of some expression, e.g., to accumulate all results of a query.
+A ``set-of-values'' operation
+applied to an arbitrary argument might depend on the degree of evaluation of
+the argument, which is difficult to grasp in a non-strict language.
+Hence, \emph{set functions} \cite{AntoyHanus09}
+have been proposed to encapsulate nondeterministic
+computations in non-strict functional logic languages.
+For each defined function $f$, $f\funset$ denotes
+the corresponding set function.
+In order to be independent of the evaluation order,
+$f\funset$ encapsulates only the nondeterminism
+caused by evaluating $f$ except for the nondeterminism caused by evaluating the
+arguments to which $f$ is applied.
+For instance, consider the operation \code{decOrInc} defined by
+\begin{curry}
+  decOrInc x = (x-1) ? (x+1)
+\end{curry}
+Then \ccode{decOrInc$\funset$ 3} evaluates to (an abstract representation of)
+the set $\{\code{2},\code{4}\}$, i.e., the nondeterminism caused by
+\code{decOrInc} is encapsulated into a set.
+However, \ccode{decOrInc$\funset$ (2?5)} evaluates to
+two different sets $\{\code{1},\code{3}\}$ and $\{\code{4},\code{6}\}$
+due to its nondeterministic argument, i.e.,
+the nondeterminism caused by the argument is not encapsulated.
+
+As already mentioned, this paper contains the complete source code
+of our implementation. Actually, it is a literate program \cite{Knuth84},
+i.e., the paper's source text is directly executable.
+In a literate Curry program, all real program code starts with the 
+special character \ccode{>}.
+Curry code not starting with \ccode{>}, e.g., the example code shown so far,
+is like a comment and not required to run the program.
+To give an example of executable code, we show the declaration
+of the module \code{XCuery} for XML processing in Curry
+developed in this paper:
+
+\begin{lcurry}
+
+> module XCuery where
+>
+> import XML
+
+\end{lcurry}
+%
+Thus, we import the system module \code{XML}
+which contains an XML parser and the definition
+of XML structures in Curry that are explained in the next section.
+
+
+\section{XML Documents}
+
+There are two basic methods to represent XML documents
+in a programming language: a type-based or a generic
+representation \cite{WallaceRunciman99}.
+In a type-based representation, each tagged XML structure
+(like \code{contacts}, \code{entry}, \code{name} etc)
+is represented as a record structure of appropriate type
+according to the XML schema. The advantage of this approach is
+that schema-correct XML structures correspond to type-correct
+record structures.
+On the negative side, this representation depends on
+the given XML schema. Thus, it is hardly applicable
+if the schema is not completely known. Moreover,
+if the schema evolves, the data types representing
+the XML structure must be adapted.
+
+Due to these reasons, we prefer a generic representation
+where any XML document is represented with one generic structure.
+Since any XML document is either a structure with a tag, attributes
+and embedded XML documents (also call \emph{child nodes} of the
+document), or a text string,
+one can define the following datatype to represent XML documents:\footnote{%
+For the sake of simplicity,
+we ignore other specific elements like comments.}
+\begin{curry}
+  data XmlExp = XText String
+              | XElem String [(String,String)] [XmlExp]
+\end{curry}
+For instance, the second \code{entry} structure
+of the XML document shown in Figure~\ref{fig:xml-contacts}
+can be represented by the data term
+\begin{curry}
+  XElem "entry" []
+    [XElem "name"     [] [XText "Smith"],
+     XElem "first"    [] [XText "William"],
+     XElem "nickname" [] [XText "Bill"],
+     XElem "phone"    [] [XText "+1-987-742-9388"]]
+\end{curry}
+%
+Since it could be tedious to write XML documents with these
+basic data constructors, one can define
+some useful abstractions for XML documents:
+\begin{curry}
+  xtxt   :: String -> XmlExp
+  xtxt s = XText s
+
+  xml :: String -> [XmlExp] -> XmlExp
+  xml t xs = XElem t [] xs
+\end{curry}
+%
+Thus, we can specify the previous document a bit more compact:
+\begin{curry}
+  xml "entry" [xml "name"     [xtxt "Smith"],
+               xml "first"    [xtxt "William"],
+               xml "nickname" [xtxt "Bill"],
+               xml "phone"    [xtxt "+1-987-742-9388"]]
+\end{curry}
+%
+These definitions together with operations to parse and pretty-print
+XML documents
+are contained in the system module \code{XML} of the
+PAKCS programming environment for Curry \cite{Hanus10PAKCS}.
+In principle, these definitions are sufficient for XML processing,
+i.e., to select and transform XML documents.
+For instance, one can extract the name and phone number
+of an \code{entry} structure consisting of a name, first name and phone
+number by the following operation:
+\begin{curry}
+  getNamePhone
+    (XElem "entry" []
+       [XElem "name"  [] [XText name],
+        _,
+        XElem "phone" [] [XText phone]])  =  name++": "++phone
+\end{curry}
+This can be also implemented in a similar way
+in other functional or logic programming languages.
+However, functional logic languages support a nicer way
+to write such matchings.
+Whereas typical functional or logic languages require the use
+of data constructors in patterns, functional patterns
+allow also to use already defined abstractions in patterns
+so that we can define the previous operation also in the following form:
+\begin{curry}
+  getNamePhone
+    (xml "entry" [xml "name"  [xtxt name],
+                  _,
+                  xml "phone" [xtxt phone]]) = name++": "++phone
+\end{curry}
+This shows how functional patterns improves the readability
+of pattern matching by reusing already defined abstractions
+also in patterns and not only to construct new data in right-hand sides
+of program rules.
+
+Apart from these advantages, XML processing operations as defined above
+have several disadvantages:
+\begin{itemize}
+\item
+The exact structure of the XML document must be known in advance.
+For instance, the operation \code{getNamePhone} matches
+only entries with three components, i.e., it fails on both entries shown
+in Figure~\ref{fig:xml-contacts}.
+\item
+In large XML documents, many parts are often irrelevant
+if one wants to select only some specific information entities.
+However, one has to define an operation to match the complete document.
+\item
+If the structure of the XML document changes (e.g., due to the evolution
+of the web services providing these documents), one has
+to update all patterns in the matching operations
+which could be tedious and error prone for large documents.
+\end{itemize}
+%
+As a solution to these problems, we propose in the next section
+appropriate abstractions that can be used in patterns
+of operations for XML processing.
+
+
+\section{Abstractions for XML Processing}
+
+In order to define reasonable abstractions for
+XML processing, we start with a wish list.
+Since we have seen that exact matchings are not desirable
+to process semistructured data, we want to develop a language
+supporting the following features for pattern matching:
+\begin{itemize}
+\item \emph{Partial patterns:} allow patterns where only some child nodes
+are known.
+\item \emph{Unordered patterns:} allow patterns where child nodes can appear
+in any order.
+\item \emph{Patterns at arbitrary depth:} allow patterns that are matched
+at an arbitrary position in an XML document.
+\item \emph{Negation of patterns:} allow patterns defined by the
+absence of tags or provide default values for tags that are not present
+in the given XML document.
+\item \emph{Transformation:} generate new structures from matched patterns.
+\item \emph{Collect matchings:} accumulate results in a
+newly generated structure.
+\end{itemize}
+In the following, we show how these features can be supported
+by the use of carefully defined abstractions as functional patterns
+and other features of functional logic programming.
+
+\subsection{Partial Patterns}
+
+As we have seen in the example operation \code{getNamePhone} above,
+one would like to select some child nodes in a document
+independent of the availability of further components.
+Thus, instead of enumerating the list of \emph{all} child nodes
+as in the definition above, it would be preferable to
+enumerate only the relevant child nodes.
+We support this by putting the operator \ccode{with}
+in front of the list of child nodes:
+\begin{curry}
+  getNamePhone
+    (xml "entry" (with [xml "name"  [xtxt name],
+                        xml "phone" [xtxt phone]]))  =  name++": "++phone
+\end{curry}
+The intended meaning of \ccode{with} is that the given child nodes
+must be present but in between any number of other elements
+can also occur.
+
+We can directly implement this operator as follows:\footnote{%
+The symbol ``\lstinline{unknown}'' denotes an anonymous variable, i.e.,
+each occurrence of ``\lstinline{unknown}'' in the right-hand side of
+a rule denotes a fresh logic variable.}
+\begin{lcurry}
+
+> with :: Data a => [a] -> [a]
+> with []     = unknown
+> with (x:xs) = unknown ++ x : with xs
+
+\end{lcurry}
+Thus, an expression like \ccode{with [1,2]} reduces to any list of the form
+\begin{curry}
+  $x_1$:$\ldots$:$x_m$:1:$y_1$:$\ldots$:$y_n$:2:$zs$
+\end{curry}
+where the variables $x_i,y_j,zs$ are fresh logic variables.
+Due to the semantics of functional patterns,
+the definition of \code{getNamePhone} above matches
+any \code{entry} structure containing a \code{name} and a \code{phone}
+element as children.
+Hence, the use of the operation \code{with} in patterns
+avoids the exact enumeration of all children and makes
+the program robust against the addition of further information
+elements in a structure.
+
+A disadvantage of a definition like \code{getNamePhone} above
+is the fact that it matches only XML structures with an empty attribute list
+due to the definition of the operation \code{xml}.
+In order to support more flexible matchings that are
+independent of the given attributes (which are ignored if present),
+we define the operation
+\label{sec:xmlprime}
+\begin{lcurry}
+
+> xml' :: String -> [XmlExp] -> XmlExp
+> xml' t xs = XElem t unknown xs
+
+\end{lcurry}
+For instance, the operation \code{getName} defined by
+\begin{curry}
+  getName (xml' "entry" (with [xml' "name" [xtxt n]]))  =  n
+\end{curry}
+returns the name of an \code{entry} structure
+independent of the fact whether the given document
+contains attributes in the \code{entry} or \code{name} structures.
+
+
+\subsection{Unordered Patterns}
+
+If the structure of data evolves over time,
+it might happen that the order of elements changes over time.
+Moreover, even in some given XML schema, the order of relevant
+elements can vary. In order to make the matching independent
+of a particular order, we can specify that the required child nodes
+can appear in any order by putting the operator \ccode{anyorder}
+in front of the list of child nodes:
+\begin{curry}
+  getNamePhone
+    (xml "entry"
+       (with (anyorder [xml "phone" [xtxt phone],
+                        xml "name"  [xtxt name]])))  =  name++": "++phone
+\end{curry}
+Obviously, the operation \code{anyorder} should compute any permutation
+of its argument list. In a functional logic language,
+it can be easily defined as a nondeterministic operation
+by inserting the first element of a list at an arbitrary position
+in the permutation of the remaining elements:
+\begin{lcurry}
+
+> anyorder :: [a] -> [a]
+> anyorder []     = []
+> anyorder (x:xs) = insert (anyorder xs)
+>  where insert []     = [x]
+>        insert (y:ys) = x:y:ys  ?  y : insert ys
+
+\end{lcurry}
+%
+Thus, the previous definition of \code{getNamePhone}
+matches both \code{entry} structures shown in Figure~\ref{fig:xml-contacts}.
+
+
+\subsection{Patterns at Arbitrary Depths}
+\label{sec:deepxml}
+
+If one wants to select some information in deeply nested documents,
+it would be tedious to define the exact matching from the root
+to the required elements. Instead, it is preferable
+to allow matchings at an arbitrary depth in a document.
+Such matchings are also supported in other languages like XPath
+since they ease the implementation of queries in complex structures
+and support flexibility of the implementation w.r.t.\ to future
+structural changes of the given documents.
+We support this feature by an operation \ccode{deepXml}:
+if \code{deepXml} is used instead of \code{xml}
+in a pattern, this structure can occur at an arbitrary position
+in the given document. For instance, if we define
+\begin{curry}
+  getNamePhone
+    (deepXml "entry"
+       (with [xml "name"  [xtxt name],
+              xml "phone" [xtxt phone]]))  =  name++": "++phone
+\end{curry}
+and apply \code{getNamePhone} to the complete document
+shown in Figure~\ref{fig:xml-contacts},
+two results are (nondeterministically) computed
+(methods to collect all those results are discussed later).
+
+The implementation of \code{deepXml} is similar to \code{with}
+by specifying that \code{deepXml} reduces to a structure
+where the node is at the root or at some nested child node:
+\begin{lcurry}
+
+> deepXml :: String -> [XmlExp] -> XmlExp
+> deepXml tag elems = xml tag elems
+> deepXml tag elems = xml' unknown (unknown ++ [deepXml tag elems] ++ unknown)
+
+\end{lcurry}
+Thus, an expression like \ccode{deepXml $t$ $cs$} reduces to
+\ccode{xml $t$ $cs$} or to a structure containing this element
+at some inner position.
+
+
+\subsection{Negation of Patterns}
+
+As mentioned above, in semistructured data 
+some information might not be present in a given structure,
+like the email address in the second entry of
+Figure~\ref{fig:xml-contacts}.
+Instead of failing on missing information pieces,
+one wants to have a constructive behavior in application programs.
+For instance, one could select all entries with a missing email
+address or one puts a default nickname in the output if
+the nickname is missing.
+
+In order to implement such behaviors,
+one could try to negate matchings.
+Since negation is a non-trivial subject in functional logic programming,
+we propose a much simpler but practically reasonable solution.
+We provide an operation \ccode{withOthers} which is similar
+to \ccode{with} but has a second argument that contains
+the child nodes that are present but not part of the first argument.
+Thus, one can use this operation to denote the ``unmatched'' part
+of a document in order to put arbitrary conditions on it.
+For instance, if we want to get the name and phone number
+of an entry that has no email address, we can specify
+this as follows:
+\begin{curry}
+  getNamePhoneWithoutEmail
+    (deepXml "entry"
+       (withOthers [xml "name" [xtxt name], xml "phone" [xtxt phone]]
+                   others))
+    | "email" `noTagOf` others   =  name++": "++phone
+\end{curry}
+The useful predicate \code{noTagOf} returns true
+if the given tag is not a tag of all argument documents
+(the operation \code{tagOf} returns the tag of an XML document):
+\begin{lcurry}
+
+> noTagOf :: String -> [XmlExp] -> Bool
+> noTagOf tag = all ((/=tag) . tagOf)
+
+\end{lcurry}
+%
+Hence, the application of \code{getNamePhoneWithoutEmail}
+to the document in Figure~\ref{fig:xml-contacts}
+returns a single value.
+
+The implementation of \code{withOthers} is slightly different
+from \code{with} since we have to accumulate the remaining elements
+that are not part of the first arguments in the second argument:
+\begin{lcurry}
+
+> withOthers :: Data a => [a] -> [a] -> [a]
+> withOthers ys zs = withAcc [] ys zs
+>  where -- Accumulate remaining elements:
+>    withAcc prevs [] others | others=:=prevs++suffix = suffix
+>                                              where suffix free
+>    withAcc prevs (x:xs) others =
+>       prefix ++ x : withAcc (prevs++prefix) xs others
+>                                              where prefix free
+
+\end{lcurry}
+Thus, an expression like \ccode{withOthers [1,2] $os$}
+reduces to any list of the form
+\begin{curry}
+  $x_1$:$\ldots$:$x_m$:1:$y_1$:$\ldots$:$y_n$:2:$zs$
+\end{curry}
+where
+\code{$os$ $=$ $x_1$:$\ldots$:$x_m$:$y_1$:$\ldots$:$y_n$:$zs$}.
+If we use this expression as a pattern,
+the semantics of functional patterns ensures that this
+pattern matches any list containing the elements \code{1} and \code{2}
+where the variable $os$ is bound to the list of the remaining elements.
+
+
+\subsection{Transformation of Documents}
+
+Apart from the inclusion of data selected in XML documents
+in the application program, one also wants to implement
+transformations on documents, e.g., transform an XML
+document into a corresponding HTML document.
+Such transformation tasks are almost trivial to implement
+in declarative languages supporting pattern matching by using
+a scheme like
+\[
+\mathit{transform}~pattern~=~newdoc
+\]
+and applying the $\mathit{transform}$ operation to the given document.
+For instance, we can transform an \code{entry} document
+into another XML structure containing the phone number and
+full name of the person by
+\label{ex:transphone}
+\begin{curry}
+  transPhone (deepXml "entry"
+                      (with [xml "name"  [xtxt n],
+                             xml "first" [xtxt f],
+                             xml "phone" phone])) =
+    xml "phonename" [xml "phone" phone,
+                     xml "fullname" [xtxt (f++' ':n)]]
+\end{curry}
+If we apply \code{transPhone} to the document
+of Figure~\ref{fig:xml-contacts},
+we nondeterministically obtain two new XML documents
+corresponding to the two entries contained in this document.
+
+    
+\subsection{Collect Matchings}
+
+If we want to collect all matchings in a given document
+in a single new document, we have to encapsulate the
+nondeterministic computations performed on the input document.
+For this purpose, we can exploit set functions described above.
+Since set functions return an unordered set of values,
+we have to transform this value set into an ordered list structure
+that can be printed or embedded in another document.
+This can be done by the predefined operation \code{sortValues}.
+Thus, if $c$ denotes the XML document shown in Figure~\ref{fig:xml-contacts},
+we can use our previous transformation operation
+to create a complete table of all pairs of phone numbers and full names
+by evaluating the expression\footnote{%
+In the implementation of set functions in the PAKCS environment
+\cite{Hanus10PAKCS},
+one has to write \code{(set$n$ $f$)} for the set function corresponding
+to the $n$-ary operation $f$.}
+\begin{curry}
+  xml "table" (sortValues (transPhone$\funset$ $c$))
+\end{curry}
+which yields the representation of the XML document
+\begin{xmldoc}
+  <table>
+    <phonename>
+      <phone>+1-987-742-9388</phone>
+      <fullname>William Smith</fullname>
+    </phonename>
+    <phonename>
+      <phone>+49-431-8807271</phone>
+      <fullname>Michael Hanus</fullname>
+    </phonename>
+  </table>
+\end{xmldoc}
+Similarly, one can also transform XML documents into HTML documents
+by exploiting the HTML library of Curry \cite{Hanus01PADL}.
+Furthermore, one can also nest set functions to accumulate
+intermediate information.
+As an example, we want to compute a list of all persons
+together with the number of their email addresses.
+For this purpose, we define a matching rule for an \code{entry} document
+that returns the number of email addresses in this document
+by a set function \code{emailOf$\funset$}:
+\begin{curry}
+  getEmails (deepXml "entry" (withOthers [xml "name" [xtxt name]] os))
+     = (name, length (sortValues (emailOf$\funset$ os)))
+   where
+     emailOf (with [xml "email" email]) = email
+\end{curry}
+In order to compute a complete list of all entries matched in
+a document $c$, we apply the set function \code{getEmails$\funset$}
+to collect all results in a list structure:
+\begin{curry}
+  sortValues (getEmails$\funset$ $c$)
+\end{curry}
+For our example document, this evaluates to
+\code{[("Hanus",2),("Smith",0)]}.
+
+
+\subsection{Attribute Matchings}
+
+So far we have only defined matchings of XML structures
+where the attributes are not taken into account.
+If we want to match on attribute values, we can
+also use the generic matching operators like \code{with},
+\code{anyorder}, or \code{withOthers} for this purpose.
+For instance, if the \code{first} structure of an XML document
+contains an attribute \code{sex} to indicate the gender,
+we can select all male first names by the operation
+\label{ex:getMaleFirstNames}
+\begin{curry}
+  getMaleFirstNames
+    (deepXml "entry"
+       (with [XElem "first" (with [("sex","male")]) [xtxt f]]))  =  f
+\end{curry}
+Here, we use the pattern \code{(with [("sex","male")])}
+for the attribute list in order to match on any
+occurrence of the attribute \code{sex} with value \code{male}.
+
+
+\section{Properties of the Implementation}
+
+\subsection{Correctness}
+
+As shown in the previous section, the matching operations
+are quite powerful and can be directly implemented in a
+functional logic language.
+This has the advantage that the correctness
+of the implemented matching operations is a direct consequence
+of the correctness results for functional logic programming.
+We demonstrate this reasoning by a simple example.
+
+Consider the following operation to select a name in an
+\code{entry} document:
+\begin{curry}
+  getName (xml "entry" (with [xml "name" [xtxt n]]))  =  n
+\end{curry}
+In order to show the correctness of this operation,
+we have to show the following property ($\to^*$ denotes the evaluation
+relation):
+
+\paragraph{\textbf{Proposition:}}
+If $xdoc = \code{xml "entry" [\ldots,xml "name" [xtxt $n$],\ldots]}$,
+then \code{getName $x$ $\to^*$ $n$}.
+
+\medskip
+
+Since the formal definition of the semantics of functional logic
+programming is outside the scope of this paper,
+we provide only a proof sketch.
+The definition of \code{with} implies that the expression
+\code{(with [xml "name" [xtxt n]])}
+evaluates to
+\begin{curry}
+  x$_1$:$\ldots$:x$_m$:xml "name" [xtxt n]:ys
+\end{curry}
+for any $m \geq 0$.
+Hence, by the semantics of functional patterns,
+\begin{curry}
+  getName (xml "entry" (x$_1$:$\ldots$:x$_m$:xml "name" [xtxt n]:ys)) = n
+\end{curry}
+is a rule defining \code{getName} for any $m \geq 0$
+(more precisely, we must also evaluate the operations \code{xml}
+and \code{xtxt}, but we omit this detail here). Thus,
+\begin{curry}
+  getName $xdoc$  $~\to^*~$  $n$
+\end{curry}
+is a valid rewrite step.
+
+
+\subsection{Termination}
+
+A functional pattern like \code{(with [xml "name" [xtxt n]])}
+denotes an infinite set of constructor patterns, i.e.,
+it denotes all constructor patterns of the form
+\begin{curry}
+  x$_1$:$\ldots$:x$_m$:xml "name" [xtxt n]:ys
+\end{curry}
+for any $m \geq 0$.
+Thus, it is not obvious that a search for all possible
+matchings, which is usually performed by set functions
+in order to collect all results, will ever terminate.
+In principle, general termination criteria for functional logic
+programs with functional patterns are not yet known.
+However, it should be noted that the set of constructor patterns
+represented by a functional patterns is not blindly enumerated.
+Actually, the corresponding constructor patterns are generated
+in a demand-driven manner,  i.e., new constructor patterns
+are computed only if they are demanded to match the actual argument.
+Thus, the structure of the actual argument determines
+how far the operations in the functional patterns are evaluated
+(see \cite{AntoyHanus05LOPSTR} for more details about the
+demand-driven unification procedure).
+Hence, the finite size of the actual arguments (i.e., the XML documents)
+implies the finiteness of the set of constructor patterns
+that are computed to match the actual argument.\footnote{%
+Obviously, this need not be the case for general functional patterns.
+For instance, if the pattern contains a non-terminating operation
+like \ccode{loop = loop}, the functional pattern unification will not
+terminate. However, our operations have the property
+that a data constructor is produced around each recursive call.
+Thus, an infinite recursion results in constructor terms of infinite size.}
+Therefore, the search space is finite in all our examples.
+
+
+\subsection{Performance}
+
+Our implementation heavily exploits nondeterministic
+computations, e.g., when matching partially specified or deep structures,
+a nondeterministic guessing of appropriate patterns takes place.
+This raises the question whether this approach can be used
+in practice. Since our main emphasis is on expressiveness
+(i.e., we want to be able to express selections and transformations
+in a declarative rather than navigational manner),
+we do not intend to compete in performance with specialized languages
+for XML processing.
+For our purpose it is sufficient,
+to be practically useful, that there is a reasonable
+relation between the time to read an XML document and the time
+to process it, because each XML document must be read from a file
+or network connection before processing it.
+Our first practical experiments (using the PAKCS environment
+\cite{Hanus10PAKCS} which compiles Curry programs into Prolog programs
+that are executed by SICStus-Prolog) indicate
+that the processing time to select or transform documents
+is almost equal or smaller than the parsing time.
+Since the XML parser is implemented by deterministic operations
+without any nondeterministic steps,
+this shows that the nondeterminism used to implement
+our matching operators does not hinder the practical application
+of our implementation.
+
+
+\section{Related Work}
+
+Since the processing of semistructured data is a relevant
+issue in current application systems,
+there are many proposals for specialized languages
+or embedding languages in multi-purpose programming languages.
+We discuss some related approaches in this section.
+
+We have already mentioned in the beginning
+the languages XPath, XQuery, and XSLT for XML processing supported by the W3C.
+These languages provide a different XML-oriented syntax
+and use a navigational approach to select information
+rather than the pattern-oriented approach we proposed.
+Since these are separate languages,
+it is more difficult to use them in application programs
+written in a general purpose language where one wants
+to process data available in the web.
+
+The same is true for the language
+Xcerpt \cite{BrySchaffert02,BrySchaffertSchroeder05}.
+It is also a separate XML processing language
+without a close connection to a multi-purpose programming language.
+In contrast to XPath, Xcerpt proposes the use of powerful
+matching constructs to select information in semistructured
+documents. Xcerpt supports similar features as our embedded language
+but provide a more compact syntax due to its independence of
+a concrete base language. In contrast to our approach,
+Xcerpt requires a dedicated implementation
+based on a specialized unification procedure \cite{BrySchaffert02ICLP}.
+The disadvantages of such separate developments become
+obvious if one tries to access the implementation of Xcerpt
+(which failed at the time of this writing due to inaccessible
+web pages and incompatible compiler versions).
+
+HaXML \cite{WallaceRunciman99} is a language for XML processing
+embedded in the functional language Haskell.
+It provides a rich set of combinators
+based on \emph{content filters}, i.e., functions that map
+XML data into collections of XML data.
+This allows an elegant description of many XML transformations,
+whereas our rule-based approach is not limited to such
+transformations since we have no restrictions on the
+type of data constructed from successful matchings.
+
+Caballero et al.\ \cite{CaballeroEtAl10}
+proposed the embedding of XPath into the functional logic language Toy
+that has many similarities to Curry.
+Similarly to our approach, they also exploit
+nondeterministic evaluation for path selection.
+Due to the use of a functional logic language
+allowing inverse computations,
+they also support the generation of test cases for path
+expressions, i.e., the generation of documents to which a
+path expression can be applied.
+Nevertheless, their approach is limited to the navigational
+processing of XPath rather than a rule-based approach
+as in our case.
+The same holds for FnQuery \cite{SeipelBaumeisterHopfner05},
+a domain-specific language embedded in Prolog for the
+querying and transformation of XML data.
+
+\section{Conclusions}
+
+We have presented a rule-based language for processing semistructured data
+that is implemented and embedded in the functional logic language Curry.
+The language supports a declarative description
+to query and transform such data.
+It is based on providing operations to describe
+partial matchings in the data and exploits
+functional patterns and set functions for the programming tasks.
+Due to its embedding into a general-purpose programming language,
+it can be used to further process the selected data in
+application systems or one can combine semistructured data
+from different sources. Moreover, it is easy to extend
+our language with new features without adapting a complex implementation.
+
+The simplicity of our implementation together with the expressiveness
+of our language demonstrate the general advantages of
+high-level declarative programming languages.
+In order to check the usability of our language,
+we applied it to extract information provided
+by our university information system\footnote{\url{http://univis.uni-kiel.de/}}
+in XML format into a curricula and module information system%
+\footnote{\url{http://www-ps.informatik.uni-kiel.de/~mh/studiengaenge/}}
+that is implemented in Curry.
+In this application it was quite useful to specify
+only partial patterns so that most of the huge amount of information contained
+in the XML document could be ignored.
+
+For future work, we intend to apply our language
+to more examples in order to enrich the set of useful pattern combinators.
+Moreover, it would be interesting to generate
+more efficient implementations by specializing
+functional patterns (e.g., by partial evaluation w.r.t.\ the
+given definitions, or by exploiting the XML schema if it is
+precisely known in advance).
+
+\begin{thebibliography}{10}
+
+\bibitem{AbiteboulBunemanSuciu00}
+S.~Abiteboul, P.~Buneman, and D.~Suciu.
+\newblock {\em Data on the Web: From Relations to Semistructured Data and XML}.
+\newblock Morgan Kaufmann, 2000.
+
+\bibitem{AntoyEchahedHanus00JACM}
+S.~Antoy, R.~Echahed, and M.~Hanus.
+\newblock A Needed Narrowing Strategy.
+\newblock {\em Journal of the ACM}, Vol.~47, No.~4, pp. 776--822, 2000.
+
+\bibitem{AntoyHanus02FLOPS}
+S.~Antoy and M.~Hanus.
+\newblock Functional Logic Design Patterns.
+\newblock In {\em Proc.\ of the 6th International Symposium on Functional and
+  Logic Programming (FLOPS 2002)}, pp. 67--87. Springer LNCS 2441, 2002.
+
+\bibitem{AntoyHanus05LOPSTR}
+S.~Antoy and M.~Hanus.
+\newblock Declarative Programming with Function Patterns.
+\newblock In {\em Proceedings of the International Symposium on Logic-based
+  Program Synthesis and Transformation (LOPSTR'05)}, pp. 6--22. Springer LNCS
+  3901, 2005.
+
+\bibitem{AntoyHanus09}
+S.~Antoy and M.~Hanus.
+\newblock Set Functions for Functional Logic Programming.
+\newblock In {\em Proceedings of the 11th ACM SIGPLAN International Conference
+  on Principles and Practice of Declarative Programming (PPDP'09)}, pp. 73--82.
+  ACM Press, 2009.
+
+\bibitem{AntoyHanus10CACM}
+S.~Antoy and M.~Hanus.
+\newblock Functional Logic Programming.
+\newblock {\em Communications of the ACM}, Vol.~53, No.~4, pp. 74--85, 2010.
+
+\bibitem{BrasselHanusMueller08PADL}
+B.~Bra{\ss}el, M.~Hanus, and M.~M{\"u}ller.
+\newblock High-Level Database Programming in {Curry}.
+\newblock In {\em Proc. of the Tenth International Symposium on Practical
+  Aspects of Declarative Languages (PADL'08)}, pp. 316--332. Springer LNCS
+  4902, 2008.
+
+\bibitem{BrySchaffert02}
+F.~Bry and S.~Schaffert.
+\newblock A gentle introduction to {Xcerpt}, a rule-based query and
+  transformation language for {XML}.
+\newblock In {\em Proceedings of the International Workshop on Rule Markup
+  Languages for Business Rules on the Semantic Web (RuleML'02)}, 2002.
+
+\bibitem{BrySchaffert02ICLP}
+F.~Bry and S.~Schaffert.
+\newblock Towards a Declarative Query and Transformation Language for {XML} and
+  Semistructured Data: Simulation Unification.
+\newblock In {\em Proceedings of the International Conference on Logic
+  Programming (ICLP'02)}, pp. 255--270. Springer LNCS 2401, 2002.
+
+\bibitem{BrySchaffertSchroeder05}
+F.~Bry, S.~Schaffert, and A.~Schroeder.
+\newblock A Contribution to the Semantics of {Xcerpt}, a Web Query and
+  Transformation Language.
+\newblock In {\em Applications of Declarative Programming and Knowledge
+  Management (INAP/WLP 2004)}, pp. 258--268. Springer LNCS 3392, 2005.
+
+\bibitem{CaballeroEtAl10}
+R.~Caballero, Y.~Garc{\'\i}a-Ruiz, and F.~S{\'a}enz-P{\'e}rez.
+\newblock Integrating {XPath} with the Functional-Logic Language {Toy}.
+\newblock Technical Report SIC-05-10, Univ. Complutense de Madrid, 2010.
+
+\bibitem{CaballeroLopez99}
+R.~Caballero and F.J. L{\'o}pez-Fraguas.
+\newblock A Functional-Logic Perspective of Parsing.
+\newblock In {\em Proc. 4th Fuji International Symposium on Functional and
+  Logic Programming (FLOPS'99)}, pp. 85--99. Springer LNCS 1722, 1999.
+
+\bibitem{Fischer05}
+S.~Fischer.
+\newblock A Functional Logic Database Library.
+\newblock In {\em Proc. of the ACM SIGPLAN 2005 Workshop on Curry and
+  Functional Logic Programming (WCFLP 2005)}, pp. 54--59. ACM Press, 2005.
+
+\bibitem{GonzalezEtAl99}
+J.C. Gonz{\'a}lez-Moreno, M.T. Hortal{\'a}-Gonz{\'a}lez, F.J.
+  L{\'o}pez-Fraguas, and M.~Rodr{\'\i}guez-Artalejo.
+\newblock An approach to declarative programming based on a rewriting logic.
+\newblock {\em Journal of Logic Programming}, Vol.~40, pp. 47--87, 1999.
+
+\bibitem{Hanus00PADL}
+M.~Hanus.
+\newblock A Functional Logic Programming Approach to Graphical User Interfaces.
+\newblock In {\em International Workshop on Practical Aspects of Declarative
+  Languages (PADL'00)}, pp. 47--62. Springer LNCS 1753, 2000.
+
+\bibitem{Hanus01PADL}
+M.~Hanus.
+\newblock High-Level Server Side Web Scripting in {Curry}.
+\newblock In {\em Proc.\ of the Third International Symposium on Practical
+  Aspects of Declarative Languages (PADL'01)}, pp. 76--92. Springer LNCS 1990,
+  2001.
+
+\bibitem{Hanus06PPDP}
+M.~Hanus.
+\newblock Type-Oriented Construction of Web User Interfaces.
+\newblock In {\em Proceedings of the 8th ACM SIGPLAN International Conference
+  on Principles and Practice of Declarative Programming (PPDP'06)}, pp. 27--38.
+  ACM Press, 2006.
+
+\bibitem{Hanus07ICLP}
+M.~Hanus.
+\newblock Multi-paradigm Declarative Languages.
+\newblock In {\em Proceedings of the International Conference on Logic
+  Programming (ICLP 2007)}, pp. 45--75. Springer LNCS 4670, 2007.
+
+\bibitem{Hanus10PAKCS}
+M.~Hanus, S.~Antoy, B.~Bra{\ss}el, M.~Engelke, K.~H{\"o}ppner, J.~Koj,
+  P.~Niederau, R.~Sadre, and F.~Steiner.
+\newblock {PAKCS}: The {P}ortland {A}achen {K}iel {C}urry {S}ystem.
+\newblock Available at \url{http://www.informatik.uni-kiel.de/~pakcs/}, 2010.
+
+\bibitem{HanusKoschnicke10PADL}
+M.~Hanus and S.~Koschnicke.
+\newblock An {ER-based} Framework for Declarative Web Programming.
+\newblock In {\em Proc. of the 12th International Symposium on Practical
+  Aspects of Declarative Languages (PADL 2010)}, pp. 201--216. Springer LNCS
+  5937, 2010.
+
+\bibitem{Hanus06Curry}
+M.~Hanus~(ed.).
+\newblock Curry: An Integrated Functional Logic Language (Vers.\ 0.8.2).
+\newblock Available at \url{http://www.curry-language.org}, 2006.
+
+\bibitem{Knuth84}
+D.E. Knuth.
+\newblock Literate Programming.
+\newblock {\em The Computer Journal}, Vol.~27, No.~2, pp. 97--111, 1984.
+
+\bibitem{PeytonJones03Haskell}
+S.~Peyton~Jones, editor.
+\newblock {\em Haskell 98 Language and Libraries---The Revised Report}.
+\newblock Cambridge University Press, 2003.
+
+\bibitem{SeipelBaumeisterHopfner05}
+D.~Seipel, J.~Baumeister, and M.~Hopfner.
+\newblock Declaratively Querying and Visualizing Knowledge Bases in {XML}.
+\newblock In {\em Applications of Declarative Programming and Knowledge
+  Management (INAP/WLP 2004)}, pp. 16--31. Springer LNCS 3392, 2005.
+
+\bibitem{WallaceRunciman99}
+M.~Wallace and C.~Runciman.
+\newblock Haskell and {XML}: Generic Combinators or Type-Based Translation?
+\newblock In {\em Proc. of the ACM SIGPLAN International Conference on
+  Functional Programming (ICFP'99)}, pp. 148--159. ACM Press, 1999.
+
+\end{thebibliography}
+
+\newpage
+
+\appendix
+
+\section{Further Abstractions}
+
+This appendix contains some further abstractions that are not
+relevant for this paper but useful for XML processing.
+
+The operation \code{deepXml} defined in
+Section~\ref{sec:deepxml} can be used to match XML structures
+without attributes at an arbitrary position.
+In order to match structures with a possibly non-empty list of
+attributes, we provide (analogously to the definition of \code{xml'}
+in Section~\ref{sec:xmlprime}) the following operation:
+\begin{lcurry}
+
+> deepXml' :: String -> [XmlExp] -> XmlExp
+> deepXml' tag elems = xml' tag elems
+> deepXml' tag elems = xml' unknown (unknown ++ [deepXml' tag elems] ++ unknown)
+
+\end{lcurry}
+%
+If we are also interested to match the attributes of a deep XML structure,
+we can use the following operation:
+\begin{lcurry}
+
+> deepXElem :: String -> [(String,String)] -> [XmlExp]
+>             -> XmlExp
+> deepXElem tag attrs elems = XElem tag attrs elems
+> deepXElem tag attrs elems = xml' unknown (unknown ++ [deepXElem tag attrs elems] ++ unknown)
+
+\end{lcurry}
+For instance, we can use this abstraction to provide a simpler
+and more general definition of the operation
+\code{getMaleFirstNames} shown in Section~\ref{ex:getMaleFirstNames}:
+\begin{curry}
+  getMaleFirstNames
+    (deepXElem "first" (with [("sex","male")]) [xtxt f]) = f
+\end{curry}
+%
+When dealing with semistructured data, it could be the case
+that one wants to use a default value if some element
+is not present. For this purpose, we define an operation
+\code{optXml} such that \ccode{optXml $t$ $xs$ $ys$}
+evaluates to \ccode{xml $t$ $xs$} if there is no element with tag $t$
+in $ys$, otherwise the first element of $ys$ with tag $t$ is returned:
+\begin{lcurry}
+
+> optXml :: String -> [XmlExp] -> [XmlExp] -> XmlExp
+> optXml tag elems [] = xml tag elems
+> optXml tag elems (x:xs) =
+>   if tag == tagOf x then x else optXml tag elems xs
+
+\end{lcurry}
+%
+One can apply this operation in combination with the
+matching operator \code{withOthers} to check optional occurrences
+in the remaining elements.
+As an example, we transform the entries of
+Figure~\ref{fig:xml-contacts} into \code{nickphone} structures
+consisting of a nickname and a phone number.
+The definition is similar to \code{transPhone} (see
+Section~\ref{ex:transphone}) with the difference
+that the nickname is assumed to be optional: if it is
+not present in the given \code{entry} structure, it is generated by
+concatenating the given names:
+\begin{curry}
+  transNickPhone
+    (deepXml "entry"
+             (withOthers [xml "name"  [xtxt n],
+                          xml "first" [xtxt f],
+                          xml "phone" phone]
+                         others)) =
+   xml "nickphone" [optXml "nickname" [xtxt (f++n)] others,
+                    xml "phone" phone]
+\end{curry}
+Thus, if $c$ denotes the XML document of Figure~\ref{fig:xml-contacts},
+the evaluation of
+\begin{curry}
+  xml "table" (sortValues (transNickPhone$\funset$ $c$))
+\end{curry}
+yields the representation of the XML document
+\begin{xmldoc}
+  <table>
+    <nickphone>
+      <nickname>Bill</nickname>
+      <phone>+1-987-742-9388</phone>
+    </nickphone>
+    <nickphone>
+      <nickname>MichaelHanus</nickname>
+      <phone>+49-431-8807271</phone>
+    </nickphone>
+  </table>
+\end{xmldoc}
+
+\end{document}
+
+
+% LocalWords:  Curry evaluable XML HTML Xcerpt XPath
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
