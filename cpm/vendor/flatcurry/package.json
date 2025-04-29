@@ -14,7 +14,7 @@
         "frontend-exec" : ">= 3.0.0, < 4.0.0",
         "profiling"     : ">= 3.0.0, < 4.0.0",
         "read-legacy"   : ">= 3.0.0, < 4.0.0",
-        "redblacktree"  : ">= 3.0.0, < 4.0.0",
+        "containers"    : ">= 3.0.0, < 4.0.0",
         "rw-data"       : ">= 1.0.0",
         "time"          : ">= 3.0.0, < 4.0.0",
         "transformers"  : ">= 3.0.0, < 4.0.0",

@@ -22,14 +22,14 @@
 
 module Data.SCC (scc) where
 
-import Data.Set.RBTree (empty, member, insert)
+import Data.Set (empty, member, insert)
 import Prelude hiding  (empty)
 
 data Node a b = Node Int [b] [b] a
- deriving Eq
+  deriving Eq
 
-cmpNode :: Node a b -> Node a b -> Bool
-cmpNode n1 n2 = key n1 < key n2
+instance (Eq a, Eq b) => Ord (Node a b) where
+  n1 < n2 = key n1 < key n2
 
 key :: Node a b -> Int
 key (Node k _ _ _) = k
@@ -61,7 +61,7 @@ scc bvs' fvs' = map (map node) . tsort' . tsort . zipWith wrap [0 ..]
   where wrap i n = Node i (bvs' n) (fvs' n) n
 
 tsort :: (Eq a, Eq b) => [Node a b] -> [Node a b]
-tsort xs = snd (dfs xs (empty cmpNode) [])
+tsort xs = snd (dfs xs empty [])
   where
   dfs []        marks stack = (marks, stack)
   dfs (x : xs') marks stack
@@ -72,7 +72,7 @@ tsort xs = snd (dfs xs (empty cmpNode) [])
     defs x1          = filter (any (`elem` fvs x1) . bvs) xs
 
 tsort' :: (Eq a, Eq b) => [Node a b] -> [[Node a b]]
-tsort' xs = snd (dfs xs (empty cmpNode) [])
+tsort' xs = snd (dfs xs empty [])
   where
   dfs []        marks stack = (marks, stack)
   dfs (x : xs') marks stack

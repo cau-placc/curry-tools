@@ -16,8 +16,8 @@ module FlatCurry.Compact
 
 import FlatCurry.Types
 import FlatCurry.Files
-import qualified Data.Set.RBTree as RBS
-import qualified Data.Table.RBTree as RBT
+import qualified Data.Set as Set
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.List           ( nub, union )
 import System.CurryPath    ( lookupModuleSourceInLoadPath, stripCurrySuffix)
@@ -26,6 +26,9 @@ import System.Directory
 import XML
 
 infix 0 `requires`
+
+type Set a = Set.Set a
+type Map k v = Map.Map k v
 
 ------------------------------------------------------------------------------
 --- Options to guide the compactification process.
@@ -177,7 +180,7 @@ computeCompactFlatCurry orgoptions progname =
 makeCompactFlatCurry :: Prog -> [Option] -> IO Prog
 makeCompactFlatCurry mainmod options = do
   (initfuncs,loadedmnames,loadedmods) <- requiredInCompactProg mainmod options
-  let initFuncTable = extendFuncTable (RBT.empty (<))
+  let initFuncTable = extendFuncTable Map.empty
                                       (concatMap moduleFuns loadedmods)
       required = getRequiredFromOptions options
       loadedreqfuns = concatMap (getRequiredInModule required)
@@ -186,8 +189,8 @@ makeCompactFlatCurry mainmod options = do
   (finalmods,finalfuncs,finalcons,finaltcons) <-
      getCalledFuncs required
                     loadedmnames loadedmods initFuncTable
-                    (foldr RBS.insert (RBS.empty (<)) initreqfuncs)
-                    (RBS.empty (<)) (RBS.empty (<))
+                    (foldr Set.insert Set.empty initreqfuncs)
+                    Set.empty Set.empty
                     initreqfuncs
   putStrLn ("\nCompactFlat: Total number of functions (without unused imports): "
             ++ show (foldr (+) 0 (map (length . moduleFuns) finalmods)))
@@ -198,7 +201,7 @@ makeCompactFlatCurry mainmod options = do
                     reqTCons  = extendTConsWithConsType finalcons finaltcons
                                                         allTDecls
                     allReqTCons = requiredDatatypes reqTCons allTDecls
-                 in filter (\tdecl->tconsName tdecl `RBS.member` allReqTCons)
+                 in filter (\tdecl->tconsName tdecl `Set.member` allReqTCons)
                            allTDecls)
                finalfuncs
                (filter (\ (Op oname _ _) -> oname `elem` finalfnames)
@@ -207,54 +210,54 @@ makeCompactFlatCurry mainmod options = do
 -- compute the transitive closure of a set of type constructors w.r.t.
 -- to a given list of type declaration so that the set contains
 -- all type constructor names occurring in the type declarations:
-requiredDatatypes :: RBS.SetRBT QName -> [TypeDecl] -> RBS.SetRBT QName
+requiredDatatypes :: Set QName -> [TypeDecl] -> Set QName
 requiredDatatypes tcnames tdecls =
   let newtcons = concatMap (newTypeConsOfTDecl tcnames) tdecls
    in if null newtcons
       then tcnames
-      else requiredDatatypes (foldr RBS.insert tcnames newtcons) tdecls
+      else requiredDatatypes (foldr Set.insert tcnames newtcons) tdecls
 
 -- Extract the new type constructors (w.r.t. a given set) contained in a
 -- type declaration:
-newTypeConsOfTDecl :: RBS.SetRBT QName -> TypeDecl -> [QName]
+newTypeConsOfTDecl :: Set QName -> TypeDecl -> [QName]
 newTypeConsOfTDecl tcnames (TypeSyn tcons _ _ texp) =
-  if tcons `RBS.member` tcnames
-  then filter (\tc -> not (tc `RBS.member` tcnames)) (allTypesOfTExpr texp)
+  if tcons `Set.member` tcnames
+  then filter (\tc -> not (tc `Set.member` tcnames)) (allTypesOfTExpr texp)
   else []
 newTypeConsOfTDecl tcnames (TypeNew tcons _ _ (NewCons _ _ texp)) =
-  if tcons `RBS.member` tcnames
-  then filter (\tc -> not (tc `RBS.member` tcnames)) (allTypesOfTExpr texp)
+  if tcons `Set.member` tcnames
+  then filter (\tc -> not (tc `Set.member` tcnames)) (allTypesOfTExpr texp)
   else []
 newTypeConsOfTDecl tcnames (Type tcons _ _ cdecls) =
-  if tcons `RBS.member` tcnames
-  then filter (\tc -> not (tc `RBS.member` tcnames))
+  if tcons `Set.member` tcnames
+  then filter (\tc -> not (tc `Set.member` tcnames))
           (concatMap (\ (Cons _ _ _ texps) -> concatMap allTypesOfTExpr texps)
                     cdecls)
   else []
 
 -- Extend set of type constructor with type constructors of data declarations
 -- contain some constructor.
-extendTConsWithConsType :: RBS.SetRBT QName -> RBS.SetRBT QName -> [TypeDecl]
-                        -> RBS.SetRBT QName
+extendTConsWithConsType :: Set QName -> Set QName -> [TypeDecl]
+                        -> Set QName
 extendTConsWithConsType _ tcons [] = tcons
 extendTConsWithConsType cnames tcons (TypeSyn tname _ _ _ : tds) =
-  extendTConsWithConsType cnames (RBS.insert tname tcons) tds
+  extendTConsWithConsType cnames (Set.insert tname tcons) tds
 extendTConsWithConsType cnames tcons (TypeNew tname _ _ cdecl : tds) =
-  if newConsName cdecl `RBS.member` cnames
-  then extendTConsWithConsType cnames (RBS.insert tname tcons) tds
+  if newConsName cdecl `Set.member` cnames
+  then extendTConsWithConsType cnames (Set.insert tname tcons) tds
   else extendTConsWithConsType cnames tcons tds
 extendTConsWithConsType cnames tcons (Type tname _ _ cdecls : tds) =
   if tname `elem` defaultRequiredTypes ||
-     any (\cdecl->consName cdecl `RBS.member` cnames) cdecls
-  then extendTConsWithConsType cnames (RBS.insert tname tcons) tds
+     any (\cdecl->consName cdecl `Set.member` cnames) cdecls
+  then extendTConsWithConsType cnames (Set.insert tname tcons) tds
   else extendTConsWithConsType cnames tcons tds
 
 -- Extend function table (mapping from qualified names to function declarations)
 -- by some new function declarations:
-extendFuncTable :: RBT.TableRBT QName FuncDecl -> [FuncDecl]
-                -> RBT.TableRBT QName FuncDecl
+extendFuncTable :: Map QName FuncDecl -> [FuncDecl]
+                -> Map QName FuncDecl
 extendFuncTable ftable fdecls =
-  foldr (\f t -> RBT.update (functionName f) f t) ftable fdecls
+  foldr (\f -> Map.insert (functionName f) f) ftable fdecls
 
 
 -------------------------------------------------------------------------------
@@ -263,7 +266,7 @@ extendFuncTable ftable fdecls =
 
 -- Compute the initially required functions in the compact program
 -- together with the set of module names and contents that are initially loaded:
-requiredInCompactProg :: Prog -> [Option] -> IO ([QName],RBS.SetRBT String,[Prog])
+requiredInCompactProg :: Prog -> [Option] -> IO ([QName],Set String,[Prog])
 requiredInCompactProg mainmod options
  | not (null initfuncs)
   = do impprogs <- mapM readCurrentFlatCurry imports
@@ -294,9 +297,9 @@ requiredInCompactProg mainmod options
 
    mainexports = exportedFuncNames (moduleFuns mainmod)
 
-   mainmodset = RBS.insert mainmodname $ RBS.empty (<)
+   mainmodset = Set.insert mainmodname $ Set.empty
 
-   add2mainmodset mnames = foldr RBS.insert mainmodset mnames
+   add2mainmodset mnames = foldr Set.insert mainmodset mnames
 
 
 -- extract the names of all exported functions:
@@ -318,38 +321,38 @@ exportedFuncNames funs =
 --- @param fnames - list of function names to be analyzed for dependencies
 --- @return (list of loaded modules, list of required function declarations,
 ---          set of required data constructors, set of required type names)
-getCalledFuncs :: [RequiredSpec] -> RBS.SetRBT String -> [Prog]
-               -> RBT.TableRBT QName FuncDecl
-               -> RBS.SetRBT QName -> RBS.SetRBT QName -> RBS.SetRBT QName
+getCalledFuncs :: [RequiredSpec] -> Set String -> [Prog]
+               -> Map QName FuncDecl
+               -> Set QName -> Set QName -> Set QName
                -> [QName]
-               -> IO ([Prog],[FuncDecl],RBS.SetRBT QName,RBS.SetRBT QName)
+               -> IO ([Prog],[FuncDecl],Set QName,Set QName)
 getCalledFuncs _ _ progs _ _ dcs ts [] = return (progs,[],dcs,ts)
 getCalledFuncs required loadedmnames progs functable loadedfnames loadedcnames
                loadedtnames ((m,f):fs)
-  | not (m `RBS.member` loadedmnames)
+  | not (m `Set.member` loadedmnames)
    = do newmod <- readCurrentFlatCurry m
         let reqnewfun = getRequiredInModule required m
-        getCalledFuncs required (RBS.insert m loadedmnames) (newmod:progs)
+        getCalledFuncs required (Set.insert m loadedmnames) (newmod:progs)
                        (extendFuncTable functable (moduleFuns newmod))
-                       (foldr RBS.insert loadedfnames reqnewfun) loadedcnames
+                       (foldr Set.insert loadedfnames reqnewfun) loadedcnames
                        loadedtnames ((m,f):fs ++ reqnewfun)
-  | isNothing (RBT.lookup (m,f) functable)
+  | isNothing (Map.lookup (m,f) functable)
    = -- this must be a data constructor: ingore it since already considered
      getCalledFuncs required loadedmnames progs
                     functable loadedfnames loadedcnames loadedtnames fs
   | otherwise = do
-   let fdecl = fromJust (RBT.lookup (m,f) functable)
+   let fdecl = fromJust (Map.lookup (m,f) functable)
        funcCalls = allFuncCalls fdecl
-       newFuncCalls = filter (\qn->not (qn `RBS.member` loadedfnames)) funcCalls
+       newFuncCalls = filter (\qn->not (qn `Set.member` loadedfnames)) funcCalls
        newReqs = concatMap (getImplicitlyRequired required) newFuncCalls
        consCalls = allConstructorsOfFunc fdecl
-       newConsCalls = filter (\qn->not (qn `RBS.member` loadedcnames)) consCalls
+       newConsCalls = filter (\qn->not (qn `Set.member` loadedcnames)) consCalls
        newtcons = allTypesOfFunc fdecl
    (newprogs,newfuns,newcons, newtypes) <-
        getCalledFuncs required loadedmnames progs functable
-                      (foldr RBS.insert loadedfnames (newFuncCalls++newReqs))
-                      (foldr RBS.insert loadedcnames consCalls)
-                      (foldr RBS.insert loadedtnames newtcons)
+                      (foldr Set.insert loadedfnames (newFuncCalls++newReqs))
+                      (foldr Set.insert loadedcnames consCalls)
+                      (foldr Set.insert loadedtnames newtcons)
                       (fs ++ newFuncCalls ++ newReqs ++ newConsCalls)
    return (newprogs, fdecl:newfuns, newcons, newtypes)
 

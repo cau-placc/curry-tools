@@ -11,7 +11,7 @@ import FlatCurry.Types
 import Data.List       ( nub )
 import Prelude hiding  (empty)
 
-import Data.Set.RBTree ( SetRBT, empty, insert, toList, union)
+import Data.Set ( Set, empty, insert, toList, union)
 
 --- Return the type constructors occurring in a type declaration.
 dependsDirectlyOnTypes :: TypeDecl -> [QName]
@@ -37,15 +37,15 @@ callsDirectly :: FuncDecl -> [QName]
 callsDirectly fun = toList (snd (directlyDependent fun))
 
 -- set of direct dependencies for a function
-directlyDependent :: FuncDecl -> (QName,SetRBT QName)
+directlyDependent :: FuncDecl -> (QName,Set QName)
 directlyDependent (Func f _ _ _ (Rule _ e))   = (f,funcSetOfExpr e)
 directlyDependent (Func f _ _ _ (External _)) = (f,emptySet)
 
 -- Gets the set of all functions (including partially applied functions)
 -- called in an expression:
-funcSetOfExpr :: Expr -> SetRBT QName
-funcSetOfExpr (Var _) = emptySet
-funcSetOfExpr (Lit _) = emptySet
+funcSetOfExpr :: Expr -> Set QName
+funcSetOfExpr (Var _) = empty
+funcSetOfExpr (Lit _) = empty
 funcSetOfExpr (Comb ct f es) =
   if isConstructorComb ct then unionMap funcSetOfExpr es
                           else insert f (unionMap funcSetOfExpr es)
@@ -64,11 +64,11 @@ isConstructorComb ct = case ct of
   ConsPartCall _ -> True
   _              -> False
 
-unionMap :: (a -> SetRBT QName) -> [a] -> SetRBT QName
+unionMap :: (a -> Set QName) -> [a] -> Set QName
 unionMap f = foldr union emptySet . map f
 
-emptySet :: SetRBT QName
-emptySet = empty leqQName
+emptySet :: Set QName
+emptySet = empty
 
 leqQName :: QName -> QName -> Bool
 leqQName (m1,n1) (m2,n2) = m1++('.':n1) <= m2++('.':n2)

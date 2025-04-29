@@ -41,6 +41,7 @@ string2urlencoded (c:cs)
 --- Translates a parameter (name/value pair) into an URL encoded string
 --- where both components are URL encoded and separated by `=`.
 --- The separator is omitted if the value is the empty string.
+--- See also <http://www.w3.org/TR/html4/interact/forms.html#h-17.13.4.1>.
 param2urlencoded :: (String,String) -> String
 param2urlencoded (n,v)
   | null v    = string2urlencoded n
@@ -48,6 +49,7 @@ param2urlencoded (n,v)
 
 --- Translates a list of parameters (name/value pairs)
 --- into URL encoded strings where the parameters are separated by `&`.
+--- See also <http://www.w3.org/TR/html4/interact/forms.html#h-17.13.4.1>.
 params2urlencoded :: [(String,String)] -> String
 params2urlencoded ps = intercalate "&" (map param2urlencoded ps)
 

@@ -24,7 +24,7 @@ import Data.Map as Map
 import FlatCurry.Types
 import FlatCurry.Goodies
 import Data.SCC          ( scc )
-import Data.Set.RBTree as Set ( SetRBT, member, empty, insert, null )
+import Data.Set as Set   ( Set, member, empty, insert, null )
 import RW.Base
 
 import CASS.Configuration
@@ -89,7 +89,7 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
         debugMessage dl 3 $ "Result received from CURRYINFO:\n" ++ show res
         return res
       else return Nothing
-  
+
   result <-
     case curryInfoResult >>= mapM (\(qn, s) -> fmap ((,) qn) (safeRead s)) of
       Nothing ->  do
@@ -305,7 +305,7 @@ executeAnalysis (DependencyFuncAnalysis _ _ anaFunc) prog
   "wlist" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
      in funcInfos2ProgInfo prog $ toList $
-          wlIteration anaFunc funcName declsWithDeps [] (Set.empty (<))
+          wlIteration anaFunc funcName declsWithDeps [] (Set.empty)
                       importInfos (fromList startvals)
   "wlistscc" ->
     let declsWithDeps = map addCalledFunctions (progFuncs prog)
@@ -313,7 +313,7 @@ executeAnalysis (DependencyFuncAnalysis _ _ anaFunc) prog
         sccDecls = scc ((:[]) . funcName . fst) snd declsWithDeps
      in funcInfos2ProgInfo prog $ toList $
           foldr (\scc sccstartvals ->
-                   wlIteration anaFunc funcName scc [] (Set.empty (<))
+                   wlIteration anaFunc funcName scc [] (Set.empty)
                                importInfos sccstartvals)
                 (fromList startvals)
                 (reverse sccDecls)
@@ -329,7 +329,7 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
   "wlist" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
      in typeInfos2ProgInfo prog $ toList $
-          wlIteration anaType typeName declsWithDeps [] (Set.empty (<))
+          wlIteration anaType typeName declsWithDeps [] (Set.empty)
                       importInfos (fromList startvals)
   "wlistscc" ->
     let declsWithDeps = map addUsedTypes (progTypes prog)
@@ -337,7 +337,7 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
         sccDecls = scc ((:[]) . typeName . fst) snd declsWithDeps
      in typeInfos2ProgInfo prog $ toList $
           foldr (\scc sccstartvals ->
-                   wlIteration anaType typeName scc [] (Set.empty (<))
+                   wlIteration anaType typeName scc [] (Set.empty)
                                importInfos sccstartvals)
                 (fromList startvals)
                 (reverse sccDecls)
@@ -400,7 +400,7 @@ simpleIteration analysis nameOf declsWithDeps importInfos currvals =
      else simpleIteration analysis nameOf declsWithDeps importInfos newproginfo
 
 wlIteration :: (Eq a, Eq b) => (a -> [(QName,b)] -> b) -> (a -> QName)
-            -> [(a,[QName])] -> [(a,[QName])] -> SetRBT QName
+            -> [(a,[QName])] -> [(a,[QName])] -> Set QName
             -> ProgInfo b -> Map QName b -> Map QName b
 --wlIteration analysis nameOf declsToDo declsDone changedEntities
 --            importInfos currvals
@@ -412,7 +412,7 @@ wlIteration analysis nameOf [] alldecls changedEntities importInfos currvals =
        let (declsToDo,declsDone) =
               partition (\ (_,calls) -> any (`Set.member` changedEntities) calls)
                         alldecls
-        in wlIteration analysis nameOf declsToDo declsDone (Set.empty (<))
+        in wlIteration analysis nameOf declsToDo declsDone (Set.empty)
                        importInfos currvals
 -- process a single declaration:
 wlIteration analysis nameOf (decldeps@(decl,calls):decls) declsDone

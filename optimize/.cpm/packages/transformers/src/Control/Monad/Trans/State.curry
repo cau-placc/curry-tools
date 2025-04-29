@@ -45,6 +45,10 @@ state f = StateT $ \s -> return (f s)
 modify :: Monad m => (s -> s) -> StateT  s m ()
 modify f = StateT $ \s -> return ((), f s)
 
+modifyM :: Monad m => (s -> m s) -> StateT s m ()
+modifyM f = StateT $ \s -> do s' <- f s
+                              return ((), s')
+
 gets :: Monad m => (s -> a) -> StateT s m a
 gets f = StateT $ \ s -> return (f s, s)
 

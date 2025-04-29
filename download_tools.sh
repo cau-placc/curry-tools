@@ -106,9 +106,6 @@ cd .cpm/packages
  PKGV=`ls -d read-legacy-*`
  mv $PKGV read-legacy
  ln -s read-legacy $PKGV
- PKGV=`ls -d redblacktree-*`
- mv $PKGV redblacktree
- ln -s redblacktree $PKGV
  PKGV=`ls -d rw-data-*`
  mv $PKGV rw-data
  ln -s rw-data $PKGV
