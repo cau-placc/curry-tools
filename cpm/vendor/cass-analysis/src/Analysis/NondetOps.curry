@@ -1,14 +1,15 @@
 ------------------------------------------------------------------------------
---- Nondeterminism analysis:
---- checks whether operations encapsulate or produce non-deterministic values
----
---- @author Michael Hanus
---- @version November 2024
+-- | Author : Michael Hanus
+--   Version: November 2025
+--
+-- Nondeterminism analysis:
+-- checks whether operations encapsulate or produce non-deterministic values
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
-module Analysis.NondetOps ( nondetOperations, showNondet, Nondet(..) )
+module Analysis.NondetOps
+  ( nondetOperations, showNondet, Nondet(..) )
  where
 
 import Data.List         ( partition )
@@ -22,12 +23,12 @@ import System.IO.Unsafe  ( trace )
 import Analysis.Types
 
 ------------------------------------------------------------------------------
---- Data type to represent the (non-)determinism status of expressions and
---- functions.
+-- | Data type to represent the (non-)determinism status of expressions and
+--   functions.
 data Nondet = Det | Nondet | FunD Nondet Nondet
  deriving (Eq, Read, Show)
 
--- Show determinism information as a string.
+-- | Show determinism information as a string.
 showNondet :: AOutFormat -> Nondet -> String
 showNondet _ nd = showND True nd
  where
@@ -61,7 +62,7 @@ lub nd1 nd2 = case (nd1, nd2) of
   _ -> trace ("Warning: lub of '" ++ show nd1 ++ "' and '" ++
               show nd2 ++ "' not covered!") Nondet
 
---- Non-determinism type analysis.
+-- | Non-determinism type analysis.
 nondetOperations :: Analysis Nondet
 nondetOperations = dependencyFuncAnalysis "NonDetOps" Det ndFunc
 
@@ -140,7 +141,7 @@ ndFuncRule calledFuncs qf args rhs = tryNondetArg [] args
                                               else genNondetFun m
     ConsCall       -> if all isDetType ndargs then Det else Nondet
    where ndargs = map (ndExp env) es
-  ndExp env (Free vs e)    = ndExp (map (\i -> (i,Nondet)) vs ++ env) e
+  ndExp env (Free vs e)    = ndExp (map (\(i,_) -> (i,Nondet)) vs ++ env) e
   ndExp env (Let bs e)     = ndLet env bs e
   ndExp _   (Or _ _)       = Nondet
   ndExp env (Case _  e bs)
@@ -169,9 +170,9 @@ ndFuncRule calledFuncs qf args rhs = tryNondetArg [] args
   -- Analyse let expressions. For recursive bindings, analyse all these
   -- bindings where `Det` is assumed as the initial value for the variables.
   -- If some analysis returns `Nondet`, change the assumption to `Nondet`.
-  ndLet env []          e = ndExp env e
-  ndLet env ((i,be):bs) e =
-    if all (`notElem` (i : map fst bs)) (allVars be)
+  ndLet env []            e = ndExp env e
+  ndLet env ((i,_,be):bs) e =
+    if all (`notElem` (i : varsOfLetBind bs)) (allVars be)
       then -- no recursive binding:
            ndLet ((i, ndExp env be) : env) bs e
       else -- recursive binding: find binding group and try `Det` or `Nondet`:
@@ -188,13 +189,14 @@ ndFuncRule calledFuncs qf args rhs = tryNondetArg [] args
          else ndLet varnondetenv allbs e
   ndLetGroup env grpbs ((i,be):rbs) allbs e =
     let (recbs, otherbs) = selectBindings (allVars be) allbs
-    in ndLetGroup env (grpbs ++ [(i,be)]) (rbs ++ recbs) otherbs e
+    in ndLetGroup env (grpbs ++ [(i,be)])
+                  (rbs ++ map (\ (v,_,bv) -> (v,bv)) recbs) otherbs e
 
   -- Select in a list of bindings all recursive bindings of the given variables
   -- and return them together with the remaining ones:
   selectBindings []     bs = ([], bs)
   selectBindings (v:vs) bs =
-    let (vbs,obs) = partition ((==v) . fst) bs
+    let (vbs,obs) = partition (\ (x,_,_) -> x==v) bs
         (rbs,nbs) = selectBindings vs obs
     in  (vbs ++ rbs, nbs)
 

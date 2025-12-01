@@ -8,12 +8,14 @@
 module CASS.Dependencies(getModulesToAnalyze,reduceDependencies) where
 
 import Control.Monad     ( when )
+import Data.List         ( delete )
+import Data.Maybe        ( fromMaybe )
+import System.IO         ( IOMode(ReadMode), hGetContents, openFile )
+
+import Data.Time(ClockTime)
 import FlatCurry.Types
 import FlatCurry.Goodies ( progImports )
 import System.Directory  ( doesFileExist, getModificationTime, removeFile )
-import Data.Maybe        ( fromMaybe )
-import Data.List         ( delete )
-import Data.Time(ClockTime)
 
 import RW.Base
 
@@ -137,7 +139,7 @@ isAnalysisValid ananame modname =
       stime <- getSourceFileTime modname >>= return . snd
       if itime>=stime
        then do
-        implist <- readFile importListFile >>= return . read
+        implist <- fmap read (openFile importListFile ReadMode >>= hGetContents)
         sourceTimeList <- mapM getSourceFileTime        implist
         fcyTimeList    <- mapM getFlatCurryFileTime     implist
         anaTimeList    <- mapM (getAnaFileTime ananame) implist

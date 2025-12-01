@@ -67,6 +67,8 @@ main = do
            "Computing results for analysis `" ++ fullananame ++ "'"
          analyzeModuleAndPrint cconfig3 fullananame (stripCurrySuffix mname)
            (optAll opts) (optFormat opts) (optGenerated opts) (optReAna opts)
+  when (optStats (ccOptions cconfig3)) $
+    getStatistics cconfig3 >>= hPutStrLn stderr . ("\nAnalysis statistics:\n"++)
  where
   -- Set curryinfo property to `no` if executable `curry-info` does not exist
   checkCurryInfoProp cc = do

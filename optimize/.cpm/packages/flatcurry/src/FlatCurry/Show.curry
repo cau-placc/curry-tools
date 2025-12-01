@@ -11,7 +11,7 @@
 ---     Curry syntax (`showCurryType`, `showCurryExpr`,...).
 ---
 --- @author Michael Hanus
---- @version September 2024
+--- @version November 2025
 ------------------------------------------------------------------------------
 
 module FlatCurry.Show
@@ -114,9 +114,13 @@ showFlatExpr (Comb ctype cf es) =
            ++ show cf ++ showFlatList showFlatExpr es ++ ")"
 showFlatExpr (Let bindings exp) =
   "(Let " ++ showFlatList showFlatBinding bindings ++ showFlatExpr exp ++ ")"
- where showFlatBinding (x,e) = "("++show x++","++showFlatExpr e++")"
+ where
+  showFlatBinding (x,t,e) = "(" ++ show x ++ ", " ++ showFlatTypeExpr t ++
+                            ", " ++ showFlatExpr e ++ ")"
 showFlatExpr (Free xs e) =
-  "(Free " ++ showFlatList show xs ++ showFlatExpr e ++ ")"
+  "(Free " ++ showFlatList showTypedVar xs ++ showFlatExpr e ++ ")"
+ where
+  showTypedVar (v,t) = "(" ++ show v ++ ", " ++ showFlatTypeExpr t ++ ")"
 showFlatExpr (Or e1 e2) =
   "(Or " ++ showFlatExpr e1 ++ " " ++ showFlatExpr e2 ++ ")"
 showFlatExpr (Case Rigid e bs) =
@@ -143,7 +147,7 @@ showFlatPattern (LPattern lit) = "(LPattern " ++ showFlatLit lit ++ ")"
 
 
 -- format a finite list of elements:
-showFlatList :: (a->String) -> [a] -> String
+showFlatList :: (a -> String) -> [a] -> String
 showFlatList format elems = " [" ++ showFlatListElems format elems ++ "] "
 
 showFlatListElems :: (a->String) -> [a] -> String
@@ -287,15 +291,15 @@ showCurryExpr tf nested b (Let bindings exp) =
   showBracketsIf nested
     ("\n" ++ sceBlanks b ++ "let " ++
      intercalate ("\n    " ++ sceBlanks b)
-       (map (\ (x,e) -> showCurryVar x ++ " = " ++
-                         showCurryExpr tf False (b+4) e) bindings) ++
+       (map (\ (x,_,e) -> showCurryVar x ++ " = " ++
+                          showCurryExpr tf False (b+4) e) bindings) ++
      ("\n" ++ sceBlanks b ++ " in ") ++ showCurryExpr tf False (b+4) exp)
 
 showCurryExpr tf nested b (Free [] e) = showCurryExpr tf nested b e
 
-showCurryExpr tf nested b (Free (x:xs) e) =
+showCurryExpr tf nested b (Free xs@(_:_) e) =
   showBracketsIf nested
-    ("let " ++ intercalate "," (map showCurryVar (x:xs)) ++
+    ("let " ++ intercalate "," (map (showCurryVar . fst) xs) ++
      " free in " ++ showCurryExpr tf False b e)
 
 showCurryExpr tf nested b (Or e1 e2) =

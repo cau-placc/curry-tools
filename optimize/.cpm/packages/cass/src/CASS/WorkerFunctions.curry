@@ -3,11 +3,12 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version February 2025
+--- @version May 2025
 --------------------------------------------------------------------------
 
 module CASS.WorkerFunctions where
 
+import Data.Char         ( isSpace )
 import Data.IORef
 import Data.List         ( find, partition )
 import System.CPUTime    ( getCPUTime )
@@ -19,7 +20,8 @@ import Analysis.Types    ( Analysis(..), isSimpleAnalysis, isCombinedAnalysis
                          , isTypeAnalysis)
 import Analysis.ProgInfo ( ProgInfo, combineProgInfo, emptyProgInfo
                          , publicProgInfo, lookupProgInfo, lists2ProgInfo
-                         , equalProgInfo, publicListFromProgInfo, showProgInfo )
+                         , publicMap2ProgInfo, equalProgInfo
+                         , publicListFromProgInfo, showProgInfo )
 import Data.Map as Map
 import FlatCurry.Types
 import FlatCurry.Goodies
@@ -85,22 +87,23 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
           (if withciweb then "/WEB" else "") ++ " for " ++
           moduleName ++ " / " ++ cirequest
         res <- askCurryInfoCmd withciweb (optVerb (ccOptions cconfig))
-                               moduleName entkind cirequest
+                               moduleName entkind cirequest "CurryMap"
         debugMessage dl 3 $ "Result received from CURRYINFO:\n" ++ show res
         return res
       else return Nothing
 
   result <-
-    case curryInfoResult >>= mapM (\(qn, s) -> fmap ((,) qn) (safeRead s)) of
+    case curryInfoResult >>= safeRead of
       Nothing ->  do
         debugMessage dl 3 $ "Read error of CURRYINFO result!"
         debugMessage dl 1 $
           "\nAnalyze by CASS: " ++ moduleName ++ " / " ++ ananame
+        incAnaMods cconfig
         if isCombinedAnalysis analysis
           then execCombinedAnalysis cconfig analysis prog importInfos
                                     startvals moduleName fpmethod
           else runAnalysis cconfig analysis prog importInfos startvals fpmethod
-      Just i -> return (lists2ProgInfo (i, []))
+      Just pmap -> incCurryInfoMods cconfig >> return (publicMap2ProgInfo pmap)
 
   storeAnalysisResult dl ananame moduleName result
   stoptime <- getCPUTime
@@ -111,8 +114,8 @@ analysisClientWithStore cconfig store analysis fpmethod moduleName = do
  where
   dl = debugLevel cconfig
 
-  safeRead s = case readsPrec 0 s of [(x, "")] -> Just x
-                                     _         -> Nothing
+  safeRead s = case reads s of [(x,r)] | all isSpace r -> Just x
+                               _                       -> Nothing
 
 -- Loads analysis results for a list of modules where already read results
 -- are stored in an IORef.

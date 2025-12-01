@@ -1,6 +1,6 @@
 --- Implementation of the Pretty library using
 --- [linear-time, bounded implementation](http://www.cs.kent.ac.uk/pubs/2006/2381/index.html)
----  by Olaf Chitil.
+--- by Olaf Chitil.
 ---
 --- @author Sebastian Fischer, Bjoern Peemoeller, Jan Tikovsky
 --- @version December 2018

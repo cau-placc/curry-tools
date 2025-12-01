@@ -46,8 +46,9 @@ Thus, if one wants to translate FlatCurry programs into typed target languages
 (e.g., Haskell), the information about a `newtype` might be relevant.
 However, if the target language is untyped, every use of a `newtype`
 can be eliminated by dropping the `newtype` constructors
-in the FlatCurry program. This can be done by operations
-provided by the module `FlatCurry.ElimNewtype`.
+in the FlatCurry program. For this purpose, there is a library
+`FlatCurry.ElimNewtype` contained in the package `flatcurry-elim-newtype`.
+
 
 Modules of the package
 ----------------------
@@ -58,8 +59,6 @@ Currently, this package contains the following modules:
   of FlatCurry programs by combining the main module and all imports
   into a single program that contains only the operations directly or
   indirectly called from a set of main operations.
-* `FlatCurry.ElimNewtype`: This module contains operations to eliminate
-  definitions and uses of `newtype` in a FlatCurry program.
 * `FlatCurry.Files`: This module defines operations to read and write
   FlatCurry programs.
 * `FlatCurry.FlexRigid`: provides an operation to compute the rigid/flex status

@@ -50,7 +50,7 @@ getModificationTime fname = prim_getModificationTime $## fname
 prim_getModificationTime :: FilePath -> IO ClockTime
 prim_getModificationTime external
 
---- Returns the current working directory.
+--- Returns the current working directory as an absolute path.
 getCurrentDirectory :: IO FilePath
 getCurrentDirectory external
 

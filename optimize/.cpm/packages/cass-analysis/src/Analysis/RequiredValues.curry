@@ -1,15 +1,15 @@
 -----------------------------------------------------------------------------
---- Required value analysis for Curry programs
----
---- This analysis checks for each function in a Curry program whether
---- the arguments of a function must have a particular shape in order to
---- compute some value of this function.
---- For instance, the negation operation `not` requires the argument
---- value `False` in order to compute the result `True` and it requires
---- the argument `True` to compute the result `False`.
----
---- @author Michael Hanus
---- @version November 2024
+-- | Author : Michael Hanus
+--   Version: November 2025
+--
+-- Required value analysis for Curry programs
+--
+-- This analysis checks for each function in a Curry program whether
+-- the arguments of a function must have a particular shape in order to
+-- compute some value of this function.
+-- For instance, the negation operation `not` requires the argument
+-- value `False` in order to compute the result `True` and it requires
+-- the argument `True` to compute the result `False`.
 -----------------------------------------------------------------------------
 
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
@@ -29,23 +29,23 @@ import Analysis.ProgInfo
 import Analysis.TotallyDefined(siblingCons)
 
 ------------------------------------------------------------------------------
--- Our abstract (non-standard) type domain.
--- `Any` represents any expression,
--- `AnyC` represents any value (i.e., constructor-rooted term),
--- `Cons cs` a value rooted by some of the constructor `cs`, and
+-- | Our abstract (non-standard) type domain.
+--   `Any` represents any expression,
+--   `AnyC` represents any value (i.e., constructor-rooted term),
+--   `Cons cs` a value rooted by some of the constructor `cs`, and
 data AType = Cons [QName] | AnyC | Any
  deriving (Eq, Ord, Show, Read)
 
---- Abstract representation of no possible value.
+-- Abstract representation of no possible value.
 empty :: AType
 empty = Cons []
 
---- Is some abstract type a constructor?
+-- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
 isConsValue av = case av of Cons cs -> not (null cs)
                             _       -> False
 
---- Least upper bound of abstract values.
+-- | Least upper bound of abstract values.
 lubAType :: AType -> AType -> AType
 lubAType Any      _        = Any
 lubAType AnyC     Any      = Any
@@ -57,7 +57,7 @@ lubAType (Cons c) (Cons d) = Cons (union c d)
 -- replace previous rule by following rule in order to use singleton sets:
 --lubAType (Cons c) (Cons d) = if c==d then Cons c else AnyC
 
---- Join two abstract values. The result is `Empty` if they are not compatible.
+-- Join two abstract values. The result is `Empty` if they are not compatible.
 joinAType :: AType -> AType -> AType
 joinAType Any      av       = av
 joinAType AnyC     Any      = AnyC
@@ -69,24 +69,24 @@ joinAType (Cons c) (Cons d) = Cons (intersect c d)
 -- replace previous rule by following rule in order to use singleton sets:
 --joinAType (Cons c) (Cons d) = if c==d then Cons c else Cons []
 
---- Are two abstract types compatible, i.e., describe common values?
+-- Are two abstract types compatible, i.e., describe common values?
 compatibleType :: AType -> AType -> Bool
 compatibleType t1 t2 = joinAType t1 t2 /= empty
 
--- Shows an abstract value.
+-- | Shows an abstract value.
 showAType :: AOutFormat -> AType -> String
 showAType _ Any  = "any"
 showAType _ AnyC = "cons"
 showAType _ (Cons cs) = "{" ++ intercalate "," (map snd cs) ++ "}"
 
---- The abstract type of a function.
---- It is either `EmptyFunc`, i.e., contains no information about
---- the possible result of the function,
---- or a list of possible argument/result type pairs.
+-- | The abstract type of a function.
+--   It is either `EmptyFunc`, i.e., contains no information about
+--   the possible result of the function,
+--   or a list of possible argument/result type pairs.
 data AFType = EmptyFunc | AFType [([AType],AType)]
   deriving (Eq, Ord, Show, Read)
 
--- Shows an abstract value.
+-- | Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String
 showAFType _   EmptyFunc    = "EmptyFunc"
 showAFType aof (AFType fts) = intercalate " | " (map showFType fts)
@@ -100,23 +100,23 @@ showCalledFuncs =
   intercalate "|" . map (\ ((_,f),at) -> f ++ "::" ++ showAFType ANote at)
 
 ------------------------------------------------------------------------------
---- An abstract environments used in the analysis of a function associates
---- to each variable (index) an abstract type.
+-- An abstract environments used in the analysis of a function associates
+-- to each variable (index) an abstract type.
 type AEnv = [(Int,AType)]
 
---- Extend an abstract environment with variables of any type:
+-- Extend an abstract environment with variables of any type:
 extendEnv :: AEnv -> [Int] -> AEnv
 extendEnv env vars = zip vars (repeat Any) ++ env
 
---- Update a variable in an abstract environment:
+-- Update a variable in an abstract environment:
 updateVarInEnv :: AEnv -> Int -> AType -> AEnv
 updateVarInEnv [] v _ = error ("Variable "++show v++" not found in environment")
 updateVarInEnv ((i,ov):env) v nv =
   if i==v then (i,nv) : env
           else (i,ov) : updateVarInEnv env v nv
 
---- Drop the first n elements from the environment component
---- of an environment/type pair:
+-- Drop the first n elements from the environment component
+-- of an environment/type pair:
 dropEnv :: Int -> ([a],b) -> ([a],b)
 dropEnv n (env,rtype) = (drop n env, rtype)
 
@@ -125,14 +125,14 @@ sortEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)]
 sortEnvTypes = sortBy (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
 
 ------------------------------------------------------------------------------
---- The maximum number of different constructors considered for the
---- required value analysis. If a type has more constructors than
---- specified here, it will not be analyzed for individual required
---- constructor values.
+-- The maximum number of different constructors considered for the
+-- required value analysis. If a type has more constructors than
+-- specified here, it will not be analyzed for individual required
+-- constructor values.
 maxReqValues :: Int
 maxReqValues = 3
 
---- Required value analysis.
+-- | Required value analysis.
 reqValueAnalysis :: Analysis AFType
 reqValueAnalysis =
   combinedDependencyFuncAnalysis "RequiredValues"
@@ -228,11 +228,11 @@ analyseReqValRule consinfo calledfuncs args rhs =
           else foldr1 lubEnvTypes reqenvs
     Free vars e ->
       map (dropEnv (length vars))
-          (reqValExp (extendEnv env vars) e reqtype)
+          (reqValExp (extendEnv env (map fst vars)) e reqtype)
     Let bindings e ->
       -- bindings are not analyzed since we don't know whether they are used:
       map (dropEnv (length bindings))
-          (reqValExp (extendEnv env (map fst bindings)) e reqtype)
+          (reqValExp (extendEnv env (varsOfLetBind bindings)) e reqtype)
     Typed e _ -> reqValExp env e reqtype
 
   -- compute an expression environment for a function argument if this
@@ -258,8 +258,8 @@ analyseReqValRule consinfo calledfuncs args rhs =
                          caseenvs)
          in map (dropEnv (length pvars)) branchenvs
 
---- "lub" two environment lists. All environment lists are ordered
---- by the result type.
+-- "lub" two environment lists. All environment lists are ordered
+-- by the result type.
 lubEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)] -> [(AEnv,AType)]
 lubEnvTypes []         ets2 = ets2
 lubEnvTypes ets1@(_:_) []   = ets1
@@ -270,8 +270,8 @@ lubEnvTypes ((env1,t1):ets1) ((env2,t2):ets2)
   | t1 < t2   = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
   | otherwise = (env2,t2) : lubEnvTypes ((env1,t1):ets1) ets2
 
---- "lub" the environments of the more specific types to the AnyC type
---- (if present).
+-- "lub" the environments of the more specific types to the AnyC type
+-- (if present).
 lubAnyEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)]
 lubAnyEnvTypes envtypes =
   if null envtypes || snd (head envtypes) /= AnyC

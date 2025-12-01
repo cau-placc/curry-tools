@@ -1,9 +1,9 @@
 --- --------------------------------------------------------------------------
---- This library provides pretty-printers for FlatCurry modules
---- and all substructures (e.g., expressions).
----
---- @author  Bjoern Peemoeller
---- @version November 2020
+-- | Author : Bjoern Peemoeller
+---  Version: November 2025
+--
+-- This library provides pretty-printers for FlatCurry modules
+-- and all substructures (e.g., expressions).
 --- --------------------------------------------------------------------------
 
 module FlatCurry.Pretty where
@@ -13,38 +13,39 @@ import Text.Pretty
 
 import FlatCurry.Types
 
---- Options for pretty printing
---- @field indentWidth   - number of columns for indentation of substructures
---- @field qualMode      - Qualification mode of pretty printer
---- @field currentModule - Name of current module to be pretty-printed, used
----                        for proper qualification
+-- | Options for pretty printing.
 data Options = Options
-  { indentWidth   :: Int
-  , qualMode      :: QualMode
-  , currentModule :: String
+  { indentWidth   :: Int      -- ^ number of columns for indentation of
+                              --   substructures
+  , qualMode      :: QualMode -- ^ qualification mode of pretty printer
+  , currentModule :: String   -- ^ name of current module to be pretty-printed,
+                              --   used for proper qualification
   }
 
---- Qualification mode, determines whether identifiers are printed qualified
---- or unqualified. While `QualNone` and `QualImports` aim at readability,
---- there may be ambiguities due to shadowing. On the contrary, `QualImports`
---- and `QualAll` produce correct output at the cost of readability.
----
---- @cons QualNone              - no qualification, only unqualified names
---- @cons QualImportsButPrelude - qualify all imports except those from
----                               the module `Prelude`
---- @cons QualImports           - qualify all imports, including `Prelude`
---- @cons QualAll               - qualify all names
-data QualMode = QualNone | QualImportsButPrelude | QualImports | QualAll
+-- | Qualification mode, determines whether identifiers are printed qualified
+--   or unqualified. While `QualNone` and `QualImports` aim at readability,
+--   there may be ambiguities due to shadowing. On the contrary, `QualImports`
+--   and `QualAll` produce correct output at the cost of readability.
+data QualMode =
+    QualNone              -- ^ no qualification, only unqualified names
+  | QualImportsButPrelude -- ^ qualify all imports except those from
+                          --   the module `Prelude`
+  | QualImports           -- ^ qualify all imports, including `Prelude`
+  | QualAll               -- ^ qualify all names
 -- deriving Eq
 
 instance Eq QualMode where
-  QualNone == x = case x of { QualNone -> True ; _ -> False }
-  QualImportsButPrelude == x = case x of { QualImportsButPrelude -> True ; _ -> False }
-  QualImports == x = case x of { QualImports -> True ; _ -> False }
-  QualAll == x = case x of { QualAll -> True ; _ -> False }
+  QualNone              == x = case x of QualNone -> True
+                                         _        -> False
+  QualImportsButPrelude == x = case x of QualImportsButPrelude -> True
+                                         _                     -> False
+  QualImports           == x = case x of QualImports -> True
+                                         _           -> False
+  QualAll               == x = case x of QualAll -> True
+                                         _       -> False
 
 
---- Default `Options` for pretty-printing.
+-- | Default `Options` for pretty-printing.
 defaultOptions :: Options
 defaultOptions = Options
   { indentWidth   = 2
@@ -53,10 +54,15 @@ defaultOptions = Options
   }
 
 -- ---------------------------------------------------------------------------
--- Pretty printing of Flat modules
+-- Pretty printing of FlatCurry modules
 -- ---------------------------------------------------------------------------
 
---- pretty-print a FlatCurry module
+-- | Shows a FlatCurry module in pretty-printed form with default options
+--   for pretty-printing.
+showPrettyProg :: Prog -> String
+showPrettyProg = pPrint . ppProg defaultOptions
+
+-- | Pretty-print a FlatCurry module
 ppProg :: Options -> Prog -> Doc
 ppProg o (Prog m is ts fs os) = vsepBlank
   [ ppHeader    o' m ts fs
@@ -67,16 +73,16 @@ ppProg o (Prog m is ts fs os) = vsepBlank
   ]
   where o' = o { currentModule = m }
 
---- pretty-print the module header
+-- | Pretty-print the module header
 ppHeader :: Options -> String -> [TypeDecl] -> [FuncDecl] -> Doc
 ppHeader o m ts fs = indent o $
   sep [text "module" <+> text m, ppExports o ts fs, text "where"]
 
---- pretty-print the export list
+-- | pretty-print the export list
 ppExports :: Options -> [TypeDecl] -> [FuncDecl] -> Doc
 ppExports o ts fs = tupledSpaced (map (ppTypeExport o) ts ++ ppFuncExports o fs)
 
---- pretty-print a type export
+-- | pretty-print a type export
 ppTypeExport :: Options -> TypeDecl -> Doc
 ppTypeExport o (Type    qn vis _ cs)
   | vis == Private      = empty
@@ -91,41 +97,41 @@ ppTypeExport o (TypeNew qn vis _ (NewCons _ vis' _))
   | vis == Private || vis' == Private = empty
   | otherwise                         = ppPrefixQOp o qn <+> text "(..)"
 
---- pretty-print the export list of constructors
+-- | pretty-print the export list of constructors
 ppConsExports :: Options -> [ConsDecl] -> [Doc]
 ppConsExports o cs = [ ppPrefixQOp o qn | Cons qn _ Public _ <- cs]
 
---- pretty-print the export list of functions
+-- | pretty-print the export list of functions
 ppFuncExports :: Options -> [FuncDecl] -> [Doc]
 ppFuncExports o fs = [ ppPrefixQOp o qn | Func qn _ Public _ _ <- fs]
 
---- pretty-print a list of import statements
+-- | pretty-print a list of import statements
 ppImports :: Options -> [String] -> Doc
 ppImports o = vsep . map (ppImport o)
 
---- pretty-print a single import statement
+-- | pretty-print a single import statement
 ppImport :: Options -> String -> Doc
 ppImport o m = indent o $ text "import" <+> text m
 
---- pretty-print a list of operator fixity declarations
+-- | pretty-print a list of operator fixity declarations
 ppOpDecls :: Options -> [OpDecl] -> Doc
 ppOpDecls o = vsep . map (ppOpDecl o)
 
---- pretty-print a single operator fixity declaration
+-- | pretty-print a single operator fixity declaration
 ppOpDecl :: Options -> OpDecl -> Doc
 ppOpDecl o (Op qn fix n) = indent o $ ppFixity fix <+> int n <+> ppInfixQOp o qn
 
---- pretty-print the associativity keyword
+-- | pretty-print the associativity keyword
 ppFixity :: Fixity -> Doc
 ppFixity InfixOp  = text "infix"
 ppFixity InfixlOp = text "infixl"
 ppFixity InfixrOp = text "infixr"
 
---- pretty-print a list of type declarations
+-- | pretty-print a list of type declarations
 ppTypeDecls :: Options -> [TypeDecl] -> Doc
 ppTypeDecls o = vsepBlank . map (ppTypeDecl o)
 
---- pretty-print a type declaration
+-- | pretty-print a type declaration
 ppTypeDecl :: Options -> TypeDecl -> Doc
 ppTypeDecl o (Type    qn _ vs cs) = indent o $ (text "data" <+> ppName qn
   <+> hsep (empty : map (ppTVarIndex . fst) vs)) $$ ppConsDecls o cs
@@ -134,24 +140,24 @@ ppTypeDecl o (TypeSyn qn _ vs ty) = indent o $ text "type" <+> ppName qn
 ppTypeDecl o (TypeNew qn _ vs c)  = indent o $ text "newtype" <+> ppName qn
   <+> hsep (empty : map (ppTVarIndex . fst) vs) $$ ppNewConsDecl o c
 
---- pretty-print the constructor declarations
+-- | pretty-print the constructor declarations
 ppConsDecls :: Options -> [ConsDecl] -> Doc
 ppConsDecls o cs = vsep $ zipWith (<+>) (equals : repeat bar)
                                         (map (ppConsDecl o) cs)
 
---- pretty print a single constructor
+-- | pretty print a single constructor
 ppConsDecl :: Options -> ConsDecl -> Doc
 ppConsDecl o (Cons qn _ _ tys) = hsep $ ppPrefixOp qn : map (ppTypeExpr o 2) tys
 
---- pretty print a single newtype constructor
+-- | pretty print a single newtype constructor
 ppNewConsDecl :: Options -> NewConsDecl -> Doc
 ppNewConsDecl o (NewCons qn _ ty) = hsep [ppPrefixOp qn, ppTypeExpr o 2 ty]
 
---- pretty a top-level type expression
+-- | pretty a top-level type expression
 ppTypeExp :: Options -> TypeExpr -> Doc
 ppTypeExp o = ppTypeExpr o 0
 
---- pretty-print a type expression
+-- | pretty-print a type expression
 ppTypeExpr :: Options -> Int -> TypeExpr -> Doc
 ppTypeExpr _ _ (TVar           v) = ppTVarIndex v
 ppTypeExpr o p (FuncType ty1 ty2) = parensIf (p > 0) $
@@ -165,41 +171,41 @@ ppTypeExpr o p (ForallType vs ty)
   | null vs   = ppTypeExpr o p ty
   | otherwise = parensIf (p > 0) $ ppQuantifiedVars vs <+> ppTypeExpr o 0 ty
 
---- pretty-print explicitly quantified type variables
+-- | pretty-print explicitly quantified type variables
 ppQuantifiedVars :: [(TVarIndex, Kind)] -> Doc
 ppQuantifiedVars vs
   | null vs   = empty
   | otherwise = text "forall" <+> hsep (map (ppTVarIndex . fst) vs) <+> char '.'
 
---- pretty-print a type variable
+-- | pretty-print a type variable
 ppTVarIndex :: TVarIndex -> Doc
 ppTVarIndex i = text $ vars !! i
   where vars = [ chr c : if n == 0 then [] else show n
                | n <- [0 ..], c <- [ord 'a' .. ord 'z']
                ]
 
---- pretty-print a list of function declarations
+-- | pretty-print a list of function declarations
 ppFuncDecls :: Options -> [FuncDecl] -> Doc
 ppFuncDecls o = vsepBlank . map (ppFuncDecl o)
 
---- pretty-print a function declaration
+-- | pretty-print a function declaration
 ppFuncDecl :: Options -> FuncDecl -> Doc
 ppFuncDecl o (Func qn _ _ ty r)
   =  indent o (sep [ppPrefixOp qn, text "::", ppTypeExp o ty])
   $$ indent o (ppPrefixOp qn <+> ppRule o r)
 
---- pretty-print a function rule
+-- | pretty-print a function rule
 ppRule :: Options -> Rule -> Doc
 ppRule o (Rule  vs e)
   | null vs   = equals <+> ppExp o e
   | otherwise = hsep (map ppVarIndex vs) </> equals <+> ppExp o e
 ppRule _ (External e) = text "external" <+> dquotes (text e)
 
---- Pretty-print a top-level expression.
+-- | Pretty-print a top-level expression.
 ppExp :: Options -> Expr -> Doc
 ppExp o = ppExpr o 0
 
---- pretty-print an expression
+-- | pretty-print an expression
 ppExpr :: Options -> Int -> Expr -> Doc
 ppExpr _ _ (Var        v) = ppVarIndex v
 ppExpr _ _ (Lit        l) = ppLiteral l
@@ -208,7 +214,8 @@ ppExpr o p (Free    vs e)
   | null vs               = ppExpr o p e
   | otherwise             = parensIf (p > 0) $ sep
                             [ text "let"
-                              <+> sep (punctuate comma (map ppVarIndex vs))
+                              <+> sep (punctuate comma
+                                         (map (ppVarIndex . fst) vs))
                               <+> text "free"
                             , text "in" </> ppExp o e
                             ]
@@ -225,18 +232,18 @@ ppExpr o p (Case ct e bs) = parensIf (p > 0) $ indent o
 ppExpr o p (Typed   e ty) = parensIf (p > 0)
                           $ ppExp o e <+> text "::" <+> ppTypeExp o ty
 
---- pretty-print a variable
+-- | pretty-print a variable
 ppVarIndex :: VarIndex -> Doc
 ppVarIndex i | i < 0     = text $ 'x' : show (negate i)
              | otherwise = text $ 'v' : show i
 
---- pretty-print a literal
+-- | pretty-print a literal
 ppLiteral :: Literal -> Doc
 ppLiteral (Intc   i) = int i
 ppLiteral (Floatc f) = float f
 ppLiteral (Charc  c) = text (show c)
 
---- Pretty print a constructor or function call
+-- | Pretty print a constructor or function call
 ppComb :: Options -> Int -> QName -> [Expr] -> Doc
 ppComb o p qn es | isListId  qn && null es = text "[]"
                  | isTupleId qn            = tupled (map (ppExp o) es)
@@ -248,24 +255,24 @@ ppComb o p qn es | isListId  qn && null es = text "[]"
   _                -> parensIf (p > 0)
                     $ fillSep (ppPrefixQOp o qn : map (ppExpr o 1) es)
 
---- pretty-print a list of declarations
-ppDecls :: Options -> [(VarIndex, Expr)] -> Doc
+-- | pretty-print a list of local declarations
+ppDecls :: Options -> [(VarIndex, TypeExpr, Expr)] -> Doc
 ppDecls o = align . vsep . map (ppDecl o)
 
---- pretty-print a single declaration
-ppDecl :: Options -> (VarIndex, Expr) -> Doc
-ppDecl o (v, e) = ppVarIndex v <+> equals <+> ppExp o e
+-- | pretty-print a single local declaration
+ppDecl :: Options -> (VarIndex, TypeExpr, Expr) -> Doc
+ppDecl o (v, _, e) = ppVarIndex v <+> equals <+> ppExp o e
 
---- Pretty print the type of a case expression
+-- | Pretty print the type of a case expression
 ppCaseType :: CaseType -> Doc
 ppCaseType Rigid = text "case"
 ppCaseType Flex  = text "fcase"
 
---- Pretty print a case branch
+-- | Pretty print a case branch
 ppBranch :: Options -> BranchExpr -> Doc
 ppBranch o (Branch p e) = ppPattern o p <+> rarrow <+> indent o (ppExp o e)
 
---- Pretty print a pattern
+-- | Pretty print a pattern
 ppPattern :: Options -> Pattern -> Doc
 ppPattern o (Pattern c vs)
   | isListId c && null vs = text "[]"
@@ -279,19 +286,19 @@ ppPattern _ (LPattern   l) = ppLiteral l
 -- Names
 -- ---------------------------------------------------------------------------
 
---- pretty-print a qualified prefix operator.
+-- | pretty-print a qualified prefix operator.
 ppPrefixQOp :: Options -> QName -> Doc
 ppPrefixQOp o qn = parensIf (isInfixOp qn) (ppQName o qn)
 
---- pretty-print a prefix operator unqualified.
+-- | pretty-print a prefix operator unqualified.
 ppPrefixOp :: QName -> Doc
 ppPrefixOp qn = parensIf (isInfixOp qn) (ppName qn)
 
---- pretty-print an infix operator
+-- | pretty-print an infix operator
 ppInfixQOp :: Options -> QName -> Doc
 ppInfixQOp o qn = if isInfixOp qn then ppQName o qn else bquotes (ppQName o qn)
 
---- Pretty-print a qualified name
+-- | Pretty-print a qualified name
 ppQName :: Options -> QName -> Doc
 ppQName o qn@(m, i)
   | null m                                     = text i
@@ -305,27 +312,27 @@ ppQName o qn@(m, i)
   q  = qualMode o
   m' = currentModule o
 
---- Pretty-print a qualified name unqualified (e.g., for type definitions).
+-- | Pretty-print a qualified name unqualified (e.g., for type definitions).
 ppName :: QName -> Doc
 ppName (_, i) = text i
 
---- Check whether an operator is an infix operator
+-- | Check whether an operator is an infix operator
 isInfixOp :: QName -> Bool
 isInfixOp = all (`elem` "~!@#$%^&*+-=<>:?./|\\") . snd
 
---- Check whether an identifier represents the `:` list constructor.
+-- | Check whether an identifier represents the `:` list constructor.
 isConsId :: QName -> Bool
 isConsId (m, i) = m `elem` ["Prelude", ""] && i == ":"
 
---- Check whether an identifier represents a list
+-- | Check whether an identifier represents a list
 isListId :: QName -> Bool
 isListId (m, i) = m `elem` ["Prelude", ""] && i == "[]"
 
---- Check whether an identifier represents a tuple
+-- | Check whether an identifier represents a tuple
 isTupleId :: QName -> Bool
 isTupleId (m, i) = m `elem` ["Prelude", ""] && i == mkTuple (length i)
   where mkTuple n = '(' : replicate (n - 2) ',' ++ ")"
 
---- Indentation
+-- | Indentation
 indent :: Options -> Doc -> Doc
 indent o d = nest (indentWidth o) d

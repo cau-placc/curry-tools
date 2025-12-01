@@ -11,6 +11,7 @@ module Analysis.Files where
 import Curry.Compiler.Distribution ( installDir )
 import Control.Monad       ( when, unless )
 import Data.List           ( isPrefixOf, isSuffixOf )
+import System.IO           ( IOMode(ReadMode), hGetContents, openFile )
 
 import Data.Time           ( ClockTime )
 import FlatCurry.Files
@@ -81,9 +82,11 @@ loadDefaultAnalysisValues dl anaName moduleName = do
   let defaultFileName = stripCurrySuffix fileName ++ ".defaults." ++ anaName
   fileExists <- doesFileExist defaultFileName
   if fileExists
-    then do debugMessage dl 3 ("Load default values from " ++ defaultFileName)
-            defaultValues <- readFile defaultFileName >>= return . read
-            return (map (\ (f,a) -> ((moduleName,f),a)) defaultValues)
+    then do
+      debugMessage dl 3 $ "Load default values from " ++ defaultFileName
+      defaultValues <- fmap read
+                            (openFile defaultFileName ReadMode >>= hGetContents)
+      return (map (\ (f,a) -> ((moduleName,f),a)) defaultValues)
     else return []
 
 --- Loads the currently stored analysis information for a module.

@@ -6,7 +6,7 @@
 --- as back end by other functional logic programming systems.
 ---
 --- @author Sebastian Fischer
---- @version November 2024
+--- @version November 2025
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns -Wno-missing-signatures #-}
@@ -25,9 +25,10 @@ import XmlConv
 flatCurryDtd :: String
 flatCurryDtd = "http://www.curry-lang.org/docs/flatcurry.dtd"
 
---- Transforms a FlatCurry program term into a corresponding XML file.
-flatCurry2XmlFile :: Prog -> String -> IO ()
-flatCurry2XmlFile flatprog filename = writeFile filename $
+--- Transforms a FlatCurry program term into XML format and writes it
+--- into the given file name.
+flatCurry2XmlFile :: FilePath -> Prog -> IO ()
+flatCurry2XmlFile filename flatprog = writeFile filename $
   showXmlDocWithParams [DtdUrl flatCurryDtd] (flatCurry2Xml flatprog)
 
 --- Transforms a FlatCurry program term into a corresponding XML expression.
@@ -36,7 +37,7 @@ flatCurry2Xml = xmlShow cProg
 
 --- Reads an XML file with a FlatCurry program and returns
 --- the FlatCurry program.
-xmlFile2FlatCurry :: String -> IO Prog
+xmlFile2FlatCurry :: FilePath -> IO Prog
 xmlFile2FlatCurry filename = readXmlFile filename >>= return . xml2FlatCurry
 
 --- Transforms an XML term into a FlatCurry program.
@@ -80,13 +81,14 @@ cLHS          = element "lhs" cVars
 cRHS          = element "rhs" cExpr
 cVars         = rep     cVar
 cVar          = eInt    "var"
+cTypedVars    = rep     (eSeq2   "typedvar" (\a b -> (a,b)) cVar cTypeExpr)
 cExpr         = eSeq1   "var" Var int
               ! eSeq1   "lit" Lit cLit
               ! eSeq2   "funccall" fc cQName cExps
               ! eSeq2   "conscall" cc cQName cExps
               ! eSeq3   "funcpartcall" pfc cQName cMissing cExps
               ! eSeq3   "conspartcall" pcc cQName cMissing cExps
-              ! eSeq2   "free" Free (element "freevars" cVars) cExpr
+              ! eSeq2   "free" Free (element "freevars" cTypedVars) cExpr
               ! eSeq2   "or" Or cExpr cExpr
               ! eSeq2   "case" cr cExpr (rep cBranch)
               ! eSeq2   "fcase" cf cExpr (rep cBranch)
@@ -106,10 +108,12 @@ cf            = Case    Flex
 cBranch       = eSeq2   "branch" Branch cPat cExpr
 cPat          = eSeq2   "pattern" Pattern cQName cVars
               ! eSeq1   "lpattern" LPattern cLit
-cBind         = eSeq2   "binding" (\a b -> (a,b)) cVar cExpr
+cBind         = eSeq3   "binding" (\a b c-> (a,b,c)) cVar cTypeExpr cExpr
 cOps          = eRep    "operators" cOp
 cOp           = eSeq3   "op" Op cQName cFixity (aInt "prec")
 cFixity       = adapt   (rf,show) (aString "fixity")
 rf "InfixOp"  = InfixOp
 rf "InfixlOp" = InfixlOp
 rf "InfixrOp" = InfixrOp
+
+------------------------------------------------------------------------------

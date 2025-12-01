@@ -13,6 +13,8 @@ else
 fi
 CPM="cypm $CPMOPTS"
 
+TOOLDIR=`pwd`
+
 ##############################################################################
 echo "Updating 'cpm'..."
 mv cpm/Makefile Makefile.cpm  # keep old Makefile
@@ -24,7 +26,7 @@ rm -rf .git* bin package.json
 make fetchdeps
 rm -rf vendor/*/.git*
 rm -rf dependencies.txt fetch-dependencies.sh Makefile
-cd ..
+cd "$TOOLDIR"
 mv Makefile.cpm cpm/Makefile
 mv CASS_PackageConfig.curry cpm/vendor/cass/src/CASS/PackageConfig.curry
 echo "'cpm' updated from package repository."
@@ -133,8 +135,7 @@ cd .cpm/packages
  PKGV=`ls -d xml-*`
  mv $PKGV xml
  ln -s xml $PKGV
-cd ../..
-cd ..
+cd "$TOOLDIR"
 mv Makefile.optimize optimize/Makefile
 mv CASS_PackageConfig.curry optimize/.cpm/packages/cass/src/CASS/PackageConfig.curry
 mv optimize_package.json optimize/package.json

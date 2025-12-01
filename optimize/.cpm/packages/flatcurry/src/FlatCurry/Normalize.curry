@@ -3,7 +3,7 @@
 --- into some normalized form so that they can be easier compared
 --- for equivalence.
 ---
---- For instance, a type expression is normalize by replacing
+--- For instance, a type expression is normalized by replacing
 --- type variable indices into a uniquely enumerated form.
 ---
 --- @author Michael Hanus

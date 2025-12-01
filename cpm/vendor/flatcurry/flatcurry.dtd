@@ -216,9 +216,10 @@
 -->
 <!ELEMENT let     (binding*,(%expr;))>
 <!ELEMENT letrec  (binding*,(%expr;))>
-<!ELEMENT binding (var,(%expr;))>
+<!ELEMENT binding (var,(%typeexpr;),(%expr;))>
 
 <!ELEMENT freevars (var*)>
+<!ELEMENT typedvar (var,(%typeexpr;))>
 
 <!--
      An operator declaration consists of the fixity (InfixOp/InfixlOp/InfixrOp)

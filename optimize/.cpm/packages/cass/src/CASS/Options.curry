@@ -25,6 +25,7 @@ data Options = Options
   , optGenerated   :: Bool         -- show results for generated operations?
   , optFormat      :: OutputFormat -- output format
   , optReAna       :: Bool         -- force re-analysis?
+  , optStats       :: Bool         -- show statitics at the end?
   , optDelete      :: Bool         -- delete analysis files?
   , optNoCurryInfo :: [String]     -- modules where CurryInfo should not be asked
   , optProp        :: [(String,String)] -- property (of ~/.curryanalsisrc)
@@ -43,6 +44,7 @@ defaultOptions = Options
   , optGenerated   = True
   , optFormat      = FormatText
   , optReAna       = False
+  , optStats       = False
   , optDelete      = False
   , optNoCurryInfo = []
   , optProp        = []
@@ -70,6 +72,9 @@ options =
   , Option "r" ["reanalyze"]
            (NoArg (\opts -> opts { optReAna = True }))
            "force re-analysis \n(i.e., ignore old analysis information)"
+  , Option "" ["statistics"]
+           (NoArg (\opts -> opts { optStats = True }))
+           "show statistics about number of modules"
   , Option "" ["curryinfo"]
            (NoArg (\opts -> opts { optProp =
                                     optProp opts ++ [("curryinfo","local")] }))

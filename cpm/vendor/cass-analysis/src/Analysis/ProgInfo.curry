@@ -2,13 +2,13 @@
 --- This module defines a datatype to represent the analysis information.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2025
+--- @version April 2025
 -----------------------------------------------------------------------
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
 
 module Analysis.ProgInfo
   ( ProgInfo, emptyProgInfo, lookupProgInfo, combineProgInfo
-  , lists2ProgInfo, publicListFromProgInfo, progInfo2Lists
+  , lists2ProgInfo, publicMap2ProgInfo, publicListFromProgInfo, progInfo2Lists
   , mapProgInfo, publicProgInfo
   , showProgInfo, equalProgInfo
   , readAnalysisFiles, readAnalysisPublicFile, readAnalysisPrivateFile, readAnalysisFile
@@ -24,7 +24,7 @@ import FlatCurry.Types
 import RW.Base
 import System.Directory ( doesFileExist, getModificationTime, removeFile )
 import System.FilePath  ( (<.>) )
-import System.IO        ( hPutChar )
+import System.IO        ( IOMode(..), hGetContents, hPutChar, openFile )
 
 import Analysis.Logging ( DLevel, debugMessage )
 
@@ -51,6 +51,10 @@ combineProgInfo (ProgInfo x1 x2) (ProgInfo y1 y2) =
 --- Converts a public and a private analysis list into a program info.
 lists2ProgInfo :: ([(QName,a)],[(QName,a)]) -> ProgInfo a
 lists2ProgInfo (xs,ys) = ProgInfo (fromList xs) (fromList ys)
+
+--- Converts a map of public analysis infos into a program info.
+publicMap2ProgInfo :: Map QName a -> ProgInfo a
+publicMap2ProgInfo pinfomap = ProgInfo pinfomap empty
 
 --- Returns the infos of public operations as a list.
 publicListFromProgInfo:: ProgInfo a -> [(QName,a)]
@@ -88,7 +92,7 @@ writeAnalysisFiles :: (ReadWrite a, Show a) => DLevel -> String -> ProgInfo a
 writeAnalysisFiles dl basefname (ProgInfo pub priv) = do
   debugMessage dl 3 $ "Writing analysis files '" ++ basefname ++ "'..."
   writeTermFile dl (basefname <.> "priv") priv
-  writeTermFile dl (basefname <.> "pub" )  pub
+  writeTermFile dl (basefname <.> "pub" ) pub
 
 --- Reads a ProgInfo from the analysis files where the base file name is given.
 readAnalysisFiles :: (Read a, ReadWrite a) => DLevel -> String
@@ -159,7 +163,7 @@ writeTermFile _ fname x = do
 readTermFile :: (ReadWrite a, Read a) => Bool -> String -> IO a
 readTermFile reporttimings fname = do
   let rwfile = fname <.> "rw"
-      readtermfile = fmap read (readFile fname)
+      readtermfile = fmap read (openFile fname ReadMode >>= hGetContents)
   rwex <- doesFileExist rwfile
   if rwex
     then do

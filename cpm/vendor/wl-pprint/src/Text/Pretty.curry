@@ -1,12 +1,13 @@
 ------------------------------------------------------------------------------
 --- This library provides pretty printing combinators.
 --- The interface is that of
---- [Daan Leijen's library](<http://www.cs.uu.nl/~daan/download/pprint/pprint.html)
+--- [Daan Leijen's library](http://www.cs.uu.nl/~daan/download/pprint/pprint.html)
+--- with the
 --- [linear-time, bounded implementation](http://www.cs.kent.ac.uk/pubs/2006/2381/index.html)
----  by Olaf Chitil.
+--- by Olaf Chitil.
 --- Note that the implementation of `fill` and `fillBreak` is not linear-time bounded
 --- Support of ANSI escape codes for formatting and colorisation of documents
---- in text terminals (see https://en.wikipedia.org/wiki/ANSI_escape_code)
+--- in text terminals (see <https://en.wikipedia.org/wiki/ANSI_escape_code>)
 ---
 --- This library corresponds to the library provided by the PAKCS and KiCS2
 --- compilers. But it was partially rewritten and reorganized to make use of
@@ -14,7 +15,6 @@
 
 --- @author Sebastian Fischer, Bjoern Peemoeller, Jan Tikovsky
 --- @version October 2017
---- @category general
 ------------------------------------------------------------------------------
 
 module Text.Pretty (

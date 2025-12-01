@@ -1,13 +1,13 @@
 ------------------------------------------------------------------------------
---- Termination analysis:
---- checks whether an operation is terminating, i.e.,
---- whether all evaluations on ground argument terms are finite.
---- The method used here checks whether the arguments in all recursive
---- calls of an operation are smaller than the arguments passed to
---- the operation.
----
---- @author Michael Hanus
---- @version November 2024
+-- | Author : Michael Hanus
+--   Version: November 2025
+--
+-- Termination analysis:
+-- checks whether an operation is terminating, i.e.,
+-- whether all evaluations on ground argument terms are finite.
+-- The method used here checks whether the arguments in all recursive
+-- calls of an operation are smaller than the arguments passed to
+-- the operation.
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
@@ -30,14 +30,13 @@ import Analysis.ProgInfo
 import Analysis.RootReplaced (rootCyclicAnalysis)
 
 ------------------------------------------------------------------------------
--- The termination analysis is a global function dependency analysis.
--- It assigns to a FlatCurry function definition a flag which is True
--- if this operation is terminating, i.e., whether all evaluations
-
+-- | The termination analysis is a global function dependency analysis.
+--   It assigns to a FlatCurry function definition a flag which is True
+--   if this operation is terminating, i.e., whether all evaluations
 terminationAnalysis :: Analysis Bool
 terminationAnalysis = dependencyFuncAnalysis "Terminating" False isTerminating
 
--- Show termination information as a string.
+-- | Show termination information as a string.
 showTermination :: AOutFormat -> Bool -> String
 showTermination AText True  = "terminating"
 showTermination ANote True  = ""
@@ -60,12 +59,12 @@ isTerminating (Func qfunc _ _ _ rule) calledFuncs = hasTermRule rule
   hasTermExp args (Let bs e) =
     -- compute strongly connected components of local let declarationss
     -- in order to check for recursive lets
-    let sccs   = scc ((:[]) . fst) (allVars . snd) bs
-    in if any (\scc -> any (`elem` concatMap allVars (map snd scc))
-                           (map fst scc))
+    let sccs   = scc ((:[]) . varOfLetBind) (allVars . expOfLetBind) bs
+    in if any (\scc -> any (`elem` concatMap allVars (expsOfLetBind scc))
+                           (varsOfLetBind scc))
               sccs
          then False -- non-terminating due to recursive let
-         else all (hasTermExp args) (e : map snd bs)
+         else all (hasTermExp args) (e : expsOfLetBind bs)
   hasTermExp args (Or e1 e2) =
     hasTermExp args e1 && hasTermExp args e2
   hasTermExp args (Case _ e bs) =
@@ -102,15 +101,22 @@ addSmallerArgs args de pat =
    isInArg v (argv,svs) = v==argv || v `elem` svs
 
 ------------------------------------------------------------------------------
--- The productivity analysis is a global function dependency analysis
--- which depends on the termination analysis.
--- An operation is considered as being productive if it cannot
--- perform an infinite number of steps without producing
--- outermost constructors.
--- It assigns to a FlatCurry function definition an abstract value
--- indicating whether the function is looping or productive.
 
---- Data type to represent productivity status of an operation.
+-- | The productivity analysis is a global function dependency analysis
+--   which depends on the termination analysis.
+--   An operation is considered as being productive if it cannot
+--   perform an infinite number of steps without producing
+--   outermost constructors.
+--   It assigns to a FlatCurry function definition an abstract value
+--   indicating whether the function is looping or productive.
+productivityAnalysis :: Analysis Productivity
+productivityAnalysis =
+  combinedDependencyFuncAnalysis "Productive"
+                                 terminationAnalysis
+                                 NoInfo
+                                 isProductive
+
+-- | Data type to represent productivity status of an operation.
 data Productivity =
     NoInfo
   | Terminating    -- definitely terminating operation
@@ -119,14 +125,7 @@ data Productivity =
   | Looping        -- possibly looping
  deriving (Eq, Ord, Show, Read)
 
-productivityAnalysis :: Analysis Productivity
-productivityAnalysis =
-  combinedDependencyFuncAnalysis "Productive"
-                                 terminationAnalysis
-                                 NoInfo
-                                 isProductive
-
--- Show productivity information as a string.
+-- | Show productivity information as a string.
 showProductivity :: AOutFormat -> Productivity -> String
 showProductivity _ NoInfo      = "no info"
 showProductivity _ Terminating = "terminating"
@@ -165,13 +164,13 @@ isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
   hasProdExp bc (Let bs e) =
     -- compute strongly connected components of local let declarationss
     -- in order to check for recursive lets
-    let sccs   = scc ((:[]) . fst) (allVars . snd) bs
-    in if any (\scc -> any (`elem` concatMap allVars (map snd scc))
-                           (map fst scc))
+    let sccs   = scc ((:[]) . varOfLetBind) (allVars . expOfLetBind) bs
+    in if any (\scc -> any (`elem` concatMap allVars (expsOfLetBind scc))
+                           (varsOfLetBind scc))
               sccs
          then Looping -- improve: check for variable occs under constructors
          else foldr lubProd (hasProdExp bc e)
-                    (map (\ (_,be) -> hasProdExp bc be) bs)
+                    (map (\ (_,_,be) -> hasProdExp bc be) bs)
   hasProdExp bc (Or e1 e2) = lubProd (hasProdExp bc e1) (hasProdExp bc e2)
   hasProdExp bc (Case _ e bs) =
     foldr lubProd (hasProdExp bc e)

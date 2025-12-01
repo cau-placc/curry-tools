@@ -1,13 +1,14 @@
 ------------------------------------------------------------------------------
---- Demandedness analysis:
---- checks whether functions demands a particular argument, i.e.,
---- delivers only bottom if some argument is bottom.
----
---- @author Michael Hanus
---- @version February 2025
+-- | Author : Michael Hanus
+--   Version: November 2025
+--
+-- Demandedness analysis:
+-- checks whether functions demands a particular argument, i.e.,
+-- delivers only bottom if some argument is bottom.
 ------------------------------------------------------------------------------
 
 module Analysis.Demandedness
+  ( DemandedArgs, DemandDomain(..), showDemand, demandAnalysis )
  where
 
 import Data.List         ( (\\), intercalate )
@@ -18,12 +19,12 @@ import FlatCurry.Goodies
 import Analysis.Types
 
 ------------------------------------------------------------------------------
---- Data type to represent information about demanded arguments.
---- Demanded arguments are represented as a list of indices
---- for the arguments, where arguments are numbered from 1.
+-- | Data type to represent information about demanded arguments.
+--   Demanded arguments are represented as a list of indices
+--   for the arguments, where arguments are numbered from 1.
 type DemandedArgs = [Int]
 
--- Show determinism information as a string.
+-- | Show determinism information as a string.
 showDemand :: AOutFormat -> DemandedArgs -> String
 showDemand AText []     = "no demanded arguments"
 showDemand ANote []     = ""
@@ -31,7 +32,7 @@ showDemand fmt (x:xs) =
   (if fmt==AText then "demanded arguments: " else "") ++
   intercalate "," (map show (x:xs))
 
--- Abstract demand domain.
+-- | Abstract demand domain.
 data DemandDomain = Bot | Top
   deriving Eq
 
@@ -40,7 +41,7 @@ lub :: DemandDomain -> DemandDomain -> DemandDomain
 lub Bot x = x
 lub Top _ = Top
 
---- Demandedness analysis.
+-- | Demandedness analysis.
 demandAnalysis :: Analysis DemandedArgs
 demandAnalysis = dependencyFuncAnalysis "Demand" [1..] daFunc
 
@@ -93,9 +94,9 @@ daFuncRule calledFuncs (Rule args rhs) =
 
     -- could be improved with local fixpoint computation
   absEvalBindings []             bvs = bvs
-  absEvalBindings ((i,exp) : bs) bvs =
+  absEvalBindings ((i,_,exp) : bs) bvs =
     let ival = absEvalExpr exp bvs
-    in if ival==Bot
+    in if ival == Bot
          then absEvalBindings bs (i:bvs)
          else absEvalBindings bs bvs
 

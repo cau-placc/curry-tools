@@ -1,10 +1,9 @@
-
 ------------------------------------------------------------------------
---- Groundness/non-determinism effect analysis based on the method
---- described in the [ICLP 2005 paper](https://doi.org/10.1007/11562931_21).
----
---- @author Michael Hanus
---- @version November 2024
+-- | Author : Michael Hanus
+--   Version: November 2025
+--
+-- Groundness/non-determinism effect analysis based on the method
+-- described in the [ICLP 2005 paper](https://doi.org/10.1007/11562931_21).
 ------------------------------------------------------------------------
 
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
@@ -26,13 +25,13 @@ import Analysis.ProgInfo
 -- Analyze the groundness of functions.
 ------------------------------------------------------------------------
 
---- Type to represent groundness information.
---- Definitely ground (G), maybe non-ground (A), or maybe non-ground
---- if i-th argument is non-ground (P [...,i,...]).
+-- | Type to represent groundness information.
+--   Definitely ground (G), maybe non-ground (A), or maybe non-ground
+--   if i-th argument is non-ground (P [...,i,...]).
 data Ground = G | A | P [Int]
  deriving (Show, Read, Eq)
 
--- Show groundness information as a string.
+-- | Show groundness information as a string.
 showGround :: AOutFormat -> Ground -> String
 showGround ANote G      = "G"
 showGround AText G      = "always ground result"
@@ -53,8 +52,7 @@ lubG (P _ ) A      = A
 lubG (P ps) (P qs) = P (mergeInts ps qs)
 
 ------------------------------------------------------------------------
--- Analyze the groundness information of functions.
-
+-- | Analyze the groundness information of functions.
 groundAnalysis :: Analysis Ground
 groundAnalysis = dependencyFuncAnalysis "Groundness" G groundFunc
 
@@ -89,7 +87,8 @@ groundFuncRule calledFuncs (Rule args rhs) =
                         in groundApply gd curargs)
                (lookup g calledFuncs)
     else foldr lubG G (map (absEvalExpr env) es)
-  absEvalExpr env (Free vs e) = absEvalExpr (zip vs (repeat A) ++ env) e
+  absEvalExpr env (Free vs e) = absEvalExpr
+                                  (zip (map fst vs) (repeat A) ++ env) e
   absEvalExpr env (Let bs e)  = absEvalExpr (absEvalBindings env bs) e
   absEvalExpr env (Or e1 e2)  = lubG (absEvalExpr env e1) (absEvalExpr env e2)
   absEvalExpr env (Typed e _) = absEvalExpr env e
@@ -102,8 +101,8 @@ groundFuncRule calledFuncs (Rule args rhs) =
       absEvalExpr (map (\pi -> (pi,gcase)) pargs ++ env) be
 
   -- could be improved for recursive lets with local fixpoint computation
-  absEvalBindings env [] = env
-  absEvalBindings env ((i,exp):bs) =
+  absEvalBindings env []             = env
+  absEvalBindings env ((i,_,exp):bs) =
     absEvalBindings ((i, absEvalExpr env exp) : env) bs
 
 -- compute groundness information for an application
@@ -118,10 +117,10 @@ groundApply (P ps) gargs =
 -- Non-determinism effect analysis
 -----------------------------------------------------------------------
 
---- Type to represent non-determinism effects.
---- A non-determinism effect can be due to an Or (first argument),
---- due to a narrowing step (second argument), or if i-th argument
---- is non-ground (if i is a member of the third argument).
+-- | Type to represent non-determinism effects.
+--   A non-determinism effect can be due to an Or (first argument),
+--   due to a narrowing step (second argument), or if i-th argument
+--   is non-ground (if i is a member of the third argument).
 data NDEffect = NDEffect Bool Bool [Int]
   deriving (Eq, Ord, Show, Read)
 
@@ -137,7 +136,7 @@ narrEffect = NDEffect False True []
 narrIfEffect :: [Int] -> NDEffect
 narrIfEffect = NDEffect False False
 
--- Show non-determinitic effect information as a string.
+-- | Show non-determinitic effect information as a string.
 showNDEffect :: AOutFormat -> NDEffect -> String
 showNDEffect ANote (NDEffect ornd narr ifs) = intercalate " " $
   (if ornd then ["choice"] else []) ++
@@ -164,8 +163,8 @@ lubGE :: (Ground,NDEffect) -> (Ground,NDEffect) -> (Ground,NDEffect)
 lubGE (g1,ne1) (g2,ne2) = (lubG g1 g2, lubE ne1 ne2)
 
 ------------------------------------------------------------------------
--- Analyze the non-determinism effect of functions.
 
+-- | Analyze the non-determinism effect of functions.
 ndEffectAnalysis :: Analysis NDEffect
 ndEffectAnalysis =
   combinedDependencyFuncAnalysis "NDEffect" groundAnalysis noEffect ndEffectFunc
@@ -198,7 +197,7 @@ ndEffectFuncRule groundinfo calledFuncs (Rule args rhs) =
                (lookup g calledFuncs)
     else foldr lubGE (G,noEffect) (map (absEvalExpr env) es)
   absEvalExpr env (Free vs e) =
-    absEvalExpr (zip vs (repeat (A,noEffect)) ++ env) e
+    absEvalExpr (zip (map fst vs) (repeat (A,noEffect)) ++ env) e
   absEvalExpr env (Let bs e)  = absEvalExpr (absEvalBindings env bs) e
   absEvalExpr env (Or e1 e2)  =
     let (g1,nd1) = absEvalExpr env e1
@@ -223,8 +222,8 @@ ndEffectFuncRule groundinfo calledFuncs (Rule args rhs) =
       absEvalExpr (map (\pi -> (pi,(gcase,noEffect))) pargs ++ env) be
 
   -- could be improved for recursive lets with local fixpoint computation
-  absEvalBindings env [] = env
-  absEvalBindings env ((i,exp):bs) =
+  absEvalBindings env []             = env
+  absEvalBindings env ((i,_,exp):bs) =
     absEvalBindings ((i, absEvalExpr env exp) : env) bs
 
 -- compute ground/nondet effect information for an application

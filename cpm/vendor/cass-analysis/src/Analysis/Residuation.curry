@@ -1,10 +1,10 @@
 ------------------------------------------------------------------------------
---- Residuation analysis:
---- checks whether a function does not residuate and yields a ground value
---- if some arguments are ground
----
---- @author Michael Hanus
---- @version November 2024
+-- | Author : Michael Hanus
+--   Version: November 2025
+--
+-- Residuation analysis:
+-- checks whether a function does not residuate and yields a ground value
+-- if some arguments are ground
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
@@ -23,12 +23,12 @@ import System.IO
 import Analysis.Types
 
 ------------------------------------------------------------------------------
---- Data type to represent residuation information.
---- If an operation has info `MayResiduate`, it may residuate
---- or yields a non-ground value even if all arguments are ground.
---- If an operation has info `NoResiduateIf xs`, it does not residuate
---- and yields a ground value if all arguments in the index list are ground,
---- where arguments are numbered from 1.
+-- | Data type to represent residuation information.
+--   If an operation has info `MayResiduate`, it may residuate
+--   or yields a non-ground value even if all arguments are ground.
+--   If an operation has info `NoResiduateIf xs`, it does not residuate
+--   and yields a ground value if all arguments in the index list are ground,
+--   where arguments are numbered from 1.
 data ResiduationInfo = MayResiduate
                      | NoResiduateIf [Int]
                      | NoResInfo
@@ -50,7 +50,7 @@ unionS (x:xs) (y:ys) | x==y = x : unionS xs ys
                      | x<y  = x : unionS xs (y:ys)
                      | x>y  = y : unionS (x:xs) ys
 
--- Show non-residuation information as a string.
+-- | Show non-residuation information as a string.
 showResInfo :: AOutFormat -> ResiduationInfo -> String
 showResInfo AText MayResiduate = "may residuate or has non-ground result"
 showResInfo ANote MayResiduate = "residuate"
@@ -66,7 +66,7 @@ showResInfo ANote (NoResiduateIf xs) =
 showResInfo AText NoResInfo = "unknown residuation behavior"
 showResInfo ANote NoResInfo = "???"
 
---- Non-residuation analysis.
+-- | Non-residuation analysis.
 residuationAnalysis :: Analysis ResiduationInfo
 residuationAnalysis = dependencyFuncAnalysis "Residuation" NoResInfo nrFunc
 
@@ -130,11 +130,11 @@ nrFuncRule _ _ calledFuncs (Rule args rhs) =
   nrExp amap (Let bindings e)  =
     -- initialize all bound variables with `NoResInfo` which is meaningful
     -- for recursive bindings:
-    let initamap = map (\ (v,_) -> (v,NoResInfo)) bindings ++ amap
+    let initamap = map (\ (v,_,_) -> (v,NoResInfo)) bindings ++ amap
     in nrExp (addBindings initamap bindings) e
    where
-    addBindings amp []          = amp
-    addBindings amp ((v,be):bs) = addBindings ((v, nrExp amp be) : amp) bs
+    addBindings amp []            = amp
+    addBindings amp ((v,_,be):bs) = addBindings ((v, nrExp amp be) : amp) bs
 
   nrExp amap (Or e1 e2)  = lubNRI (nrExp amap e1) (nrExp amap e2)
 

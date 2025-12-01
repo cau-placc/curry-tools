@@ -1,18 +1,19 @@
 --------------------------------------------------------------------------
---- This module supports the configuration of the analysis system
---- and provides access to some values in Config file.
----
---- It also provides an operation to get the port number of
---- the analysis server (which is implicitly started if necessary).
----
---- @author Michael Hanus
---- @version February 2025
+-- | Author : Michael Hanus
+--   Version: November 2025
+--
+-- This module supports the configuration of the analysis system
+-- and provides access to some values in Config file.
+--
+-- It also provides an operation to get the port number of
+-- the analysis server (which is implicitly started if necessary).
 --------------------------------------------------------------------------
 
 module CASS.Configuration
  ( systemBanner, baseDir, docDir, executableName
  , curryInfoRequest2CASS
- , CConfig(..), defaultCConfig, debugLevel, setDebugLevel
+ , CConfig(..), getDefaultCConfig, debugLevel, setDebugLevel
+ , CASSStats(..), getStatistics, setNumModAnalyzed, incAnaMods, incCurryInfoMods
  , getServerAddress
  , useCurryInfo, useCurryInfoWeb, fixpointMethod, withPrelude
  , storeServerPortNumber, removeServerPortNumber
@@ -21,6 +22,7 @@ module CASS.Configuration
 
 import Control.Monad               ( unless, when )
 import Curry.Compiler.Distribution ( curryCompiler )
+import Data.IORef
 import Data.List                   ( sort )
 import Numeric                     ( readInt )
 import System.Environment          ( getEnv )
@@ -38,7 +40,7 @@ import CASS.PackageConfig ( packagePath, packageExecutable, packageVersion )
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System (Version " ++
-                   packageVersion ++ " of 20/02/2025 for " ++
+                   packageVersion ++ " of 26/11/2025 for " ++
                    curryCompiler ++ ")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
@@ -89,16 +91,55 @@ curryInfoRequest2CASS =
 --------------------------------------------------------------------------
 --- Configuration info used during execution of CASS.
 --- It contains the properties from the RC file, the current debug level,
---- and the options passed to CASS.
+--- the options passed to CASS, and an IORef for statistics.
 data CConfig = CConfig
   { ccProps      :: [(String,String)]
   , ccDebugLevel :: DLevel
   , ccOptions    :: Options
+  , ccStats      :: IORef CASSStats
   }
 
---- The default configuration has no properties and is quiet.
-defaultCConfig :: CConfig
-defaultCConfig = CConfig [] Quiet defaultOptions
+data CASSStats = CASSStats
+  { csNumMods :: Int -- number of modules to be analyzed
+  , csAnaMods :: Int -- number of modules analyzed by CASS
+  , csCIMods  :: Int -- number of modules with infos imported from CurryInfo
+  }
+ deriving Show
+
+--- Gets the statistics from the current configuration.
+getStatistics :: CConfig -> IO String
+getStatistics cc = do
+  cs <- readIORef (ccStats cc)
+  return $ unlines $
+    [ "Number of modules to be analyzed:              " ++ show (csNumMods cs)
+    , "Number of modules locally analyzed by CASS:    " ++ show (csAnaMods cs)
+    , "Number of modules with imports from CurryInfo: " ++ show (csCIMods cs)
+    ]
+
+--- Sets the number of modules to be analyzed in the configuration.
+setNumModAnalyzed :: Int -> CConfig -> IO ()
+setNumModAnalyzed n cc = do
+  cs <- readIORef (ccStats cc)
+  writeIORef (ccStats cc) (cs { csNumMods = n})
+
+--- Increments the number of modules analyzed by CASS.
+incAnaMods :: CConfig -> IO ()
+incAnaMods cc = do
+  cs <- readIORef (ccStats cc)
+  writeIORef (ccStats cc) (cs { csAnaMods = csAnaMods cs + 1 })
+
+--- Increments the number of modules with infos taken from CurryInfo.
+incCurryInfoMods :: CConfig -> IO ()
+incCurryInfoMods cc = do
+  cs <- readIORef (ccStats cc)
+  writeIORef (ccStats cc) (cs { csCIMods = csCIMods cs + 1 })
+
+
+--- Gets the default configuration which has no properties and is quiet.
+getDefaultCConfig :: IO CConfig
+getDefaultCConfig = do
+  statsref <- newIORef (CASSStats 0 0 0)
+  return $ CConfig [] Quiet defaultOptions statsref
 
 --- Returns the debug level from the current configuration.
 debugLevel :: CConfig -> DLevel
@@ -163,8 +204,5 @@ storeServerPortNumber portnum = do
 --- Removes the currently stored server port number.
 removeServerPortNumber :: IO ()
 removeServerPortNumber = getServerPortFileName >>= removeFile
-
-readServerPortPid :: IO (Int,Int)
-readServerPortPid = getServerPortFileName >>= readFile >>= return . read
 
 --------------------------------------------------------------------------

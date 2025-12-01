@@ -1,4 +1,4 @@
--- ---------------------------------------------------------------------------
+------------------------------------------------------------------------------
 --- This library defines various I/O actions to read Curry programs and
 --- transform them into the AbstractCurry representation and to write
 --- AbstractCurry files.
@@ -7,13 +7,21 @@
 --- extension `.acy` in the subdirectory `.curry`
 ---
 --- @author Michael Hanus, Bjoern Peemoeller, Jan Tikovsky, Finn Teegen
---- @version December 2024
--- ---------------------------------------------------------------------------
+--- @version August 2025
+-------------------------------------------------------------------------------
 {-# LANGUAGE CPP #-}
 
-module AbstractCurry.Files where
+module AbstractCurry.Files
+  ( readCurry, readCurryWithParseOptions, readCurryWithImports, tryReadCurryFile
+  , readUntypedCurry, readUntypedCurryWithParseOptions
+  , abstractCurryFileName, untypedAbstractCurryFileName
+  , readAbstractCurryFile, tryReadACYFile
+  , writeAbstractCurryFile )
+ where
 
 import Data.Char            ( isSpace )
+import System.IO            ( IOMode(..), hGetContents, openFile )
+
 import System.Directory     ( doesFileExist, getModificationTime
                             , findFileWithSuffix, getFileWithSuffix )
 import System.FilePath      ( takeFileName, (</>), (<.>) )
@@ -62,6 +70,8 @@ tryReadCurryWithImports modname = collect [] [modname]
           results <- collect (m:imported) (ms ++ is)
           return (either Left (Right . (prog :)) results)
 
+--- I/O action which tries to parse a Curry module and returns
+--- either an error message or the corresponding AbstractCurry program.
 tryReadCurryFile :: String -> IO (Either String CurryProg)
 tryReadCurryFile m = do
   mbSrc <- lookupModuleSourceInLoadPath m
@@ -94,7 +104,7 @@ tryParse fn = do
   if not exists
     then cancel $ "AbstractCurry file '" ++ fn ++ "' does not exist"
     else do
-      src <- readFile fn
+      src <- readCompleteFile fn
       let (line1, lines) = break (=='\n') src
       if line1 /= "{- "++version++" -}"
         then cancel $ "Could not parse AbstractCurry file '" ++ fn
@@ -181,7 +191,7 @@ untypedAbstractCurryFileName prog =
 --- file (with suffix ".acy") containing an AbstractCurry program in ".acy"
 --- format and the result is a Curry term representing this program.
 --- It is currently predefined only in Curry2Prolog.
-readAbstractCurryFile :: String -> IO CurryProg
+readAbstractCurryFile :: FilePath -> IO CurryProg
 readAbstractCurryFile filename = do
   exacy <- doesFileExist filename
   if exacy
@@ -194,7 +204,7 @@ readAbstractCurryFile filename = do
                         "' does not exist")
  where
    readExistingACY fname = do
-     filecontents <- readFile fname
+     filecontents <- readCompleteFile fname
      let (line1,lines) = break (=='\n') filecontents
      if line1 == "{- "++version++" -}"
       then case readACYString lines of
@@ -220,7 +230,7 @@ tryReadACYFile fn = do
         else return Nothing
  where
   tryRead file = do
-    src <- readFile file
+    src <- readCompleteFile file
     let (line1,lines) = break (=='\n') src
     if line1 /= "{- "++version++" -}"
       then error $ "AbstractCurry: incompatible file found: "++fn
@@ -249,5 +259,8 @@ writeAbstractCurryFile file prog =
 #else
   writeFile file (showTerm prog)
 #endif
+
+readCompleteFile :: FilePath -> IO String
+readCompleteFile fn = openFile fn ReadMode >>= hGetContents
 
 ------------------------------------------------------------------------------

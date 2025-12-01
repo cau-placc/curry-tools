@@ -5,7 +5,7 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version November 2024
+--- @version November 2025
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_FRONTEND -Wno-incomplete-patterns #-}
@@ -44,7 +44,7 @@ orInExpr (Var _)       = False
 orInExpr (Lit _)       = False
 orInExpr (Comb _ f es) = f == (pre "?") || any orInExpr es
 orInExpr (Free _ e)    = orInExpr e
-orInExpr (Let bs e)    = any orInExpr (map snd bs) || orInExpr e
+orInExpr (Let bs e)    = any orInExpr (expsOfLetBind bs) || orInExpr e
 orInExpr (Or _ _)      = True
 orInExpr (Case _ e bs) = orInExpr e || any orInBranch bs
  where orInBranch (Branch _ be) = orInExpr be
@@ -96,7 +96,8 @@ extraVarInExpr (Var _) = False
 extraVarInExpr (Lit _) = False
 extraVarInExpr (Comb _ _ es) = or (map extraVarInExpr es)
 extraVarInExpr (Free vars e) = (not (null vars)) || extraVarInExpr e
-extraVarInExpr (Let bs e) = any extraVarInExpr (map snd bs) || extraVarInExpr e
+extraVarInExpr (Let bs e) = any extraVarInExpr (expsOfLetBind bs) ||
+                            extraVarInExpr e
 extraVarInExpr (Or e1 e2) = extraVarInExpr e1 || extraVarInExpr e2
 extraVarInExpr (Case _  e bs) = extraVarInExpr e || any extraVarInBranch bs
                 where extraVarInBranch (Branch _ be) = extraVarInExpr be
@@ -138,7 +139,7 @@ nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
   callsNDOp (Var _)    = False
   callsNDOp (Lit _)    = False
   callsNDOp (Free _ e) = callsNDOp e
-  callsNDOp (Let bs e) = any callsNDOp (map snd bs) || callsNDOp e
+  callsNDOp (Let bs e) = any callsNDOp (expsOfLetBind bs) || callsNDOp e
   callsNDOp (Or _ _)   = True
   callsNDOp (Case _ e bs) =
     callsNDOp e || any (\ (Branch _ be) -> callsNDOp be) bs
@@ -242,7 +243,7 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
   calledNDFuncs (Lit _) = []
   calledNDFuncs (Free _ e) = calledNDFuncs e
   calledNDFuncs (Let bs e) =
-    concatMap calledNDFuncs (map snd bs) ++ calledNDFuncs e
+    concatMap calledNDFuncs (expsOfLetBind bs) ++ calledNDFuncs e
   calledNDFuncs (Or e1 e2) = calledNDFuncs e1 ++ calledNDFuncs e2
   calledNDFuncs (Case _ e bs) =
     calledNDFuncs e ++ concatMap (\ (Branch _ be) -> calledNDFuncs be) bs
@@ -259,11 +260,6 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
       []
     | otherwise
     = maybe [] id (lookup qf calledFuncs) ++ concatMap calledNDFuncs es
-
-------------------------------------------------------------------------------
-
-pre :: String -> QName
-pre n = ("Prelude",n)
 
 ------------------------------------------------------------------------------
 -- ReadWrite instances:

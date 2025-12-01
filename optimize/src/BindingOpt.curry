@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version October 2024
+--- @version November 2025
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -45,7 +45,7 @@ defaultOptions = Options 1 True True False
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 07/01/2021)"
+  let bannerText = "Curry Binding Optimizer (version of 30/11/2025)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -278,9 +278,10 @@ transformRule opts lookupreqinfo tstr (Rule args rhs) =
         (tbs,tst2) = transformBranches tst1 bs reqval
      in (Case ct te tbs, tst2)
   transformExp tst0 (Let bs e) reqval =
-    let (tbes,tst1) = transformExps tst0 (zip (map snd bs) (repeat Any))
+    let (tbes,tst1) = transformExps tst0
+                        (zip (expsOfLetBind bs) (repeat Any))
         (te,tst2) = transformExp tst1 e reqval
-     in (Let (zip (map fst bs) tbes) te, tst2)
+     in (Let (map (\ ((v,tv,_),tbe) -> (v,tv,tbe)) (zip bs tbes)) te, tst2)
 
   transformExps tst [] = ([],tst)
   transformExps tst ((exp,rv):exps) =
@@ -420,7 +421,7 @@ containsBeqRule opts (Rule _ rhs) = containsBeqExp rhs
   containsBeqExp (Typed e _  ) = containsBeqExp e
   containsBeqExp (Case _ e bs) = containsBeqExp e || any containsBeqBranch bs
   containsBeqExp (Let bs e   ) = containsBeqExp e ||
-                                 any containsBeqExp (map snd bs)
+                                 any containsBeqExp (expsOfLetBind bs)
 
   containsBeqBranch (Branch _ be) = containsBeqExp be
 
@@ -438,11 +439,12 @@ numberBeqRule opts (Rule _ rhs) = numberBeqExp rhs
       Nothing        -> case checkBoolEqualCall opts False exp of
                           Just (_,fargs) -> 1 + sum (map numberBeqExp fargs)
                           Nothing        -> sum (map numberBeqExp es)
-  numberBeqExp (Free _ e) = numberBeqExp e
-  numberBeqExp (Or e1 e2) = numberBeqExp e1 + numberBeqExp e2
-  numberBeqExp (Typed e _) = numberBeqExp e
+  numberBeqExp (Free _ e)    = numberBeqExp e
+  numberBeqExp (Or e1 e2)    = numberBeqExp e1 + numberBeqExp e2
+  numberBeqExp (Typed e _)   = numberBeqExp e
   numberBeqExp (Case _ e bs) = numberBeqExp e + sum (map numberBeqBranch bs)
-  numberBeqExp (Let bs e) = numberBeqExp e + sum (map numberBeqExp (map snd bs))
+  numberBeqExp (Let bs e)    = numberBeqExp e +
+                               sum (map numberBeqExp (expsOfLetBind bs))
 
   numberBeqBranch (Branch _ be) = numberBeqExp be
 

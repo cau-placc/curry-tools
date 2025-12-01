@@ -24,7 +24,8 @@ import Analysis.Logging (debugMessage)
 import Analysis.Files (getImports, loadCompleteAnalysis)
 import Analysis.ProgInfo
 import Analysis.Types
-import CASS.Configuration   ( CConfig, debugLevel, numberOfWorkers )
+import CASS.Configuration   ( CConfig, debugLevel, numberOfWorkers
+                            , setNumModAnalyzed )
 import CASS.Dependencies    ( getModulesToAnalyze )
 import CASS.ServerFormats   ( OutputFormat(..) )
 import CASS.ServerFunctions ( masterLoop )
@@ -243,6 +244,7 @@ analyzeMain cconfig analysis modname handles enforce load = do
   debugMessage dl 2 ("Start analysis: " ++ modname ++ "/" ++ ananame)
   modulesToDo <- getModulesToAnalyze cconfig enforce analysis modname
   let numModules = length modulesToDo
+  setNumModAnalyzed numModules cconfig
   workresult <-
     if numModules==0
     then return Nothing

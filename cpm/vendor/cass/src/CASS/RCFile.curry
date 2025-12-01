@@ -3,7 +3,7 @@
 --- that is stored in `$HOME/.cassrc`
 ---
 --- @author  Michael Hanus
---- @version January 2025
+--- @version May 2025
 ------------------------------------------------------------------------------
 
 module CASS.RCFile
@@ -22,7 +22,7 @@ import System.FilePath   ( FilePath, (</>), (<.>) )
 import System.Directory  ( doesDirectoryExist, doesFileExist, getHomeDirectory
                          , renameFile )
 
-import CASS.Configuration ( CConfig(..), debugLevel, defaultCConfig
+import CASS.Configuration ( CConfig(..), debugLevel, getDefaultCConfig
                           , setDebugLevel )
 
 ------------------------------------------------------------------------------
@@ -129,7 +129,8 @@ readPropertiesAndStoreLocally = do
   props      <- if hasuserpfn
                   then readPropertyFile userpfn
                   else return $ rights defaultRCProps
-  return $ updateDebugLevel (defaultCConfig { ccProps = props })
+  defaultcc  <- getDefaultCConfig
+  return $ updateDebugLevel (defaultcc { ccProps = props })
 
 --- Updates the debug level from the current properties.
 updateDebugLevel :: CConfig -> CConfig

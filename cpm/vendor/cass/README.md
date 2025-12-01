@@ -136,4 +136,4 @@ This might be useful if the implementation of an analysis has been changed.
 
 -----------------------------------------------------------------------
 
-Contact: [Michael Hanus](https://www.informatik.uni-kiel.de/~mh)
+Contact: [Michael Hanus](https://www.michaelhanus.de/)

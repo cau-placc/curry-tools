@@ -1,11 +1,13 @@
 -----------------------------------------------------------------------------
---- A few base functions for analysing type dependencies in FlatCurry programs.
----
---- @author Heiko Hoffmann, Michael Hanus
---- @version Junes 2017
+-- | Author : Heiko Hoffmann, Michael Hanus
+--   Version: November 2025
+--
+-- A few base functions for analysing type dependencies in FlatCurry programs.
 -----------------------------------------------------------------------------
 
-module CASS.FlatCurryDependency(dependsDirectlyOnTypes,callsDirectly) where
+module CASS.FlatCurryDependency
+  ( dependsDirectlyOnTypes, callsDirectly )
+ where
 
 import FlatCurry.Types
 import Data.List       ( nub )
@@ -50,8 +52,8 @@ funcSetOfExpr (Comb ct f es) =
   if isConstructorComb ct then unionMap funcSetOfExpr es
                           else insert f (unionMap funcSetOfExpr es)
 funcSetOfExpr (Free _ e) = funcSetOfExpr e
-funcSetOfExpr (Let bs e) = union (unionMap (funcSetOfExpr . snd) bs)
-                                    (funcSetOfExpr e)
+funcSetOfExpr (Let bs e) = union (unionMap (funcSetOfExpr . expOfLetBind) bs)
+                                 (funcSetOfExpr e)
 funcSetOfExpr (Or e1 e2) = union (funcSetOfExpr e1) (funcSetOfExpr e2)
 funcSetOfExpr (Case _ e bs) = union (funcSetOfExpr e)
                                        (unionMap funcSetOfBranch bs)

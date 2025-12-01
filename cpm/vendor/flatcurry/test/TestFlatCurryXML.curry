@@ -18,8 +18,8 @@ showxml mod = do
 -- Store a program in XML format:
 store mod = do
   prog <- readFlatCurry mod
-  flatCurry2XmlFile prog (mod++"_fcy.xml")
-  putStrLn (mod++"_fcy.xml"++" written")
+  flatCurry2XmlFile (mod ++ "_fcy.xml") prog
+  putStrLn (mod ++ "_fcy.xml" ++ " written")
 
 -- Test for equality after XML encoding/decoding:
 testEqualFcy prog = prog == xml2FlatCurry (flatCurry2Xml prog)
