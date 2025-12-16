@@ -99,8 +99,8 @@ main = do
       case parse (unwords args) (optionParser args) "cypm" of
         Left err -> do putStrLn cpmBanner
                        putStrLn err
-                       putStrLn $ "Your cypm arguments: " ++ unwords args
-                       print (map ord (unwords args))
+                       --putStrLn $ "Your cypm arguments: " ++ unwords args
+                       --print (map ord (unwords args))
                        --putStrLn "(use option -h for usage information)"
                        exitWith 1
         Right  r -> case applyParse r of
